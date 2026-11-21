@@ -18,7 +18,7 @@ end
 
 -- Lua state survives `restart` and exit/continue, so the state lives in a global; a reload of this file keeps it.
 -- shortcut: one pass per launch, and a native crash restarts the suite from the first scenario; add a rerun trigger, or SaveData resume, when either gets in the way.
-HARNESS = HARNESS or { started = false, running = false, gen = 0, si = 1, pi = 1, ctx = { floors = {}, fails = {} }, status = "waiting for a run" }
+HARNESS = HARNESS or { started = false, running = false, gen = 0, si = 1, pi = 1, fired = 0, ctx = { floors = {}, fails = {} }, status = "waiting for a run" }
 
 -- shortcut: copy of tracker.lua currentFloorName (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
 local function floorName()
@@ -46,7 +46,23 @@ local function playerOfType(t)
 	end
 end
 
+local function playerBySeed(seed)
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if seedOf(p) == seed then return p end
+	end
+end
+
 local function owned(p, id) return p:GetCollectibleNum(id, true) end
+
+-- Copies of card `id` held; slots 0-3 cover every pocket slot, and GetCard reads 0 for an empty one.
+local function cards(p, id)
+	local n = 0
+	for i = 0, 3 do
+		if p:GetCard(i) == id then n = n + 1 end
+	end
+	return n
+end
 
 local function probe(ctx, label)
 	P("STEP", ctx.name, label, "floor", floorName(), "stage", game:GetLevel():GetStage())
@@ -94,6 +110,13 @@ local function expectN(ctx, label, id, n, floor, owner)
 	end
 end
 local function expectOne(ctx, label, id, floor, owner) expectN(ctx, label, id, 1, floor, owner) end
+
+-- A probe with an expected answer: logged as INFO, and a check.
+local function expect(ctx, label, got, want)
+	ctx.checks = (ctx.checks or 0) + 1
+	P("INFO", ctx.name, label, got)
+	if got ~= want then fail(ctx, label .. ": " .. tostring(got) .. ", want " .. tostring(want)) end
+end
 
 -- A step is function(ctx) returning "again" to run itself next update, anything else to move on.
 -- Console commands are queued for MC_POST_RENDER, not run in the middle of other mods' MC_POST_UPDATE.
@@ -214,23 +237,69 @@ local function snapshot()
 	return { count = game:GetNumPlayers(), who = p:GetPlayerType() .. "/" .. seedOf(p) }
 end
 
--- blocked on R1/R2/R4: becomes a real press through MC_INPUT_ACTION (card or active `id` in `slot`), after setting a full charge or giving the card.
-local function press(p, id, slot)
-	if slot == "card" then p:UseCard(id, 0) else p:UseActiveItem(id, 0) end
+-- A real press: HARNESS.press is answered true once, on the first triggered poll of that button by player 0 (one-shot, so a card
+-- press cannot also use the next pocket item); HARNESS.flood keeps answering until cleared (the probes' double-fire test).
+mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, e, _, button)
+	local H = HARNESS
+	if not H.press or button ~= H.press or not e or GetPtrHash(e) ~= GetPtrHash(Isaac.GetPlayer(0)) then return end
+	if not H.flood then H.press = nil end
+	H.fired = H.fired + 1
+	return true
+end, InputHook.IS_ACTION_TRIGGERED)
+
+local function chargeOf(p, id, slot) return p and p:GetActiveItem(slot) == id and p:GetActiveCharge(slot) end
+
+-- How the use spent `id`, or nil and what was read. `b` is the presser before the press: its seed and full charge or card count.
+-- shortcut: a new player 0 is compared with the presser's full charge, so a form that comes back already drained passes; drop that side
+-- once the probes show which entity holds the spent charge.
+local function spentHow(b, id, slot, gone)
+	local presser = playerBySeed(b.seed) -- a seed lookup, not a kept entity: the presser may be gone (AGENTS.md)
+	if slot == "card" then
+		local n = presser and cards(presser, id)
+		if n == b.cards - 1 then return "card " .. b.cards .. "->" .. n end
+		return nil, "card count " .. tostring(n) .. ", was " .. b.cards
+	end
+	local c1, c0 = chargeOf(presser, id, slot), chargeOf(Isaac.GetPlayer(0), id, slot)
+	local read = "charge " .. b.charge .. " -> presser " .. tostring(c1) .. ", player 0 " .. tostring(c0)
+	if c1 and c1 < b.charge then return "presser charge, " .. read end
+	if c0 and c0 < b.charge then return "player 0 charge, " .. read end
+	if gone and presser and presser:GetActiveItem(slot) ~= id then return "item gone, " .. read end
+	return nil, read
 end
 
--- Every character swap: a new character (`count` players after, when given), then the spent charge, item or card.
-local function swap(label, id, slot, count)
+-- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
+-- character appears (`count` players after, when given) and the use spent the charge, the card, or with `gone` the item.
+local function swap(label, id, slot, count, gone)
+	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	return action(label, function()
+		local p, H = Isaac.GetPlayer(0), HARNESS
 		local b = snapshot()
-		press(Isaac.GetPlayer(0), id, slot)
+		b.seed = seedOf(p)
+		if slot == "card" then
+			b.cards = cards(p, id)
+			if b.cards == 0 then error(label .. ": card " .. id .. " not held") end
+		else
+			if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
+			p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) -- full, so a drop is visible
+			b.charge = p:GetActiveCharge(slot)
+		end
+		H.press, b.arms, b.fired = button, 1, H.fired
+		P("PRESS", label, "button", button)
 		return b
-	end, function(_, b)
-		local a = snapshot()
-		if a.who == b.who and a.count == b.count then return false, "no new character" end
+	end, function(ctx, b)
+		local H, a = HARNESS, snapshot()
+		if a.who == b.who and a.count == b.count then
+			-- shortcut: re-arms each update until a new character shows, in case the first poll was not the use logic; a press taken
+			-- but shown late could fire twice, harmless while the charge is spent; wait a frame before re-arming if probes show that.
+			if not H.press then H.press, b.arms = button, b.arms + 1 end
+			return false, "no new character"
+		end
+		H.press = nil
 		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
-		-- blocked on R1/R2/R4: fail here unless the use spent its charge, the item or the card; UseActiveItem and UseCard spend nothing (run 1).
-		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count)
+		local how, read = spentHow(b, id, slot, gone)
+		if not how then return false, "spent nothing: " .. read end
+		ctx.arms = b.arms
+		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, "spent", how, "arms", b.arms, "fired", H.fired - b.fired)
 		return true
 	end)
 end
@@ -240,7 +309,17 @@ local T_LAZ, JE, ISAAC = PlayerType.PLAYER_LAZARUS_B, PlayerType.PLAYER_JACOB, P
 
 local function flip(label) return swap(label, FLIP, ActiveSlot.SLOT_POCKET) end
 local function esauJr(label) return swap(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
+-- Run Soul of J&E on a character with no pocket active (Isaac): beside Flip, PILLCARD may use Flip instead (research-review R4).
 local soulJE = swap("Soul of Jacob and Esau", Card.CARD_SOUL_JACOB, "card", 2)
+
+local function addCard(card)
+	return action("AddCard " .. card, function()
+		local p = Isaac.GetPlayer(0)
+		local n = cards(p, card)
+		p:AddCard(card)
+		return n
+	end, function(_, n) return cards(Isaac.GetPlayer(0), card) == n + 1, "card count did not rise by 1 (locked card?)" end)
+end
 
 -- What ReHUD is still settling, or nil. The roster key is the Sad Onion RNG seed (roster.lua playerKey), which is seedOf.
 local function settling()
@@ -274,18 +353,19 @@ end
 local function oneC4(ctx, label) expectOne(ctx, label, 4, ctx.floors[1]) end
 local function twoC4(ctx, label) expectN(ctx, label, 4, 2, ctx.floors[1], seedOf(Isaac.GetPlayer(0))) end
 
-local clicker = swap("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
+local clicker = swap("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY, nil, true) -- charged or consumed: unverified, so either counts
 local clickerLook = look("after Clicker", function(ctx, label)
 	local n = 0
 	for i = 0, game:GetNumPlayers() - 1 do n = n + owned(Isaac.GetPlayer(i), 4) end
 	expectN(ctx, label .. " " .. ctx.uses, 4, n, ctx.floors[1])
 end)
 
--- Clicker on Jacob until it is Jacob & Esau again, up to 6 uses; each use is a checked swap followed by a settled probe.
+-- Clicker on Jacob until it is Jacob & Esau again, up to 20 uses (each refilled by the swap); each use is a checked swap followed by
+-- a settled probe. A random character may never land on J&E, so a missed split is INFO, and the merge checks still count.
 local function clickerLoop(ctx)
 	if not ctx.phase then
 		if ctx.back then return end
-		if (ctx.uses or 0) >= 6 then return fail(ctx, "not back to Jacob & Esau in 6 Clicker uses: split untested") end
+		if (ctx.uses or 0) >= 20 then return P("INFO", ctx.name, "split not reached in 20 Clicker uses") end
 		ctx.uses, ctx.phase = (ctx.uses or 0) + 1, "press"
 		local p = Isaac.GetPlayer(0)
 		if p:GetActiveItem() ~= CLICKER then p:AddCollectible(CLICKER) end -- a consumed Clicker is given again
@@ -301,7 +381,78 @@ local function clickerLoop(ctx)
 	return "again"
 end
 
+-- Probes for what research-review.md left to an in-game check.
+
+local function maxCharges(ctx)
+	for _, c in ipairs({ { CLICKER, 6 }, { ESAU_JR, 1 }, { FLIP, 6 } }) do -- want: pre-REP+ items.xml
+		expect(ctx, "MaxCharges c" .. c[1], itemConfig:GetCollectible(c[1]).MaxCharges, c[2])
+	end
+end
+
+-- Diagnosis only (run 1: UseActiveItem(703, 0) never swapped): does slot 0, with these flags, swap plain Isaac within 30 updates?
+local function esauJrDirect(flags)
+	return function(ctx)
+		ctx.t = (ctx.t or 0) + 1
+		if ctx.t == 1 then
+			ctx.before = snapshot()
+			Isaac.GetPlayer(0):UseActiveItem(ESAU_JR, flags, ActiveSlot.SLOT_PRIMARY)
+			return "again"
+		end
+		local a = snapshot()
+		if a.who == ctx.before.who and ctx.t < 30 then return "again" end
+		P("INFO", ctx.name, "UseActiveItem(703, flags " .. flags .. ", slot 0):", a.who == ctx.before.who and "no swap" or "swapped", ctx.before.who, "->", a.who)
+		ctx.t, ctx.before = nil, nil
+	end
+end
+
+local function pocketCharge(ctx)
+	local p, s = Isaac.GetPlayer(0), ActiveSlot.SLOT_POCKET
+	expect(ctx, "pocket item", p:GetActiveItem(s), FLIP)
+	for _, n in ipairs({ 0, itemConfig:GetCollectible(FLIP).MaxCharges }) do
+		p:SetActiveCharge(n, s)
+		expect(ctx, "pocket charge after SetActiveCharge " .. n, p:GetActiveCharge(s), n)
+	end
+end
+
+local function onePress(label) return function(ctx) expect(ctx, label .. ": arms needed", ctx.arms, 1) end end
+
+-- One press fires at most once: with two Fools held, PILLCARD is answered true on every poll for one update; one card may go.
+local floodCards = action("PILLCARD forced for one update, two cards held", function()
+	local H, n = HARNESS, cards(Isaac.GetPlayer(0), Card.CARD_FOOL)
+	if n ~= 2 then error("want 2 Fools held, have " .. n) end
+	H.press, H.flood = ButtonAction.ACTION_PILLCARD, true
+	return { n = n, fired = H.fired }
+end, function(ctx, b)
+	local H = HARNESS
+	H.press, H.flood = nil, nil -- the window closes at the first poll of `done`: one update
+	local n = cards(Isaac.GetPlayer(0), Card.CARD_FOOL)
+	if n == b.n then return false, "no card used" end
+	P("INFO", ctx.name, "polls answered in one update", H.fired - b.fired)
+	expect(ctx, "cards used by one forced update", b.n - n, 1)
+	return true
+end)
+
+local function clickerHeld(ctx)
+	local p = Isaac.GetPlayer(0)
+	expect(ctx, "active after a real Clicker press", p:GetActiveItem(), CLICKER)
+	P("INFO", ctx.name, "Clicker charge after the press", p:GetActiveCharge())
+end
+
+local function cardBesideFlip(ctx)
+	local p = Isaac.GetPlayer(0)
+	P("INFO", ctx.name, "Soul of J&E beside Flip: cards", p:GetCard(0), p:GetCard(1), p:GetCard(2), p:GetCard(3), "pocket active", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
+end
+
 local SCENARIOS = {
+	-- Steps that never error come first: an action that times out ends the scenario.
+	{ name = "probes", steps = {
+		restart(ISAAC), maxCharges, give(ESAU_JR), esauJrDirect(0), esauJrDirect(UseFlag.USE_OWNED),
+		restart(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"),
+		restart(ISAAC), give(ESAU_JR), esauJr("Esau Jr."), onePress("Esau Jr."),
+		give(CollectibleType.COLLECTIBLE_POLYDACTYLY), addCard(Card.CARD_FOOL), addCard(Card.CARD_FOOL), floodCards,
+		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
+		restart(T_LAZ), addCard(Card.CARD_SOUL_JACOB), cardBesideFlip,
+	} },
 	{ name = "test3", steps = {
 		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before ChangePlayerType"), changeType(ISAAC),
 		look("after ChangePlayerType", function(ctx, label)
@@ -332,7 +483,7 @@ local SCENARIOS = {
 	} },
 	{ name = "P1", steps = {
 		restart(ISAAC), give(4), give(4), stage(2), look("before Soul of Jacob and Esau", twoC4),
-		soulJE, look("after Soul of Jacob and Esau", twoC4),
+		addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
 		giveEsau(1), look("after Esau c1", twoC4), stage(3), look("on stage 3", twoC4),
 	} },
 	{ name = "P2", steps = {
@@ -356,7 +507,7 @@ local function finish(err)
 		verdict = ctx.checks and ("PASS " .. ctx.checks .. " checks") or "INFO data only"
 	end
 	P("RESULT", sc.name, verdict)
-	H.si, H.pi, H.expectStart = H.si + 1, 1, nil
+	H.si, H.pi, H.expectStart, H.press, H.flood = H.si + 1, 1, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {} }
 end
 

@@ -236,21 +236,23 @@ local function snapshot()
 	return { count = game:GetNumPlayers(), who = p:GetPlayerType() .. "/" .. seedOf(p) }
 end
 
--- r1 (research R1): while HARNESS.watch is set, logs each distinct seed and charge + battery that a channel shows, and whether the
--- presser's seed showed with that total dropped, which would make a stored presser's spend observable.
+-- A stored presser (Esau Jr., Flip without Birthright) has no vanilla accessor, but its charge + battery drop shows on its own seed
+-- after its MC_USE_ITEM and before the engine stores it (run 6), so HARNESS.watch (set by swap) keeps the first such reading as `seen`.
+-- shortcut: rests on one sample per item, and a non-overcharged Esau Jr. spend is not yet watched in game; if the engine order
+-- changes, the swap FAILs loudly.
 local function watchSee(channel, e)
-	local w, p = HARNESS.watch, e and e:ToPlayer()
-	if not p then return end
-	local seed = seedOf(p)
-	local c = p:GetActiveItem(w.slot) == w.id and p:GetActiveCharge(w.slot) + p:GetBatteryCharge(w.slot) or nil
-	local key = channel .. " " .. seed .. " " .. tostring(c)
-	if w.keys[key] then return end
-	w.keys[key] = true
-	P("WATCH", w.label, channel, "seed", seed, "charge+battery", c, seed == w.seed and "presser" or "")
-	if seed == w.seed and c and c < w.total then w.seen = w.seen or (channel .. " at " .. c) end
+	local w = HARNESS.watch
+	if not (w and w.used and not w.seen and e) then return end -- MC_INPUT_ACTION is polled ~1470/s: cheap exit first
+	local p = e:ToPlayer()
+	if not (p and seedOf(p) == w.seed and p:GetActiveItem(w.slot) == w.id) then return end
+	local c = p:GetActiveCharge(w.slot) + p:GetBatteryCharge(w.slot)
+	if c < w.total then w.seen = channel .. " charge+battery " .. w.total .. " -> " .. c end
 end
-mod:AddCallback(ModCallbacks.MC_USE_ITEM, function(_, item, _, p) if HARNESS.watch then watchSee("USE_ITEM c" .. item, p) end end)
-mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, function(_, p) if HARNESS.watch then watchSee("POST_PLAYER_UPDATE", p) end end)
+mod:AddCallback(ModCallbacks.MC_USE_ITEM, function(_, item, _, p)
+	local w = HARNESS.watch
+	if w and item == w.id and p and seedOf(p) == w.seed then w.used = true end
+end)
+mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, function(_, p) watchSee("POST_PLAYER_UPDATE", p) end)
 
 -- A real press, by player 0, of two kinds. HARNESS.press: true once, on the first triggered poll of that button (cards and ACTION_ITEM;
 -- one-shot, so a card press cannot also use the next pocket item). HARNESS.full: true to every triggered and pressed poll of that button
@@ -259,7 +261,7 @@ mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, function(_, p) if HARNESS.wa
 -- only cards held it polls triggered twice and never pressed (runs 4-5).
 mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, e, hook, button)
 	local H = HARNESS
-	if H.watch then watchSee("INPUT_ACTION", e) end
+	watchSee("INPUT_ACTION", e)
 	if not (H.press or H.full) or hook == InputHook.GET_ACTION_VALUE or not e or GetPtrHash(e) ~= GetPtrHash(Isaac.GetPlayer(0)) then return end -- polled ~1470/s: cheap exit first
 	if button == H.full then
 		H.fullPolled = true
@@ -280,10 +282,8 @@ end
 
 local function chargeOf(p, id, slot) return p and p:GetActiveItem(slot) == id and p:GetActiveCharge(slot) end
 
--- How the use spent `id`, or nil and what was read; a third value true when the spend went unobserved. `b` is the presser before the
--- press: its seed and full charge or card count.
--- A stored presser (Esau Jr., Flip without Birthright) is unreadable in vanilla Lua and the new form arrives at 0, so that spend is
--- noted as unobserved, never passed. shortcut: upgrade per research R1 (same-update read, or check the form when it returns).
+-- How the use spent `id`, or nil and what was read. `b` is the presser before the press: its seed and full charge or card count.
+-- A stored presser passes only on the drop HARNESS.watch saw before the engine stored it.
 local function spentHow(b, id, slot)
 	local presser = playerBySeed(b.seed) -- a seed lookup, not a kept entity: the presser may be gone (AGENTS.md)
 	if slot == "card" then
@@ -293,9 +293,13 @@ local function spentHow(b, id, slot)
 	end
 	local c1 = chargeOf(presser, id, slot)
 	local read = "charge " .. b.charge .. " -> presser " .. tostring(c1) .. ", player 0 " .. tostring(chargeOf(Isaac.GetPlayer(0), id, slot))
-	if c1 and c1 < b.charge then return "spent presser charge, " .. read end
-	if not presser then return "spend unobserved (presser stored), " .. read, read, true end
-	return nil, read
+	if presser then
+		if c1 and c1 < b.charge then return "spent presser charge, " .. read end
+		return nil, read
+	end
+	local w = HARNESS.watch
+	if w and w.seen then return "spent stored presser charge, " .. w.seen end
+	return nil, "stored presser seen with no drop after its use, " .. read
 end
 
 local function arm(H, b)
@@ -304,10 +308,9 @@ local function arm(H, b)
 end
 
 -- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
--- character appears (`count` players after, when given) and the use spent the charge or the card. `keep`: press with the charge as it
--- is, not filled (r1 sets its own).
+-- character appears (`count` players after, when given) and the use spent the charge or the card.
 -- A pocket active takes the full press; cards and ACTION_ITEM the one-shot (one-shot: run 2; full press: runs 4-5).
-local function swap(label, id, slot, count, keep)
+local function swap(label, id, slot, count)
 	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	return action(label, function()
 		local p, H = Isaac.GetPlayer(0), HARNESS
@@ -323,11 +326,12 @@ local function swap(label, id, slot, count, keep)
 			if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
 			-- Full, so a drop is visible. ItemConfig MaxCharges reads 6 for Flip, but REP+ Flip takes 4, and SetActiveCharge(6, 2) gave
 			-- 4 + 2 battery (user, in game); FullCharge without force fills the first bar only (run 3: charge 4, battery 0).
-			if keep then -- r1 has set the charge
-			elseif slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot)
+			if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot)
 			else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
 			b.charge = p:GetActiveCharge(slot)
 			read = " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
+			-- Only active slots: watchSee reads GetActiveItem(slot), which a "card" slot would make throw in MC_INPUT_ACTION.
+			H.watch = { seed = b.seed, id = id, slot = slot, total = b.charge + p:GetBatteryCharge(slot) }
 		end
 		b.arms, b.fired, b.pressed = 0, H.fired, H.pressed
 		arm(H, b)
@@ -347,10 +351,9 @@ local function swap(label, id, slot, count, keep)
 		end
 		H.press, H.full, H.fullPolled = nil, nil, nil
 		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
-		local how, read, unseen = spentHow(b, id, slot)
+		local how, read = spentHow(b, id, slot)
 		if not how then return false, "spent nothing: " .. read end
-		if unseen then table.insert(ctx.notes, label .. " spend") end
-		ctx.arms = b.arms
+		H.watch, ctx.arms = nil, b.arms
 		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, how, polls)
 		return true
 	end)
@@ -482,58 +485,6 @@ local function cardBesideFlip(ctx)
 	expect(ctx, "Soul of J&E beside Flip: card slot", slot, 1)
 end
 
--- r1 (research R1, data only): can a stored presser's spend be observed in vanilla?
-
--- Q1: logs every seed and charge seen on MC_USE_ITEM, MC_POST_PLAYER_UPDATE and MC_INPUT_ACTION from the arm until the swap step
--- ends, and answers whether the presser's seed showed with its charge dropped.
-local function watched(step, id, slot)
-	return function(ctx)
-		local H, res = HARNESS, step(ctx)
-		if not H.watch then
-			local p = Isaac.GetPlayer(0) -- still the presser: the act has filled the charge, and no input has been polled since
-			H.watch = { label = ctx.label, seed = seedOf(p), id = id, slot = slot, total = p:GetActiveCharge(slot) + p:GetBatteryCharge(slot), keys = {} }
-		end
-		if res == "again" then return res end
-		local w = H.watch
-		H.watch = nil
-		P("R1", w.label, "same-update read: presser", w.seed, "seen with charge+battery below", w.total .. ":", w.seen or "never")
-	end
-end
-
--- Q2: player 0's seed and charge + battery in `slot` after `fill(p)`, compared by `kept` when that form is player 0 again.
-local function noteCharge(slot, fill)
-	return function(ctx)
-		local p = Isaac.GetPlayer(0)
-		fill(p)
-		ctx.noted = { seed = seedOf(p), slot = slot, total = p:GetActiveCharge(slot) + p:GetBatteryCharge(slot) }
-		P("INFO", ctx.name, "noted", ctx.noted.seed, "charge", p:GetActiveCharge(slot), "battery", p:GetBatteryCharge(slot))
-	end
-end
-local function kept(question)
-	return function(ctx)
-		local p, n = Isaac.GetPlayer(0), ctx.noted
-		if seedOf(p) ~= n.seed then return P("R1", question, "form did not return: player 0", snapshot().who) end
-		P("R1", question, "charge+battery", n.total, "->", p:GetActiveCharge(n.slot) + p:GetBatteryCharge(n.slot))
-	end
-end
-
--- UseActiveItem(711) flips without spending (lua-api-notes), so the form that comes back shows whether a stored form keeps its charge.
-local function useFlip(n)
-	return action("UseActiveItem Flip " .. n, function()
-		local p = Isaac.GetPlayer(0)
-		local who = snapshot().who
-		p:UseActiveItem(FLIP, 0)
-		return who
-	end, function(ctx, who)
-		if snapshot().who == who then return false, "no flip" end
-		local p = Isaac.GetPlayer(0)
-		P("INFO", ctx.name, "after UseActiveItem Flip", n, "player 0", snapshot().who, "charge", p:GetActiveCharge(2), "battery", p:GetBatteryCharge(2))
-		return true
-	end)
-end
-
-local POCKET, PRIMARY = ActiveSlot.SLOT_POCKET, ActiveSlot.SLOT_PRIMARY
-
 -- Tainted Lazarus flips with c4, the user exits and continues, and ChangePlayerType merges the stored form: one c4, no c711.
 local function continueSteps(beforeFlip)
 	local steps = { restart(T_LAZ), give(4), stage(2), beforeFlip }
@@ -594,21 +545,10 @@ local SCENARIOS = {
 	{ name = "P2", kind = "small", steps = {
 		restart(JE), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
 	} },
-	{ name = "r1", kind = "small", steps = {
-		-- Q2, Flip: does a stored form keep its charge? 4 -> 4: kept; 4 -> 0: arrivals are drained.
-		restart(T_LAZ), noteCharge(POCKET, function(p) p:FullCharge(POCKET) end), useFlip(1), useFlip(2),
-		kept("Flip: stored form's charge after two UseActiveItem flips (no spend)"),
-		-- Q1 on a Flip press without Birthright.
-		watched(flip("Flip"), FLIP, POCKET),
-		-- Q1 on an Esau Jr. press, overcharged for Q2: 2 -> 1: kept and the spend shows; 0: drained.
-		restart(ISAAC), give(ESAU_JR), noteCharge(PRIMARY, function(p) p:SetActiveCharge(2, PRIMARY) end),
-		watched(swap("Esau Jr. 1 (overcharged)", ESAU_JR, PRIMARY, nil, true), ESAU_JR, PRIMARY), esauJr("Esau Jr. 2"),
-		kept("Esau Jr.: presser's charge+battery when it returns, after its press"),
-	} },
 	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
 	{ name = "continue", kind = "large", steps = continueSteps() },
 	-- The settle wait first, so the 29 form is stored settled, as in real play.
-	{ name = "continue settled", kind = "large", new = true, steps = continueSteps(look("before Flip", oneC4)) },
+	{ name = "continue settled", kind = "large", steps = continueSteps(look("before Flip", oneC4)) },
 }
 
 local function finish(err)

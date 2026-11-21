@@ -4,25 +4,26 @@ import sys
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4b", "P1", "P2", "r1", "continue", "continue settled"]
+SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4b", "P1", "P2", "continue", "continue settled"]
 # Exact verdicts: a lost check or note shows. P2 has 2 checks here, 4+ in game: the stub's Clicker splits on its second use.
 WANT = {
-    "probes": "PASS 10 checks; unobserved: Esau Jr. spend, Flip spend",
-    "test3": "PASS 5 checks; unobserved: Flip spend",
-    "birthright": "PASS 16 checks; unobserved: Flip spend",
-    "P3": "PASS 4 checks; unobserved: Flip spend",
-    "P4a": "PASS 3 checks; unobserved: Esau Jr. 1 spend, Esau Jr. 2 spend",
-    "P4b": "INFO data only; unobserved: Esau Jr. 1 spend, Esau Jr. 2 spend",
+    "probes": "PASS 10 checks",
+    "test3": "PASS 5 checks",
+    "birthright": "PASS 16 checks",
+    "P3": "PASS 4 checks",
+    "P4a": "PASS 3 checks",
+    "P4b": "INFO data only",
     "P1": "PASS 5 checks",
     "P2": "PASS 2 checks",
-    "r1": "INFO data only; unobserved: Flip spend, Esau Jr. 1 (overcharged) spend, Esau Jr. 2 spend",
-    "continue": "PASS 3 checks; unobserved: Flip spend",
-    "continue settled": "PASS 4 checks; unobserved: Flip spend",
+    "continue": "PASS 3 checks",
+    "continue settled": "PASS 4 checks",
 }
 FLOOR_CHECKED = ["test3", "birthright", "P3", "P4a", "P1", "P2", "continue", "continue settled"]
-# A swap whose presser stays present must FAIL without a spend. Birthright's stub forms both stay charged, so the press flips twice in
-# one update and fails as "no new character" instead.
-SPEND_SEEN = {"probes": "spent nothing", "birthright": "Flip 1 of 2: no new character", "P1": "spent nothing", "P2": "spent nothing"}
+# Every scenario swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
+# drop, a staying one (Clicker) on its charge, a card on its count.
+STORED = "spent nothing: stored presser seen with no drop after its use"
+SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4b": STORED,
+              "P1": "spent nothing: card count", "P2": "spent nothing: charge", "continue": STORED, "continue settled": STORED}
 ASK = "ACTION exit to the menu and Continue now by type"
 
 
@@ -94,21 +95,17 @@ def main(path):
     assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 2, "both continues did not resume"
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
-    unseen = [s for s in swaps if " spend unobserved " in s]
-    assert presses and len(presses) == len(swaps) and all(" spent " in s or s in unseen for s in swaps), (len(presses), len(swaps))
-    print("PASS every swap spends or notes it:", len(swaps), "swaps,", len(unseen), "unobserved")
+    stored = [s for s in swaps if " spent stored presser charge, " in s]
+    assert presses and len(presses) == len(swaps) and all(" spent " in s for s in swaps), (len(presses), len(swaps))
+    print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
-    assert sum(s.startswith("PROBE R1 ") for s in log) == 4, "r1 did not answer all four questions"
-    for s in log:
-        if s.startswith("PROBE R1 "):
-            print(s)
 
     got = check_finished(run(path, mode=""), "default mode")
     for name in SCENARIOS:
-        want = "SKIP large and not new (default mode)" if name == "continue" else WANT[name]
+        want = "SKIP large and not new (default mode)" if name in ("continue", "continue settled") else WANT[name]
         assert got[name] == want, f"default mode: {name}: {got[name]}"
-    print("PASS default mode skips continue and runs the new continue settled")
+    print("PASS default mode skips both continues")
 
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
     for name in ["continue", "continue settled"]:
@@ -121,11 +118,8 @@ def main(path):
 
     got = check_finished(run(path, noSpend=True), "no spend")
     for name in SCENARIOS:
-        if name in SPEND_SEEN:
-            assert got[name].startswith("FAIL") and SPEND_SEEN[name] in got[name], f"no spend: {name}: {got[name]}"
-        else:
-            assert got[name] == WANT[name], f"no spend: {name}: {got[name]}"
-    print("PASS no spend fails where the presser stays:", ", ".join(SPEND_SEEN))
+        assert got[name].startswith("FAIL") and SPEND_SEEN[name] in got[name], f"no spend: {name}: {got[name]}"
+    print("PASS no spend fails every swap:", got["test3"][:110])
 
     got = check_finished(run(path, wrongFloor=True), "wrong floor")
     for name in SCENARIOS:

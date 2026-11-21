@@ -62,22 +62,24 @@ function PM:ChangePlayerType(t)
   if not tlaz(t) then self.pocket, self.items[711] = nil, nil end -- the engine removes Flip (run 5)
 end
 
--- Flip, Esau Jr. and Clicker on player `p`: a fresh form reads 0 charge, a returning one keeps its own.
+-- Flip, Esau Jr. and Clicker on player `p`. A stored form's charge travels with the item: the new form arrives with what the presser
+-- had left (run 6: one sample per item).
 local function swapForm(p, id)
   if id == 711 and players[2] and tlaz(players[2].t) then players[1], players[2] = players[2], players[1]
   elseif id == 711 or id == 703 then
-    local other = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t)
+    local other, s = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
     if id == 703 then other.active = 703 end
+    other.charge[s], other.battery[s] = p.charge[s], p.battery[s]
     stored[id], players[1] = players[1], other
   elseif id == 482 then
     if p.t == 19 then merge(p, players[2]); players[2] = nil; p.t = 5 else p.t = 19; players[2] = newPlayer(20) end
   end
 end
-function PM:UseActiveItem(id) if id == 711 then swapForm(self, id) end end -- run 1: Flip flips and spends nothing; Esau Jr. does nothing
 
 -- The use behind a press of `button` by `p`: a held card first for PILLCARD, then the pocket active; an active needs a full charge.
--- MC_USE_ITEM runs before the discharge (IsaacDocs).
-local function use(p, button)
+-- MC_USE_ITEM runs before the discharge (IsaacDocs); the form swap is queued in `swaps`, as the engine stores the presser only after
+-- its MC_POST_PLAYER_UPDATE (run 6).
+local function use(p, button, swaps)
   if button == 10 and p.cards[1] then
     local c = p.cards[1]
     if not noSpend then table.remove(p.cards, 1) end
@@ -89,7 +91,7 @@ local function use(p, button)
   if id == 0 or p:NeedsCharge(slot) then return end
   fire(3, id, nil, p, 0, slot, 0)
   if not noSpend then p.charge[slot] = 0 end
-  swapForm(p, id)
+  swaps[#swaps+1] = {p, id}
 end
 
 local function input(e, hook, button)
@@ -104,18 +106,20 @@ end
 -- cards: no pressed poll (runs 4-5), a card reading the first triggered. ITEM: one triggered poll. The stub's guess: a card is not used
 -- when the second triggered is true too (run 3's flood used no card).
 function engineInput()
+  local swaps = {}
   for _, p in ipairs({table.unpack(players)}) do
-    if input(p, 1, 9) == true and not ignorePress then use(p, 9) end
+    if input(p, 1, 9) == true and not ignorePress then use(p, 9, swaps) end
     local t1 = input(p, 1, 10) == true
     if p.pocket then input(p, 0, 10) end
     local t2 = input(p, 1, 10) == true
     if not ignorePress then
       if p.cards[1] then
-        if t1 and not t2 then use(p, 10) end
-      elseif t2 then use(p, 10) end
+        if t1 and not t2 then use(p, 10, swaps) end
+      elseif t2 then use(p, 10, swaps) end
     end
   end
   for _, p in ipairs(players) do fire(31, p) end
+  for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
 end
 
 G = {GetNumPlayers=function() return #players end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}

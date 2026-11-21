@@ -432,7 +432,7 @@ end
 -- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
 -- character appears (`count` players after, when given) and the use spent the charge or the card.
 -- A pocket active takes the full press; cards and ACTION_ITEM the one-shot (one-shot: run 2; full press: runs 4-5).
-local function swap(label, id, slot, count)
+local function swap(label, id, slot, count, ceiling)
 	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	return action(label, function()
 		local p, H = Isaac.GetPlayer(0), HARNESS
@@ -486,7 +486,7 @@ local function swap(label, id, slot, count)
 		H.watch, ctx.arms = nil, b.arms
 		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, how, polls)
 		return true
-	end)
+	end, ceiling)
 end
 
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT = CollectibleType.COLLECTIBLE_FLIP, CollectibleType.COLLECTIBLE_ESAU_JR, CollectibleType.COLLECTIBLE_CLICKER, CollectibleType.COLLECTIBLE_BIRTHRIGHT
@@ -877,14 +877,16 @@ end
 local function startObs() HARNESS.obs = { u = 0, step = "start" } end
 
 -- An obs step: tags later OBS lines with `tag` (unique within its scenario); a step that errors (its postcondition never came) is
--- logged as INFO and skipped, not failed.
-local function obs(tag, step)
+-- logged as INFO. A failed dispute step ends its trial so later presses cannot run on the wrong setup.
+local function obs(tag, step, when, stopOnError)
 	return function(ctx)
+		if ctx.obsInterrupted or (when and not when(ctx)) then return end
 		local H = HARNESS
 		if H.obs.step ~= tag then H.obs.step = tag; P("OBS u" .. H.obs.u, "step " .. tag .. " begins") end
 		local ok, res = pcall(step, ctx)
 		if ok then return res end
 		P("INFO", ctx.name, tag, "never happened:", res)
+		ctx.obsInterrupted = stopOnError
 		ctx.t, ctx.held, ctx.before, ctx.label = nil, nil, nil, nil
 		H.press, H.full, H.fullPolled, H.watch = nil, nil, nil, nil
 	end
@@ -917,6 +919,7 @@ local playerCount = obsInfo("players in game", function() return game:GetNumPlay
 -- numbered, then a last settle wait; a step may be a list of pairs. Markers: c4 before the first swap, c5 right after it.
 local function obsScenario(name, pre, steps)
 	local all, n = {}, 0
+	local stopOnError = name:sub(1, 5) == "obsx "
 	for _, s in ipairs(pre) do all[#all + 1] = s end
 	all[#all + 1] = settled
 	all[#all + 1] = startObs
@@ -924,7 +927,7 @@ local function obsScenario(name, pre, steps)
 	for _, s in ipairs(steps) do
 		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
 			n = n + 1
-			all[#all + 1] = obs(n .. " " .. pair[1], pair[2])
+			all[#all + 1] = obs(n .. " " .. pair[1], pair[2], pair[3], stopOnError)
 		end
 	end
 	return { name = name, kind = "small", steps = all }
@@ -932,6 +935,112 @@ end
 local function tlazJr() return { restart(T_LAZ), give(4), give(ESAU_JR) } end
 local function jrFirst() return { { "Esau Jr.", esauJr("Esau Jr.") }, { "give c5", give(5) } } end
 local function jrAgain() return { { "re-give c703", regiveEsauJr() }, { "Esau Jr. again", esauJr("Esau Jr. again") } } end
+local PRIMARY = ActiveSlot.SLOT_PRIMARY
+
+local function clickerCallback(name, p, slot)
+	local H = HARNESS
+	if not H.obs or H.ctx.name:sub(1, 5) ~= "obsx " then return end
+	P("INFO", H.ctx.name, name, "update", H.obs.u + 1, "type", p:GetPlayerType(),
+		"seed", seedOf(p), "slot", slot, "charge", p:GetActiveCharge(slot))
+end
+
+-- Let ReHUD's default-priority PRE callback see the attempt before returning the veto.
+mod:AddPriorityCallback(ModCallbacks.MC_PRE_USE_ITEM, CallbackPriority.LATE, function(_, _, _, p, _, slot)
+	clickerCallback("MC_PRE_USE_ITEM", p, slot)
+	local cancelled = HARNESS.cancelClicker
+	if not cancelled or GetPtrHash(p) ~= cancelled.hash then return end
+	cancelled.pre = (cancelled.pre or 0) + 1
+	return true
+end, CLICKER)
+
+mod:AddCallback(ModCallbacks.MC_USE_ITEM, function(_, _, _, p, _, slot)
+	clickerCallback("MC_USE_ITEM", p, slot)
+	local cancelled = HARNESS.cancelClicker
+	if cancelled and GetPtrHash(p) == cancelled.hash then cancelled.used = (cancelled.used or 0) + 1 end
+end, CLICKER)
+
+-- Read the completed input and apply the optional type change before ReHUD observes this update.
+mod:AddPriorityCallback(ModCallbacks.MC_POST_UPDATE, CallbackPriority.EARLY, function()
+	local H = HARNESS
+	local b = H.cancelClicker
+	if not b or not b.pre then return end
+	H.cancelClicker, H.press = nil, nil
+	b.observed = true
+	local p = Isaac.GetPlayer(0)
+	P("INFO", H.ctx.name, "cancelled Clicker", "update", H.obs.u + 1,
+		"type", b.who, "->", snapshot().who, "charge", b.charge, "->", chargeOf(p, CLICKER, PRIMARY),
+		"MC_PRE_USE_ITEM calls", b.pre, "MC_USE_ITEM calls", b.used or 0)
+	if not b.change then return end
+	if seedOf(p) ~= b.seed then
+		P("INFO", H.ctx.name, "same-update ChangePlayerType skipped: presser seed disappeared")
+		return
+	end
+	p:ChangePlayerType(T_FORGOTTEN)
+	P("INFO", H.ctx.name, "same-update ChangePlayerType", "update", H.obs.u + 1, "type", Isaac.GetPlayer(0):GetPlayerType())
+end)
+
+local function cancelledClicker(change)
+	return action("cancelled Clicker", function()
+		local H, p = HARNESS, Isaac.GetPlayer(0)
+		if p:GetActiveItem(PRIMARY) ~= CLICKER then error("Clicker not held in the primary slot") end
+		p:SetActiveCharge(itemConfig:GetCollectible(CLICKER).MaxCharges, PRIMARY)
+		local b = snapshot()
+		b.seed, b.hash, b.change = seedOf(p), GetPtrHash(p), change
+		b.charge, b.button, b.arms = p:GetActiveCharge(PRIMARY), ButtonAction.ACTION_ITEM, 0
+		H.cancelClicker = b
+		arm(H, b)
+		return b
+	end, function(ctx, b)
+		if b.observed then return true end
+		if ctx.t < 3 then return false end
+		HARNESS.cancelClicker, HARNESS.press = nil, nil
+		error("single press did not reach MC_PRE_USE_ITEM")
+	end, 3)
+end
+
+local obsClicker = swap("Clicker", CLICKER, PRIMARY, nil, 60)
+local function jrTwice()
+	return jrAgain(), { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") }
+end
+
+local function clickerToDead()
+	local steps, attempts = {}, 6
+	local function pending(ctx) return not ctx.deadRoll end
+	-- An off-target roll can destroy the original. Each retry needs a fresh type-29 Esau Jr. form.
+	for n = 1, attempts do
+		local function add(tag, step) steps[#steps + 1] = { "try " .. n .. " " .. tag, step, pending } end
+		if n > 1 then
+			for i, step in ipairs(tlazJr()) do add(({ "restart", "give c4", "give c703" })[i], step) end
+			add("settle original", settled)
+		end
+		add("record original", function(ctx) ctx.rollOriginal = seedOf(Isaac.GetPlayer(0)) end)
+		for _, pair in ipairs(jrFirst()) do add(pair[1], pair[2]) end
+		add("give Clicker", give(CLICKER))
+		add("Clicker", function(ctx)
+			if not ctx.t then
+				local p = Isaac.GetPlayer(0)
+				if p:GetPlayerType() ~= T_LAZ or seedOf(p) == ctx.rollOriginal then
+					error("expected a distinct type-29 Esau Jr. form before Clicker")
+				end
+			end
+			return obsClicker(ctx)
+		end)
+		add("roll result", function(ctx)
+			local t = Isaac.GetPlayer(0):GetPlayerType()
+			P("INFO", ctx.name, "Clicker attempt", n, "rolled type", t)
+			ctx.deadRoll = t == DEAD_LAZ
+			if n == attempts and not ctx.deadRoll then P("INFO", ctx.name, "no verified roll to type 38 in", attempts, "tries") end
+		end)
+	end
+	local first, regive, second = jrTwice()
+	for _, pair in ipairs({ first[1], first[2], regive, second }) do
+		pair[3] = function(ctx) return ctx.deadRoll end
+		steps[#steps + 1] = pair
+	end
+	return steps
+end
+
+local birthrightFlip = flip("put type 29 in player 0")
 local OBS = {
 	obsScenario("obs esaujr cross", tlazJr(), { jrFirst(), { "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
 	obsScenario("obs esaujr out", tlazJr(), { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
@@ -957,6 +1066,27 @@ local OBS = {
 	obsScenario("obs esaujr dead seed", tlazJr(), { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld }, { "Flip on A", flip("Flip on A") } }),
 	obsScenario("obs esaujr birthright flip", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled },
 		{ "Flip", flip("Flip") } }),
+	obsScenario("obsx cancelled Clicker", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
+		{ "cancel Clicker", cancelledClicker(false) }, jrAgain() }),
+	obsScenario("obsx cancelled Clicker then change", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
+		{ "cancel Clicker and change type", cancelledClicker(true) }, jrAgain() }),
+	obsScenario("obsx Clicker callback timing", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
+		{ "Clicker", obsClicker }, { "Clicker roll", typeNow } }),
+	obsScenario("obsx Clicker on returned original", tlazJr(), { jrFirst(), jrAgain(), { "give Clicker", give(CLICKER) },
+		{ "Clicker", obsClicker }, jrTwice() }),
+	obsScenario("obsx Clicker after Flip", tlazJr(), { jrFirst(), { "Flip of the form", flip("Flip of the form") },
+		{ "give Clicker", give(CLICKER) }, { "Clicker", obsClicker }, jrTwice() }),
+	obsScenario("obsx Clicker from 29 to 38", tlazJr(), clickerToDead()),
+	obsScenario("obsx Clicker with Birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
+		{ "select type-29 twin", birthrightFlip, function() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ end },
+		{ "give Clicker", give(CLICKER) }, { "Clicker by type 29", function(ctx)
+			if not ctx.t and (Isaac.GetPlayer(0):GetPlayerType() ~= T_LAZ or not playerOfType(DEAD_LAZ)) then
+				error("expected type 29 in player 0 with the type-38 Birthright twin present")
+			end
+			return obsClicker(ctx)
+		end }, jrTwice() }),
+	obsScenario("obsx Isaac Esau Jr Clicker", { restart(ISAAC), give(4), give(ESAU_JR) }, { jrFirst(),
+		{ "give Clicker", give(CLICKER) }, { "Clicker", obsClicker }, jrTwice() }),
 }
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
@@ -1236,7 +1366,7 @@ local function finish(err)
 			.. (#ctx.notes > 0 and ("; unobserved: " .. table.concat(ctx.notes, ", ")) or "")
 	end
 	P("RESULT", sc.name, verdict)
-	H.obs = nil
+	H.obs, H.cancelClicker = nil, nil
 	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch = H.si + 1, 1, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {}, notes = {} }
 end

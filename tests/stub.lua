@@ -1,5 +1,6 @@
 -- Fake Isaac API and a fake ReHUD for tests/test_harness.py. Not the real engine: just enough for main.lua's steps to see their postconditions.
-ModCallbacks = {MC_POST_UPDATE=1, MC_POST_RENDER=2, MC_USE_ITEM=3, MC_INPUT_ACTION=13, MC_POST_GAME_STARTED=15, MC_POST_PLAYER_UPDATE=31}
+ModCallbacks = {MC_POST_UPDATE=1, MC_POST_RENDER=2, MC_USE_ITEM=3, MC_INPUT_ACTION=13, MC_POST_GAME_STARTED=15, MC_PRE_USE_ITEM=23, MC_POST_PLAYER_UPDATE=31}
+CallbackPriority = {EARLY=-100, LATE=100}
 EntityType = {ENTITY_FAMILIAR=3}; FamiliarVariant = {ITEM_WISP=237}
 CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619}
 PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_JACOB=19, PLAYER_ESAU=20, PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_THESOUL_B=40}
@@ -9,8 +10,16 @@ InputHook = {IS_ACTION_PRESSED=0, IS_ACTION_TRIGGERED=1, GET_ACTION_VALUE=2}
 ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10}
 CBS = {}
 modData = "" -- set by the test: what mod:LoadData() returns
+local function addPriorityCallback(_, id, priority, f, arg)
+  local callbacks = CBS[id] or {}
+  CBS[id] = callbacks
+  local i = #callbacks + 1
+  while i > 1 and callbacks[i - 1].priority > priority do i = i - 1 end
+  table.insert(callbacks, i, {f=f, arg=arg, priority=priority})
+end
 function RegisterMod(name)
-  return {Name=name, AddCallback=function(_, id, f, arg) CBS[id] = CBS[id] or {}; table.insert(CBS[id], {f=f, arg=arg}) end, LoadData=function() return modData end}
+  return {Name=name, AddPriorityCallback=addPriorityCallback,
+    AddCallback=function(m, id, f, arg) addPriorityCallback(m, id, 0, f, arg) end, LoadData=function() return modData end}
 end
 LOG = {}
 print = function() end
@@ -128,9 +137,10 @@ local function use(p, button, swaps)
   local slot = button == 10 and 2 or 0
   local id = p:GetActiveItem(slot)
   if id == 0 or p:NeedsCharge(slot) then return end
-  fire(3, id, nil, p, 0, slot, 0)
+  local cancelled = fire(23, id, nil, p, 0, slot, 0)
+  if not cancelled then fire(3, id, nil, p, 0, slot, 0) end
   if not noSpend then p.charge[slot] = 0 end
-  swaps[#swaps+1] = {p, id}
+  if not cancelled then swaps[#swaps+1] = {p, id} end
 end
 
 local function input(e, hook, button)
@@ -233,7 +243,16 @@ function fakeTrack()
   end
   tracker.characterCount = #all
 end
-function fire(id, ...) for _, c in ipairs(CBS[id] or {}) do c.f(nil, ...) end end
+addPriorityCallback(nil, ModCallbacks.MC_POST_UPDATE, 0, fakeTrack)
+
+function fire(id, ...)
+  for _, c in ipairs(CBS[id] or {}) do
+    if c.arg == nil or c.arg == (...) then
+      local r = c.f(nil, ...)
+      if id == 23 and r ~= nil then return r end
+    end
+  end
+end
 function startRun(t, cont)
   if not cont then
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end

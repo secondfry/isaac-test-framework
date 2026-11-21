@@ -8,6 +8,12 @@ from lupa.lua53 import LuaRuntime
 HERE = os.path.dirname(os.path.abspath(__file__))
 OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror",
        "obs esaujr birthright keep", "obs esaujr cross35", "obs esaujr dead seed", "obs esaujr birthright flip"]
+DISPUTES = [
+    "obsx cancelled Clicker", "obsx cancelled Clicker then change", "obsx Clicker callback timing",
+    "obsx Clicker on returned original", "obsx Clicker after Flip", "obsx Clicker from 29 to 38",
+    "obsx Clicker with Birthright", "obsx Isaac Esau Jr Clicker",
+]
+OBS += DISPUTES
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1", *OBS}  # an obs press that never swaps is INFO, not a fail
@@ -70,22 +76,21 @@ def run(path, mode="regression", on_exit="continue", **flags):
     for k, v in flags.items():
         g[k] = v
     g.startRun(3, False)
-    asked = 0
+    seen = 0
     for _ in range(200000):
         if g.pendingStart is not None:
             t = g.pendingStart
             g.pendingStart = None
             g.startRun(t, False)
         g.engineInput()
-        g.fakeTrack()
         g.fire(1)
         g.fire(2)
-        log = list(g.LOG.values())
-        asks = sum(ASK in s for s in log)
-        if asks > asked:
-            asked = asks
+        log = g.LOG
+        size = len(log)
+        if any(ASK in log[i] for i in range(seen + 1, size + 1)):
             g.startRun(0, on_exit == "continue")
-        if log[-1] == "PROBE HARNESS DONE":
+        seen = size
+        if log[size] == "PROBE HARNESS DONE":
             break
     run.saved = g.SAVED
     return list(g.LOG.values())
@@ -199,6 +204,28 @@ def main(path):
         assert got[name] == (WANT[name] if name in OBS else "SKIP not obs (only obs mode)"), f"only obs mode: {name}: {got[name]}"
     print("PASS only obs runs just the obs scenarios")
 
+    assert sum("obsx Clicker from 29 to 38 Clicker attempt " in s for s in log) == 6
+    assert any("no verified roll to type 38 in 6 tries" in s for s in log)
+
+    log = run(path, mode="only obsx", tlazRoll=38)
+    got = check_finished(log, "only obsx mode")
+    for name in SCENARIOS:
+        assert got[name] == (WANT[name] if name in DISPUTES else "SKIP not obsx (only obsx mode)"), (name, got[name])
+    cancelled = [s for s in log if " cancelled Clicker update " in s]
+    assert len(cancelled) == 2, cancelled
+    for s in cancelled:
+        before, after = s.split(" type ")[1].split(" charge ")[0].split(" -> ")
+        assert before == after and s.endswith("charge 6 -> 0 MC_PRE_USE_ITEM calls 1 MC_USE_ITEM calls 0"), s
+    crossed = [s for s in log if "same-update ChangePlayerType update " in s]
+    assert len(crossed) == 1, crossed
+    assert crossed[0].endswith("type 35"), crossed
+    assert crossed[0].rsplit(" update ", 1)[1].split()[0] == cancelled[1].rsplit(" update ", 1)[1].split()[0], (crossed, cancelled)
+    timing = [s.split("callback timing ")[1] for s in log if "callback timing MC_" in s]
+    assert len(timing) == 2 and timing[0].startswith("MC_PRE_USE_ITEM ") and timing[1].startswith("MC_USE_ITEM "), timing
+    direct = [s for s in log if "obsx Clicker from 29 to 38 Clicker attempt " in s]
+    assert len(direct) == 1 and direct[0].endswith("attempt 1 rolled type 38"), direct
+    print("PASS only obsx, cancelled press and same-update change, timing probes, and both bounded-roll outcomes")
+
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
     for name in LARGE:
         assert got[name].startswith("FAIL") and "a new run started, not a Continue" in got[name], got[name]
@@ -207,6 +234,8 @@ def main(path):
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates")
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
     log = run(path, ignorePress=True)
+    assert any("obsx Clicker from 29 to 38 2 try 1 Esau Jr. never happened:" in s for s in log)
+    assert not any("obsx Clicker from 29 to 38 Clicker attempt" in s for s in log)
     all_fail(check_finished(log, "press ignored"), "press ignored", "no new character, arms ",
              [n for n in SCENARIOS if n not in NO_SWAP])
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]

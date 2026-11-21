@@ -8,6 +8,8 @@ Each scenario is `kind = "small"` (passes on its own) or `"large"` (needs the us
 
 Mode: before launch, write the plain text `regression` into `data\rehud_test_harness\save1.dat` in the game folder (vanilla `SaveData` path, `data\<metadata directory>\save<slot>.dat`) to run every scenario before a release; `only <prefix>` runs just the scenarios whose name starts with it (`only obs`: every `obs` scenario); any other content, or no file, runs all small scenarios and only the new large ones.
 
+`only obsx` runs the dispute scenarios. If an observation step fails, the scenario logs INFO and ends.
+
 The `HARNESS START` line logs the mode, the mod name and the raw data read; a skipped one logs `RESULT <name> SKIP`.
 
 A wait (action, look or settle) still unfinished after 60 updates logs `PROBE STUCK` and writes `STUCK <n> <scenario> | <step>` as the second line of that mode file (only its first line sets the mode); `tools\stuck-shots.ps1` screenshots the game window for each new STUCK line, so start it before launching the game: `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`.

@@ -237,9 +237,8 @@ local function snapshot()
 end
 
 -- A stored presser (Esau Jr., Flip without Birthright) has no vanilla accessor, but its charge + battery drop shows on its own seed
--- after its MC_USE_ITEM and before the engine stores it (run 6), so HARNESS.watch (set by swap) keeps the first such reading as `seen`.
--- shortcut: rests on one sample per item, and a non-overcharged Esau Jr. spend is not yet watched in game; if the engine order
--- changes, the swap FAILs loudly.
+-- after its MC_USE_ITEM and before the engine stores it (runs 6-7), so HARNESS.watch (set by swap) keeps the first such reading as `seen`.
+-- shortcut: rests on J510's order; if a swap FAILs "seen with no drop", log every channel around the press again to find where the drop moved.
 local function watchSee(channel, e)
 	local w = HARNESS.watch
 	if not (w and w.used and not w.seen and e) then return end -- MC_INPUT_ACTION is polled ~1470/s: cheap exit first
@@ -342,8 +341,8 @@ local function swap(label, id, slot, count)
 		local polls = "arms " .. b.arms .. ", fired " .. (H.fired - b.fired) .. ", pressed " .. (H.pressed - b.pressed)
 		if a.who == b.who and a.count == b.count then
 			-- shortcut: re-arms until a new character shows (the one-shot each update, the full press one update after its release, so
-			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless once the
-			-- charge is spent.
+			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless while the
+			-- presser holds no battery or second card; count uses per swap before a scenario gives either.
 			if b.full then
 				if b.released then arm(H, b); b.released = nil elseif fullOver(H) then b.released = true end
 			elseif not H.press then arm(H, b) end
@@ -488,7 +487,12 @@ end
 -- Tainted Lazarus flips with c4, the user exits and continues, and ChangePlayerType merges the stored form: one c4, no c711.
 local function continueSteps(beforeFlip)
 	local steps = { restart(T_LAZ), give(4), stage(2), beforeFlip }
-	for _, s in ipairs({ flip("Flip"), look("before exit", oneC4), exitAndContinue(), changeType(ISAAC),
+	-- Pacing alone decides whether the Flip stores the 29 form mid-settle, so the path each variant tests is checked.
+	local function beforeExit(ctx, label)
+		oneC4(ctx, label)
+		expect(ctx, label .. ": stored form mid-settle", storedSettling() ~= "", beforeFlip == nil)
+	end
+	for _, s in ipairs({ flip("Flip"), look("before exit", beforeExit), exitAndContinue(), changeType(ISAAC),
 		look("after continue and ChangePlayerType", function(ctx, label)
 			expectOne(ctx, label, 4, ctx.floors[1], seedOf(Isaac.GetPlayer(0)))
 			expectN(ctx, label, FLIP, 0)
@@ -498,9 +502,9 @@ local function continueSteps(beforeFlip)
 	return steps
 end
 
--- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand).
+-- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
+-- again whenever its steps or checks change.
 local SCENARIOS = {
-	-- Steps that never error come first: an action that times out ends the scenario.
 	{ name = "probes", kind = "small", steps = {
 		restart(ISAAC), maxCharges, give(ESAU_JR), esauJr("Esau Jr."), onePress("Esau Jr."),
 		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
@@ -546,9 +550,9 @@ local SCENARIOS = {
 		restart(JE), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
 	} },
 	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
-	{ name = "continue", kind = "large", steps = continueSteps() },
+	{ name = "continue", kind = "large", new = true, steps = continueSteps() },
 	-- The settle wait first, so the 29 form is stored settled, as in real play.
-	{ name = "continue settled", kind = "large", steps = continueSteps(look("before Flip", oneC4)) },
+	{ name = "continue settled", kind = "large", new = true, steps =continueSteps(look("before Flip", oneC4)) },
 }
 
 local function finish(err)

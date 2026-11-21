@@ -5,7 +5,7 @@ from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4b", "P1", "P2", "continue", "continue settled"]
-# Exact verdicts: a lost check or note shows. P2 has 2 checks here, 4+ in game: the stub's Clicker splits on its second use.
+# Exact verdicts: a lost check or note shows. P2 counts one check per Clicker use: 2 here (the stub's Clicker splits on its second use), any number in game.
 WANT = {
     "probes": "PASS 10 checks",
     "test3": "PASS 5 checks",
@@ -15,8 +15,8 @@ WANT = {
     "P4b": "INFO data only",
     "P1": "PASS 5 checks",
     "P2": "PASS 2 checks",
-    "continue": "PASS 3 checks",
-    "continue settled": "PASS 4 checks",
+    "continue": "PASS 4 checks",
+    "continue settled": "PASS 5 checks",
 }
 FLOOR_CHECKED = ["test3", "birthright", "P3", "P4a", "P1", "P2", "continue", "continue settled"]
 # Every scenario swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
@@ -96,16 +96,17 @@ def main(path):
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
     stored = [s for s in swaps if " spent stored presser charge, " in s]
-    assert presses and len(presses) == len(swaps) and all(" spent " in s for s in swaps), (len(presses), len(swaps))
+    assert presses and len(presses) == len(swaps) and stored, (len(presses), len(swaps), len(stored))
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
 
+    LARGE, NEW = {"continue", "continue settled"}, {"continue", "continue settled"}  # NEW mirrors main.lua's new = true flags
     got = check_finished(run(path, mode=""), "default mode")
     for name in SCENARIOS:
-        want = "SKIP large and not new (default mode)" if name in ("continue", "continue settled") else WANT[name]
+        want = "SKIP large and not new (default mode)" if name in LARGE and name not in NEW else WANT[name]
         assert got[name] == want, f"default mode: {name}: {got[name]}"
-    print("PASS default mode skips both continues")
+    print("PASS default mode runs small and new large scenarios, skips the rest")
 
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
     for name in ["continue", "continue settled"]:

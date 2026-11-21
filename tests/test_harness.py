@@ -6,9 +6,10 @@ import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
+OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror"]
+SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
-NO_SWAP = {"S1", "S1b", "S2", "L1"}
+NO_SWAP = {"S1", "S1b", "S2", "L1", *OBS}  # an obs press that never swaps is INFO, not a fail
 LARGE = NEW = {"continue", "continue settled", "L1"}  # NEW mirrors main.lua's new = true flags
 # Exact verdicts: a lost check or note shows. Each look adds 5 invariant checks. P2 counts 8 or 9 checks per Clicker use: 22 here (the stub's
 # Clicker splits on its second use), any number in game.
@@ -31,8 +32,9 @@ WANT = {
     "r1": "PASS 27 checks",
     "r1 mirror": "PASS 18 checks",
     "L1": "PASS 30 checks",
+    **{n: "INFO data only" for n in OBS},
 }
-FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes"]  # the floor invariant covers every scenario with a look
+FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes" and n not in OBS]  # the floor invariant covers every scenario with a look
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
 STORED = "spent nothing: stored presser seen with no drop after its use"
@@ -51,6 +53,7 @@ INVARIANT_MODES = {
     "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S1", "S1b", "S2", "r1", "r1 mirror", "continue", "continue settled", "L1"]),
 }
 REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
+OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 
 
 def run(path, mode="regression", on_exit="continue", **flags):
@@ -130,6 +133,27 @@ def run_report(log):
     return p.returncode, p.stdout.strip().splitlines()[-1]
 
 
+def obs_report(log):
+    """tools/obs_report.py on the dry run: a timeline and a summary for every obs scenario, seeds labelled."""
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write("\n".join(log))
+    try:
+        p = subprocess.run([sys.executable, "-B", "-I", OBS_REPORT, f.name], capture_output=True, text=True)
+    finally:
+        os.remove(f.name)
+    assert p.returncode == 0 and not p.stderr, p.stderr
+    out = p.stdout.splitlines()
+    assert out[-1] == f"obs scenarios: {len(OBS)} ({', '.join(OBS)})", out[-1]
+    for name in OBS:
+        assert f"== {name}" in out and f"  summary {name}: INFO data only" in out, name
+    # obs esaujr cross: the original (A) is stored by Esau Jr. and back after the second press; the form (B) holds the c5 marker
+    rows = out[out.index("== obs esaujr cross"):out.index("  summary obs esaujr cross: INFO data only") + 3]
+    assert any(r.startswith("u") and "| P0 t29 B [c5 c711]" in r for r in rows), rows
+    assert rows[-2].startswith("    A = ") and "appeared u1, gone u2, back u" in rows[-2], rows[-2]
+    assert rows[-1].startswith("    B = ") and "engine c5x1" in rows[-1], rows[-1]
+    print("PASS obs_report: timelines and summaries for", len(OBS), "obs scenarios")
+
+
 def main(path):
     log = run(path)
     got = check_finished(log, "regression mode")
@@ -147,6 +171,7 @@ def main(path):
     print("PASS P2 reaches the split")
     assert run_report(log) == (0, "ALL PASS"), run_report(log)
     print("PASS run_report on the dry run: ALL PASS")
+    obs_report(log)
     code, verdict = run_report(os.path.join(HERE, "fixtures", "run8-trimmed.txt"))
     assert (code, verdict) == (1, "NEEDS ANALYSIS: S3 unobserved: rolled Tainted Lazarus, see r1; results for 4 of 16 scenarios"), (code, verdict)
     print("PASS run_report parses the run 8 fixture:", verdict)
@@ -162,6 +187,13 @@ def main(path):
         want = "SKIP large and not new (default mode)" if name in LARGE and name not in NEW else WANT[name]
         assert got[name] == want, f"default mode: {name}: {got[name]}"
     print("PASS default mode runs small and new large scenarios, skips the rest")
+
+    log = run(path, mode="only obs")
+    got = check_finished(log, "only obs mode")
+    assert any(s.startswith("PROBE HARNESS START") and "only obs mode" in s for s in log), "only mode not logged"
+    for name in SCENARIOS:
+        assert got[name] == (WANT[name] if name in OBS else "SKIP not obs (only obs mode)"), f"only obs mode: {name}: {got[name]}"
+    print("PASS only obs runs just the obs scenarios")
 
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
     for name in LARGE:

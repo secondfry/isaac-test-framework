@@ -809,6 +809,110 @@ local function origBeforeEsauJr(ctx, label)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
 end
 
+-- obs esaujr: no checks, only what the engine and ReHUD do and in what order. While HARNESS.obs is set, tick logs the whole state on
+-- every update where it changed: one OBS line per player, roster row and tracker entry.
+local OBS_IDS = { 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
+local function obsLines()
+	local t = {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p, n = Isaac.GetPlayer(i), {}
+		for _, id in ipairs(OBS_IDS) do n[#n + 1] = "c" .. id .. " " .. p:GetCollectibleNum(id, false) end
+		t[#t + 1] = "PLAYER " .. i .. " type " .. p:GetPlayerType() .. " seed " .. seedOf(p) .. " hash " .. GetPtrHash(p) .. " ctrl " .. p.ControllerIndex
+			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(ActiveSlot.SLOT_PRIMARY)
+			.. " secondary " .. p:GetActiveItem(ActiveSlot.SLOT_SECONDARY) .. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET)
+	end
+	local rows = dbg().roster.serialize()
+	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
+	for _, r in ipairs(rows) do
+		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. " swapped " .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left)
+	end
+	for n, e in ipairs(entries()) do t[#t + 1] = "ENTRY " .. n .. " c" .. e.id .. " owner " .. tostring(e.owner) .. " floor " .. tostring(e.floor) end
+	return t
+end
+
+local function observe()
+	local o = HARNESS.obs
+	if not o then return end
+	o.u = o.u + 1
+	local lines = obsLines()
+	local s = table.concat(lines, "\n")
+	if s == o.last then return end
+	o.last = s
+	for _, l in ipairs(lines) do P("OBS u" .. o.u, "after " .. o.step .. ":", l) end
+end
+
+local function startObs() HARNESS.obs = { u = 0, step = "start" } end
+
+-- An obs step: tags later OBS lines with `tag` (unique within its scenario); a step that errors (its postcondition never came) is
+-- logged as INFO and skipped, not failed.
+local function obs(tag, step)
+	return function(ctx)
+		local H = HARNESS
+		if H.obs.step ~= tag then H.obs.step = tag; P("OBS u" .. H.obs.u, "step " .. tag .. " begins") end
+		local ok, res = pcall(step, ctx)
+		if ok then return res end
+		P("INFO", ctx.name, tag, "never happened:", res)
+		ctx.t, ctx.held, ctx.before, ctx.label = nil, nil, nil, nil
+		H.press, H.full, H.fullPolled, H.watch = nil, nil, nil, nil
+	end
+end
+
+-- The settle wait of look, without its checks.
+local function settled(ctx)
+	ctx.t = (ctx.t or 0) + 1
+	local busy = settling()
+	if busy and ctx.t < TIMEOUT then return "again" end
+	P("INFO", ctx.name, "settle wait ended after", ctx.t, "updates", busy and ("still settling " .. busy) or "settled")
+	ctx.t = nil
+end
+
+local function regiveEsauJr()
+	local g = give(ESAU_JR)
+	return function(ctx)
+		if not ctx.t and Isaac.GetPlayer(0):GetActiveItem(ActiveSlot.SLOT_PRIMARY) == ESAU_JR then return P("INFO", ctx.name, "Esau Jr. still in the active slot, no re-give") end
+		return g(ctx)
+	end
+end
+
+local function obsInfo(what, f) return function(ctx) P("INFO", ctx.name, what, f(Isaac.GetPlayer(0))) end end
+local pocketHeld = obsInfo("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
+local typeNow = obsInfo("player 0 type", function(p) return p:GetPlayerType() end)
+
+-- An obs scenario: `pre` unlogged (ending in a settle wait), then the logger, then `steps` as { tag, step } pairs, each soft and
+-- numbered, then a last settle wait; a step may be a list of pairs. Markers: c4 before the first swap, c5 right after it.
+local function obsScenario(name, pre, steps)
+	local all, n = {}, 0
+	for _, s in ipairs(pre) do all[#all + 1] = s end
+	all[#all + 1] = settled
+	all[#all + 1] = startObs
+	steps[#steps + 1] = { "settle", settled }
+	for _, s in ipairs(steps) do
+		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
+			n = n + 1
+			all[#all + 1] = obs(n .. " " .. pair[1], pair[2])
+		end
+	end
+	return { name = name, kind = "small", steps = all }
+end
+local function tlazJr() return { restart(T_LAZ), give(4), give(ESAU_JR) } end
+local function jrFirst() return { { "Esau Jr.", esauJr("Esau Jr.") }, { "give c5", give(5) } } end
+local function jrAgain() return { { "re-give c703", regiveEsauJr() }, { "Esau Jr. again", esauJr("Esau Jr. again") } } end
+local OBS = {
+	obsScenario("obs esaujr cross", tlazJr(), { jrFirst(), { "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
+	obsScenario("obs esaujr out", tlazJr(), { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
+	obsScenario("obs esaujr flip", tlazJr(), { jrFirst(), { "pocket of the form", pocketHeld }, { "Flip of the form", flip("Flip of the form") },
+		{ "Flip back", flip("Flip back") }, jrAgain() }),
+	obsScenario("obs esaujr flipped cross", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
+		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain() }),
+	obsScenario("obs esaujr birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "remove Birthright", remove(BIRTHRIGHT) },
+		{ "settle", settled }, { "restart", restart(T_LAZ) }, { "give c4", give(4) }, { "give c703", give(ESAU_JR) }, { "give Birthright", give(BIRTHRIGHT) },
+		{ "settle", settled }, jrFirst() }),
+	obsScenario("obs esaujr clicker", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) }, { "Clicker", clicker }, { "Clicker roll", typeNow },
+		{ "settle", settled }, jrAgain() }),
+	obsScenario("obs mirror", { restart(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
+		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "Flip again", flip("Flip again") } }),
+}
+
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
 local SCENARIOS = {
@@ -1065,6 +1169,14 @@ local SCENARIOS = {
 	} },
 }
 
+-- The obs scenarios run after P4c, the scenario they observe the engine for.
+for i, s in ipairs(SCENARIOS) do
+	if s.name == "P4c" then
+		for k, o in ipairs(OBS) do table.insert(SCENARIOS, i + k, o) end
+		break
+	end
+end
+
 local function finish(err)
 	local H = HARNESS
 	local sc, ctx = SCENARIOS[H.si], H.ctx
@@ -1078,12 +1190,14 @@ local function finish(err)
 			.. (#ctx.notes > 0 and ("; unobserved: " .. table.concat(ctx.notes, ", ")) or "")
 	end
 	P("RESULT", sc.name, verdict)
+	H.obs = nil
 	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch = H.si + 1, 1, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {}, notes = {} }
 end
 
 local function tick()
 	local H = HARNESS
+	observe()
 	if not H.running or H.pending then return end
 	local sc = SCENARIOS[H.si]
 	if not sc then
@@ -1091,7 +1205,12 @@ local function tick()
 		P("HARNESS DONE")
 		return
 	end
-	if H.pi == 1 and sc.kind == "large" and not sc.new and H.mode ~= "regression" then
+	if H.pi == 1 and H.only and sc.name:sub(1, #H.only) ~= H.only then
+		P("RESULT", sc.name, "SKIP not " .. H.only .. " (" .. H.mode .. " mode)")
+		H.si = H.si + 1
+		return
+	end
+	if H.pi == 1 and not H.only and sc.kind == "large" and not sc.new and H.mode ~= "regression" then
 		P("RESULT", sc.name, "SKIP large and not new (" .. H.mode .. " mode)")
 		H.si = H.si + 1
 		return
@@ -1133,9 +1252,11 @@ mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
 	if not H.started then
 		if isContinued then P("HARNESS idle: start a new run to test") return end
 		-- The mode file is data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
-		-- "regression" runs every scenario; anything else, or none, runs the small ones and the new large ones.
+		-- "regression" runs every scenario; "only <prefix>" just the scenarios whose name starts with it, whatever their kind; anything else, or none, runs the small ones and the new large ones.
 		local raw = mod:LoadData()
-		H.started, H.running, H.mode = true, true, raw:match("^%s*(.-)%s*$") == "regression" and "regression" or "default"
+		local text = raw:match("^%s*(.-)%s*$")
+		H.only = text:match("^only (.+)$")
+		H.started, H.running, H.mode = true, true, text == "regression" and "regression" or H.only and ("only " .. H.only) or "default"
 		P("HARNESS START", #SCENARIOS, "scenarios,", H.mode, "mode, mod data of '" .. mod.Name .. "' read", string.format("%q", raw))
 		return
 	end

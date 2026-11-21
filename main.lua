@@ -1753,7 +1753,9 @@ local function tick()
 	if not step then return finish() end
 	if not H.ctx.name then P("SCENARIO START", sc.name) end -- tools/run_report.py pairs it with a RESULT
 	H.ctx.name, H.ctx.leftOk = sc.name, sc.leftOk
-	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. (H.ctx.label and (": " .. H.ctx.label) or "")
+	local label = H.ctx.label
+	H.ask = label and label:find("Continue") and label or nil -- the user's own step gets its own line, so it is not lost at the end of a long status
+	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. ((label and not H.ask) and (": " .. label) or "")
 	local ok, res = pcall(step, H.ctx)
 	if not ok then return finish("error in step " .. H.pi .. ": " .. tostring(res)) end
 	if res ~= "again" then H.pi = H.pi + 1 end
@@ -1777,6 +1779,7 @@ mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
 		Isaac.ExecuteCommand(c)
 	end
 	Isaac.RenderText("HARNESS: " .. H.status, 60, 30, 1, 1, 0, 1)
+	if H.ask and H.running then Isaac.RenderText(H.ask, 60, 44, 1, 1, 0, 1) end
 end)
 
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)

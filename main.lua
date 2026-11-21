@@ -473,6 +473,7 @@ end
 
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT = CollectibleType.COLLECTIBLE_FLIP, CollectibleType.COLLECTIBLE_ESAU_JR, CollectibleType.COLLECTIBLE_CLICKER, CollectibleType.COLLECTIBLE_BIRTHRIGHT
 local T_LAZ, DEAD_LAZ, JE, ISAAC, CAIN = PlayerType.PLAYER_LAZARUS_B, PlayerType.PLAYER_LAZARUS2_B, PlayerType.PLAYER_JACOB, PlayerType.PLAYER_ISAAC, PlayerType.PLAYER_CAIN
+local T_FORGOTTEN = PlayerType.PLAYER_THEFORGOTTEN_B
 
 local function flip(label) return swap(label, FLIP, ActiveSlot.SLOT_POCKET) end
 local function esauJr(label) return swap(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
@@ -812,6 +813,16 @@ end
 -- obs esaujr: no checks, only what the engine and ReHUD do and in what order. While HARNESS.obs is set, tick logs the whole state on
 -- every update where it changed: one OBS line per player, roster row and tracker entry.
 local OBS_IDS = { 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
+-- id:owned/total for every item p holds; total is GetCollectibleNum(id, false), so wisps and the Zodiac copy count too.
+local function heldItems(p)
+	local t = {}
+	for id = 1, maxId do
+		local total = itemConfig:GetCollectible(id) and p:GetCollectibleNum(id, false) or 0
+		if total > 0 then t[#t + 1] = id .. ":" .. owned(p, id) .. "/" .. total end
+	end
+	return table.concat(t, " ")
+end
+
 local function obsLines()
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
@@ -820,13 +831,17 @@ local function obsLines()
 		t[#t + 1] = "PLAYER " .. i .. " type " .. p:GetPlayerType() .. " seed " .. seedOf(p) .. " hash " .. GetPtrHash(p) .. " ctrl " .. p.ControllerIndex
 			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(ActiveSlot.SLOT_PRIMARY)
 			.. " secondary " .. p:GetActiveItem(ActiveSlot.SLOT_SECONDARY) .. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET)
+		t[#t + 1] = "PLAYERX " .. i .. " variant " .. p.Variant .. " ghost " .. tostring(p:IsCoopGhost())
+			.. " charge primary " .. p:GetActiveCharge(ActiveSlot.SLOT_PRIMARY) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_PRIMARY)
+			.. " pocket " .. p:GetActiveCharge(ActiveSlot.SLOT_POCKET) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_POCKET) .. " items " .. heldItems(p)
 	end
+	t[#t + 1] = "COUNT players " .. game:GetNumPlayers()
 	local rows = dbg().roster.serialize()
 	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
 	for _, r in ipairs(rows) do
-		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. " swapped " .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left)
+		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. " swapped " .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left) .. " type " .. tostring(r.type) .. " group " .. tostring(r.group)
 	end
-	for n, e in ipairs(entries()) do t[#t + 1] = "ENTRY " .. n .. " c" .. e.id .. " owner " .. tostring(e.owner) .. " floor " .. tostring(e.floor) end
+	for n, e in ipairs(entries()) do t[#t + 1] = "ENTRY " .. n .. " c" .. e.id .. " owner " .. tostring(e.owner) .. " floor " .. tostring(e.floor) .. " merged " .. tostring(e.merged) .. " temporary " .. tostring(e.temporary) end
 	return t
 end
 
@@ -877,6 +892,7 @@ end
 local function obsInfo(what, f) return function(ctx) P("INFO", ctx.name, what, f(Isaac.GetPlayer(0))) end end
 local pocketHeld = obsInfo("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
 local typeNow = obsInfo("player 0 type", function(p) return p:GetPlayerType() end)
+local playerCount = obsInfo("players in game", function() return game:GetNumPlayers() end)
 
 -- An obs scenario: `pre` unlogged (ending in a settle wait), then the logger, then `steps` as { tag, step } pairs, each soft and
 -- numbered, then a last settle wait; a step may be a list of pairs. Markers: c4 before the first swap, c5 right after it.
@@ -903,14 +919,25 @@ local OBS = {
 	obsScenario("obs esaujr flip", tlazJr(), { jrFirst(), { "pocket of the form", pocketHeld }, { "Flip of the form", flip("Flip of the form") },
 		{ "Flip back", flip("Flip back") }, jrAgain() }),
 	obsScenario("obs esaujr flipped cross", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain() }),
+		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain(),
+		{ "Flip A", flip("Flip A") }, { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") },
+		{ "Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form") } }),
 	obsScenario("obs esaujr birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "remove Birthright", remove(BIRTHRIGHT) },
 		{ "settle", settled }, { "restart", restart(T_LAZ) }, { "give c4", give(4) }, { "give c703", give(ESAU_JR) }, { "give Birthright", give(BIRTHRIGHT) },
-		{ "settle", settled }, jrFirst() }),
+		{ "settle", settled }, jrFirst(), jrAgain() }),
 	obsScenario("obs esaujr clicker", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) }, { "Clicker", clicker }, { "Clicker roll", typeNow },
-		{ "settle", settled }, jrAgain() }),
+		{ "settle", settled }, jrAgain(),
+		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") },
+		{ "re-give c703 #4", regiveEsauJr() }, { "Esau Jr. #4", esauJr("Esau Jr. #4") } }),
 	obsScenario("obs mirror", { restart(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "Flip again", flip("Flip again") } }),
+		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount },
+		{ "Flip again", flip("Flip again") }, { "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
+	obsScenario("obs esaujr birthright keep", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled }, jrAgain() }),
+	obsScenario("obs esaujr cross35", tlazJr(), { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) }, { "settle", settled }, jrAgain(),
+		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") } }),
+	obsScenario("obs esaujr dead seed", tlazJr(), { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld }, { "Flip on A", flip("Flip on A") } }),
+	obsScenario("obs esaujr birthright flip", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled },
+		{ "Flip", flip("Flip") } }),
 }
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it

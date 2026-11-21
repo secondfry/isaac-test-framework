@@ -6,7 +6,8 @@ import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror"]
+OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror",
+       "obs esaujr birthright keep", "obs esaujr cross35", "obs esaujr dead seed", "obs esaujr birthright flip"]
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1", *OBS}  # an obs press that never swaps is INFO, not a fail
@@ -151,6 +152,8 @@ def obs_report(log):
     assert any(r.startswith("u") and "| P0 t29 B [c5 c711]" in r for r in rows), rows
     assert rows[-2].startswith("    A = ") and "appeared u1, gone u2, back u" in rows[-2], rows[-2]
     assert rows[-1].startswith("    B = ") and "engine c5x1" in rows[-1], rows[-1]
+    assert any(r.startswith("       PLAYERX 0 variant ") for r in out), "no PLAYERX line under a row"
+    assert any(r.startswith("       COUNT players ") for r in out), "no COUNT line under a row"
     print("PASS obs_report: timelines and summaries for", len(OBS), "obs scenarios")
 
 

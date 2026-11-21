@@ -2,17 +2,17 @@
 
 For each scenario whose name starts with "obs": one row per logged change (update, step, each player's type, seed label, items and
 actives, ReHUD's roster and entries), the step starts, INFO lines and SWAP lines between them, then a summary per seed. Seeds are
-shown as labels A, B, C... in first-seen order within the scenario.
+shown as labels A, B, C... in first-seen order within the scenario. PLAYERX and COUNT lines print verbatim under their row.
 """
 import re
 import sys
 
 PROBE = re.compile(r"(?:^|Lua Debug: )PROBE (.*)")
-OBS = re.compile(r"OBS u(\d+) after (.*?): (PLAYER|ROSTER|ENTRY) (.*)")
+OBS = re.compile(r"OBS u(\d+) after (.*?): (PLAYER|PLAYERX|ROSTER|ENTRY|COUNT) (.*)")
 STEP = re.compile(r"OBS u(\d+) step (.*) begins$")
 PLAYER = re.compile(r"(\d+) type (\S+) seed (\S+) hash \S+ ctrl (\S+) parent (\S+) (.*) primary (\S+) secondary (\S+) pocket (\S+)$")
-ROSTER = re.compile(r"key (\S+) number (\S+) swapped (\S+) partner (\S+) left (\S+)$")
-ENTRY = re.compile(r"\d+ c(\d+) owner (\S+) floor (.*)$")
+ROSTER = re.compile(r"key (\S+) number (\S+) swapped (\S+) partner (\S+) left (\S+)(?: type (\S+) group (\S+))?$")
+ENTRY = re.compile(r"\d+ c(\d+) owner (\S+) floor (.*?)(?: merged (\S+) temporary (\S+))?$")
 
 
 class Scenario:
@@ -33,7 +33,7 @@ class Scenario:
     def add(self, u, step, kind, rest):
         if (u, step) != (self.u, self.step):
             self.flush()
-            self.u, self.step, self.snap = u, step, {"PLAYER": [], "ROSTER": [], "ENTRY": []}
+            self.u, self.step, self.snap = u, step, {"PLAYER": [], "PLAYERX": [], "ROSTER": [], "ENTRY": [], "COUNT": []}
         self.snap[kind].append(rest)
 
     def flush(self):
@@ -62,17 +62,18 @@ class Scenario:
             m = ROSTER.match(r)
             if not m:
                 continue
-            key, num, sw, partner, left = m.groups()
-            flags = (" sw" if sw == "true" else "") + (f" p={self.label(partner)}" if partner != "nil" else "") + (" left" if left == "true" else "")
+            key, num, sw, partner, left, typ, grp = m.groups()
+            flags = (" sw" if sw == "true" else "") + (f" p={self.label(partner)}" if partner != "nil" else "") + (" left" if left == "true" else "") + (f" t{typ} g{grp}" if typ is not None else "")
             roster.append(f"{self.label(key)}#{num}{flags}")
         groups, entries = {}, {}
         for r in s["ENTRY"]:
             m = ENTRY.match(r)
             if not m:
                 continue
-            cid, owner, floor = m.groups()
+            cid, owner, floor, merged, temporary = m.groups()
             lab = self.label(owner)
-            groups.setdefault(f"{lab}#{numbers.get(owner, '?')}[{floor}]", []).append("c" + cid)
+            tok = "c" + cid + ("*merged" if merged == "true" else "") + ("(temp)" if temporary == "true" else "")
+            groups.setdefault(f"{lab}#{numbers.get(owner, '?')}[{floor}]", []).append(tok)
             entries.setdefault(lab, {}).setdefault("c" + cid, 0)
             entries[lab]["c" + cid] += 1
         self.last_entries = entries
@@ -83,6 +84,8 @@ class Scenario:
         self.present = present
         ent = "  ".join(f"{k}: {' '.join(v)}" for k, v in groups.items())
         self.out.append(f"u{self.u:<4} {self.step:<24} | {' | '.join(players)} || roster {' '.join(roster)} || {ent}")
+        for kind in ("PLAYERX", "COUNT"):
+            self.out += [f"       {kind} {r}" for r in s[kind]]
         self.snap = None
 
     def note(self, s):
@@ -115,7 +118,8 @@ def report(lines):
             continue
         if s.startswith("RESULT " + sc.name + " "):
             sc.result = s[len("RESULT " + sc.name + " "):]
-            out += [f"== {sc.name}"] + sc.out + sc.summary() + [""]
+            summary = sc.summary()  # first: it flushes the last update into sc.out
+            out += [f"== {sc.name}"] + sc.out + summary + [""]
             names.append(sc.name)
             sc = None
             continue
@@ -128,7 +132,8 @@ def report(lines):
             sc.note(s)
     if sc:  # a log cut off mid-scenario (crash, or read before the exit flushed it)
         sc.result = "no RESULT: log ends mid-scenario"
-        out += [f"== {sc.name}"] + sc.out + sc.summary()
+        summary = sc.summary()
+        out += [f"== {sc.name}"] + sc.out + summary
         names.append(sc.name)
     out.append(f"obs scenarios: {len(names)} ({', '.join(names)})")
     return out

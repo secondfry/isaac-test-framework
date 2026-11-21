@@ -280,7 +280,9 @@ local function swap(label, id, slot, count, gone)
 			if b.cards == 0 then error(label .. ": card " .. id .. " not held") end
 		else
 			if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
-			p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) -- full, so a drop is visible
+			-- Full, so a drop is visible. Run 2: SetActiveCharge(6, SLOT_POCKET) read back 4 and no Flip press ever swapped.
+			-- shortcut: FullCharge on the pocket slot is run 3's guess, not a verified fix; keep it or revert once the probes answer.
+			if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot, true) else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
 			b.charge = p:GetActiveCharge(slot)
 		end
 		H.press, b.arms, b.fired = button, 1, H.fired
@@ -292,7 +294,7 @@ local function swap(label, id, slot, count, gone)
 			-- shortcut: re-arms each update until a new character shows, in case the first poll was not the use logic; a press taken
 			-- but shown late could fire twice, harmless while the charge is spent; wait a frame before re-arming if probes show that.
 			if not H.press then H.press, b.arms = button, b.arms + 1 end
-			return false, "no new character"
+			return false, "no new character, arms " .. b.arms .. ", fired " .. (H.fired - b.fired) -- fired 0: the use logic never polled the press
 		end
 		H.press = nil
 		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
@@ -405,13 +407,18 @@ local function esauJrDirect(flags)
 	end
 end
 
+-- Run 2: SetActiveCharge(6) read back 4 on the pocket slot. NeedsCharge says whether 4 is full there; FullCharge is the other way in.
 local function pocketCharge(ctx)
 	local p, s = Isaac.GetPlayer(0), ActiveSlot.SLOT_POCKET
 	expect(ctx, "pocket item", p:GetActiveItem(s), FLIP)
+	P("INFO", ctx.name, "ChargeType c711", itemConfig:GetCollectible(FLIP).ChargeType)
+	local function read(how) P("INFO", ctx.name, how, "charge", p:GetActiveCharge(s), "battery", p:GetBatteryCharge(s), "needs charge", p:NeedsCharge(s)) end
 	for _, n in ipairs({ 0, itemConfig:GetCollectible(FLIP).MaxCharges }) do
 		p:SetActiveCharge(n, s)
-		expect(ctx, "pocket charge after SetActiveCharge " .. n, p:GetActiveCharge(s), n)
+		read("after SetActiveCharge " .. n)
 	end
+	p:SetActiveCharge(0, s)
+	read("FullCharge(2, true) returned " .. tostring(p:FullCharge(s, true)))
 end
 
 local function onePress(label) return function(ctx) expect(ctx, label .. ": arms needed", ctx.arms, 1) end end
@@ -447,11 +454,11 @@ local SCENARIOS = {
 	-- Steps that never error come first: an action that times out ends the scenario.
 	{ name = "probes", steps = {
 		restart(ISAAC), maxCharges, give(ESAU_JR), esauJrDirect(0), esauJrDirect(UseFlag.USE_OWNED),
-		restart(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"),
 		restart(ISAAC), give(ESAU_JR), esauJr("Esau Jr."), onePress("Esau Jr."),
 		give(CollectibleType.COLLECTIBLE_POLYDACTYLY), addCard(Card.CARD_FOOL), addCard(Card.CARD_FOOL), floodCards,
 		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
 		restart(T_LAZ), addCard(Card.CARD_SOUL_JACOB), cardBesideFlip,
+		restart(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"), -- last: in run 2 the Flip press timed out and skipped every probe after it
 	} },
 	{ name = "test3", steps = {
 		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before ChangePlayerType"), changeType(ISAAC),

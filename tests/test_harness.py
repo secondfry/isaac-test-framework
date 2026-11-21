@@ -82,8 +82,8 @@ def main(path):
     print("PASS new run instead of Continue fails:", got["continue"])
 
     all_fail(check_finished(run(path, ignore_restart=True), "restart ignored"), "restart timeout", "no new game after 600 updates")
-    # probes' first press is the Flip, a swap: every scenario fails on its first press
-    all_fail(check_finished(run(path, ignore_press=True), "press ignored"), "press ignored", "no new character after 600 updates")
+    # probes' first press is Esau Jr., a swap: every scenario fails on its first press
+    all_fail(check_finished(run(path, ignore_press=True), "press ignored"), "press ignored", "no new character, arms 601, fired 600 after 600 updates")
     all_fail(check_finished(run(path, no_spend=True), "no spend"), "swap without a spend", "spent nothing")
     print("PASS dry run")
 

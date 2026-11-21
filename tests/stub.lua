@@ -16,7 +16,7 @@ Isaac = {}
 function Isaac.DebugString(s) LOG[#LOG+1] = s end
 function Isaac.RenderText() end
 local MAX = {[482]=6, [703]=1, [711]=6}
-function Isaac.GetItemConfig() return {GetCollectibles=function() return {Size=733} end, GetCollectible=function(_, id) return id <= 732 and {MaxCharges=MAX[id] or 0} or nil end} end
+function Isaac.GetItemConfig() return {GetCollectibles=function() return {Size=733} end, GetCollectible=function(_, id) return id <= 732 and {MaxCharges=MAX[id] or 0, ChargeType=0} or nil end} end
 function Isaac.FindByType() return {} end
 function GetPtrHash(p) return p.seed end
 
@@ -39,7 +39,10 @@ function PM:GetCollectibleNum(id) return self.items[id] or 0 end
 function PM:IsCoopGhost() return false end
 function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 end return self.active or 0 end
 function PM:GetActiveCharge(s) return self.charge[s or 0] or 0 end
-function PM:SetActiveCharge(n, s) self.charge[s or 0] = n end
+function PM:SetActiveCharge(n, s) self.charge[s or 0] = s == 2 and math.min(n, 4) or n end -- run 2: 6 on the pocket read back 4
+function PM:FullCharge(s) self.charge[s or 0] = MAX[self:GetActiveItem(s)] or 0 return true end -- the stub's guess: fills the pocket too
+function PM:NeedsCharge(s) return self:GetActiveCharge(s) < (MAX[self:GetActiveItem(s)] or 0) end
+function PM:GetBatteryCharge() return 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
 function PM:SetCard(i, c) self.cards[i + 1] = c end
 function PM:AddCard(c) table.insert(self.cards, 1, c) end -- a new card goes to slot 0

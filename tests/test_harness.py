@@ -325,6 +325,25 @@ def main(path):
     assert not any(s.startswith(f"PROBE INFO {name} ") and "never happened" in s for s in log)
     print("PASS a press that keeps the seed is logged as data:", same[0])
 
+    # Only press #1 keeps the seed: its TIMING watch is dropped, not woken by #2's new seed under #1's label
+    name = "obsy b continue with A stored"
+    log = run(path, mode="only " + name, jrSameSeed=1)
+    got = check_finished(log, "Esau Jr. #1 keeps the seed")
+    assert got[name] == WANT[name], got[name]
+    assert any(s.startswith(f"PROBE INFO {name} Esau Jr. #1 new form, same seed ") for s in log)
+    assert any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #2 frame ") for s in log)
+    assert not any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #1 frame ") for s in log), "stale TIMING watch woke"
+    print("PASS a same-seed press leaves no TIMING watch behind")
+
+    # obsy b identity run 1: Esau Jr. moved the presser's seed to its twin, which holds no c703: the spend is read at the pressed index
+    name = "obsy b identity"
+    log = run(path, mode="only " + name, jrSeedToTwin=True)
+    got = check_finished(log, "seed moves to the twin")
+    assert got[name] == WANT[name], got[name]
+    moved = [s for s in log if s.startswith("PROBE SWAP Esau Jr.") and " (seed holds no c703, read index 0)" in s]
+    assert moved, [s for s in log if s.startswith("PROBE SWAP Esau Jr.")]
+    print("PASS a seed moved to a twin is read at the pressed index:", moved[0])
+
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
              [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY])
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press

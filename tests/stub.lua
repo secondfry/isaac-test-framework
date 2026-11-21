@@ -56,7 +56,9 @@ function GetPtrHash(p) return p.hash or p.seed end
 ignoreRestart = false -- set by the test: `restart` does nothing
 ignorePress = false -- set by the test: the engine polls input but ignores a forced press
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
-jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue)
+jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
+-- a number n: only the next n Esau Jr. presses do
+jrSeedToTwin = false -- set by the test: Esau Jr. moves the presser's seed to its twin, which holds no c703 (obsy b identity run 1)
 wrongFloor = false -- set by the test: the fake ReHUD lists new entries on a wrong floor
 tlazRoll = 21 -- set by the test: the type Clicker rolls from Tainted Lazarus
 -- Negative modes for the invariants, set by the test: the fake ReHUD never lists c4 (missCopy), lists each c4 twice (dupCopy), keeps the
@@ -143,11 +145,14 @@ end
 local function swapForm(p, id)
   if id == 711 and players[2] and tlaz(players[2].t) then players[1], players[2] = players[2], players[1]
   elseif id == 703 and jrSameSeed then
+    if math.type(jrSameSeed) == "integer" then jrSameSeed = jrSameSeed > 1 and jrSameSeed - 1 end
     local q = setmetatable({}, PM)
     for k, v in pairs(p) do q[k] = v end
     q.hash, q.items = (p.hash or p.seed) + 100000, {}
     for k, v in pairs(p.items) do q.items[k == 4 and 53 or k] = v end
     for k, r in ipairs(players) do if r == p then players[k] = q end end
+  elseif id == 703 and jrSeedToTwin and players[2] then
+    p.seed, players[2].seed = players[2].seed, p.seed
   elseif id == 711 or id == 703 then
     local other, s = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
     if id == 703 then other.active = 703 else pair(p, other) end

@@ -497,6 +497,7 @@ local function swap(label, id, slot, count, ceiling, who)
 				local how = GetPtrHash(p) ~= b.hash and ("new form, same seed " .. b.seed .. ", hash " .. b.hash .. " -> " .. GetPtrHash(p)) or ("acted in place: same seed " .. b.seed)
 				P("INFO", ctx.name, label, how .. ", items " .. b.items .. " -> " .. heldItems(p) .. ", charge " .. b.charge .. " -> " .. c)
 				H.press, H.full, H.fullPolled, H.pressHash, H.watch, ctx.arms = nil, nil, nil, nil, nil, b.arms
+				for i = #(H.timing or {}), 1, -1 do if H.timing[i].label == label then table.remove(H.timing, i) end end -- the seed never changes: this watch would wake on a later press
 				return true
 			end
 			if c and c < b.charge and ctx.t >= 30 then error(label .. ": charge spent " .. b.charge .. " -> " .. c .. ", no new character after " .. ctx.t .. " updates") end

@@ -11,6 +11,7 @@ OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flip
 DISPUTES = [
     "obsx cancelled Clicker", "obsx cancelled Clicker then change", "obsx Clicker on returned original",
     "obsx Clicker after Flip", "obsx Clicker with Birthright", "obsx Isaac Esau Jr Clicker",
+    "obsx merge 38 to 29 then Flip", "obsx merge 29 to 38 then Esau Jr.",
     "obsx form loses Esau Jr.", "obsx form uses Clicker effect", "obsx Isaac form loses Esau Jr.", "obsx original loses Esau Jr.",
 ]
 OBS += DISPUTES
@@ -241,8 +242,8 @@ def main(path):
     log = run(path, mode="only obsx", render_every=200)
     got = check_finished(log, "obsx scenario times out")
     assert all(got[name] == WANT[name] for name in DISPUTES)
-    assert sum(s.endswith("scenario ceiling 525 updates") for s in log) == len(DISPUTES)
-    assert run.updates == 525 * len(DISPUTES) + len(SCENARIOS) - len(DISPUTES) + 1 < 3 * 60 * 30, run.updates
+    assert sum(s.endswith("scenario ceiling 445 updates") for s in log) == len(DISPUTES)
+    assert run.updates == 445 * len(DISPUTES) + len(SCENARIOS) - len(DISPUTES) + 1 < 3 * 60 * 30, run.updates
     print("PASS obsx unchanged effect stops, setup step and scenario limits, and total update budget")
 
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")

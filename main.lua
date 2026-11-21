@@ -876,8 +876,8 @@ end
 
 local function startObs() HARNESS.obs = { u = 0, step = "start" } end
 
--- Ten obsx scenarios at 525 updates each leave headroom for mode skips and HARNESS DONE within three minutes.
-local OBSX_STEP_LIMIT, OBSX_SCENARIO_LIMIT = 120, 525
+-- Twelve obsx scenarios at 445 updates each leave headroom for mode skips and HARNESS DONE within three minutes; in runs 2-3 none came near.
+local OBSX_STEP_LIMIT, OBSX_SCENARIO_LIMIT = 120, 445
 
 -- An obs step: tags later OBS lines with `tag` (unique within its scenario); a step that errors (its postcondition never came) is
 -- logged as INFO and skipped, not failed; in an obsx scenario it also ends the scenario, so later presses cannot run on the wrong setup.
@@ -920,6 +920,17 @@ local function obsInfo(what, f) return function(ctx) P("INFO", ctx.name, what, f
 local pocketHeld = obsInfo("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
 local typeNow = obsInfo("player 0 type", function(p) return p:GetPlayerType() end)
 local playerCount = obsInfo("players in game", function() return game:GetNumPlayers() end)
+local storedSettlingNow = function(ctx) P("INFO", ctx.name, "stored forms still settling", storedSettling()) end
+-- Watches `n` updates without acting and logs each change of what ReHUD still settles, so the log shows how long a returned survivor settles.
+local function idle(n)
+	return function(ctx)
+		ctx.t = (ctx.t or 0) + 1
+		local busy = settling() or "nothing"
+		if busy ~= ctx.busy then ctx.busy = busy; P("INFO", ctx.name, "idle update", ctx.t, "settling", busy) end
+		if ctx.t < n then return "again" end
+		ctx.t, ctx.busy = nil, nil
+	end
+end
 
 -- An obs scenario: `pre` unlogged (ending in a settle wait), then the logger, then `steps` as { tag, step } pairs, each soft and
 -- numbered, then a last settle wait; a step may be a list of pairs. Markers: c4 before the first swap, c5 right after it.
@@ -1120,6 +1131,14 @@ local OBS = {
 		end }, jrTwice() }),
 	obsScenario("obsx Isaac Esau Jr Clicker", jrSetup(ISAAC), { jrFirst(),
 		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
+	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
+	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
+	obsScenario("obsx merge 38 to 29 then Flip", { restart(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) },
+		{ "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
+		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }),
+	obsScenario("obsx merge 29 to 38 then Esau Jr.", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
+		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") },
+		{ "stored settling", storedSettlingNow }, { "settle", settled }, jrAgain(), { "watch 60", idle(60) } }),
 	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
 	obsScenario("obsx form uses Clicker effect", tlazJr(), {

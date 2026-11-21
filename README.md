@@ -8,7 +8,7 @@ Each scenario is `kind = "small"` (passes on its own) or `"large"` (needs the us
 
 Mode: before launch, write the plain text `regression` into `data\rehud_test_harness\save1.dat` in the game folder (vanilla `SaveData` path, `data\<metadata directory>\save<slot>.dat`) to run every scenario before a release; `only <prefix>` runs just the scenarios whose name starts with it (`only obs`: every `obs` scenario, `obsx` included); any other content, or no file, runs all small scenarios and only the new large ones.
 
-`only obsx` runs the dispute scenarios. An `obsx` step that fails, or still waits after 120 updates, logs INFO and ends its scenario (a failed `obs` step is only skipped); each `obsx` scenario stops at 525 updates, setup and settle waits included.
+`only obsx` runs the dispute scenarios. An `obsx` step that fails, or still waits after 120 updates, logs INFO and ends its scenario (a failed `obs` step is only skipped); each `obsx` scenario stops at 445 updates, setup and settle waits included.
 
 The `HARNESS START` line logs the mode, the mod name and the raw data read; a skipped one logs `RESULT <name> SKIP`.
 

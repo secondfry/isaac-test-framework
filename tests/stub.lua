@@ -30,6 +30,7 @@ ignoreRestart = false -- set by the test: `restart` does nothing
 ignorePress = false -- set by the test: the engine polls input but ignores a forced press
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 wrongFloor = false -- set by the test: the fake ReHUD lists new entries on a wrong floor
+tlazRoll = 21 -- set by the test: the type Clicker rolls from Tainted Lazarus
 players, stageN, pendingStart = {}, 1, nil
 local stored = {} -- the form each swap item (Flip, Esau Jr.) swapped out
 local seedN = 100
@@ -79,9 +80,13 @@ function PM:AddCollectible(id)
 end
 local function merge(into, from) for id, n in pairs(from.items) do into.items[id] = (into.items[id] or 0) + n end end
 function PM:ChangePlayerType(t)
-  if stored[711] then merge(self, stored[711]); stored[711] = nil end
+  local from = stored[711]
+  if from then merge(self, from); stored[711] = nil end
   self.t = t
-  if not tlaz(t) then self.pocket, self.items[711] = nil, nil end -- the engine removes Flip (run 5)
+  if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 5)
+  elseif from then -- Flip kept once, a fresh other form stored (run 8), unseen by ReHUD until it plays
+    self.items[711], stored[711] = 1, newPlayer(t == 29 and 38 or 29); stored[711].unseen = true
+  end
 end
 
 -- Flip, Esau Jr. and Clicker on player `p`. A stored form's charge travels with the item: the new form arrives with what the presser
@@ -95,7 +100,7 @@ local function swapForm(p, id)
     stored[id], players[1] = players[1], other
   elseif id == 482 then
     if p.t == 19 then merge(p, players[2]); players[2] = nil; p.t = 5
-    elseif tlaz(p.t) then p:ChangePlayerType(21) -- both forms' items, Flip gone, like ChangePlayerType (in-game 2026-11-21)
+    elseif tlaz(p.t) then p:ChangePlayerType(tlazRoll) -- like ChangePlayerType: into 21 (in-game 2026-11-21), into 29 from 38 (run 8)
     else p.t = 19; players[2] = newPlayer(20) end
   end
 end
@@ -179,10 +184,11 @@ function fakeTrack()
   for _, p in ipairs(players) do
     if not p.Parent and p.t ~= 40 then
       all[#all+1] = p
+      p.unseen = nil
       if settle[p.seed] == nil then settle[p.seed] = 20 elseif settle[p.seed] > 0 then settle[p.seed] = settle[p.seed] - 1 end
     end
   end
-  for _, p in pairs(stored) do all[#all+1] = p end
+  for _, p in pairs(stored) do if not p.unseen then all[#all+1] = p end end
   for _, p in ipairs(all) do
     if not numbers[p.seed] then numbers[p.seed], nextNumber = nextNumber, nextNumber + 1 end
     held[p.seed] = kinds(p)

@@ -343,20 +343,6 @@ local listed = action("3 Dollar Bill grant listed", function() end, function(ctx
 	return n == 1, "c" .. ctx.grant .. " has " .. n .. " clocked entries, want 1"
 end, 60)
 
--- `steps` run as one step, or none when `skip(ctx)` gives a reason, logged as INFO.
-local function unless(skip, steps)
-	return function(ctx)
-		if not ctx.sub then
-			local why = skip(ctx)
-			if why then return P("INFO", ctx.name, why) end
-			ctx.sub = 1
-		end
-		if steps[ctx.sub](ctx) ~= "again" then ctx.sub = ctx.sub + 1 end
-		if steps[ctx.sub] then return "again" end
-		ctx.sub = nil
-	end
-end
-
 local function snapshot()
 	local p = Isaac.GetPlayer(0)
 	return { count = game:GetNumPlayers(), who = p:GetPlayerType() .. "/" .. seedOf(p) }
@@ -656,11 +642,12 @@ local function copyKinds(ctx, label)
 end
 
 -- After Clicker out of Tainted Lazarus (S3): every c4 (floor 1, the stored form's) and c5 (floor 2, the Dead form's) the engine counts,
--- wisps aside, is listed once, floor kept, under the player holding it; the stored form is forgotten.
+-- wisps aside, is listed once, floor kept, under the player holding it; the stored form is forgotten. A roll into the other form's type
+-- keeps Flip and starts a fresh, unseen form (run 8), so ReHUD's count of characters is not checked then.
 local function afterTLazClicker(ctx, label)
 	local t = Isaac.GetPlayer(0):GetPlayerType()
 	P("INFO", ctx.name, "Clicker rolled type", t) -- Q7
-	if t == T_LAZ or t == DEAD_LAZ then return table.insert(ctx.notes, "rolled Tainted Lazarus, see r1") end
+	local lazarus = t == T_LAZ or t == DEAD_LAZ
 	for id, floor in pairs({ [4] = ctx.floors[1], [5] = ctx.floors[2] }) do
 		local sum = 0
 		for i = 0, game:GetNumPlayers() - 1 do
@@ -672,9 +659,53 @@ local function afterTLazClicker(ctx, label)
 		expectCount(ctx, label .. " (all)", sum, id)
 		expectCount(ctx, label .. " (all)", sum, id, floor)
 	end
-	expectN(ctx, label, FLIP, 0)
+	expectN(ctx, label, FLIP, lazarus and 1 or 0)
 	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	if lazarus then return expect(ctx, label .. ": left entries", leftEntries(), 0) end
 	noneLeft(ctx, label)
+end
+
+-- r1, after ChangePlayerType(29) on the Dead form with the 29 form stored: the stored form's c4 (floor 1) and the Dead form's c5 (floor 2)
+-- both on player 0, floors kept, and the stored form forgotten.
+local function r1Merged(ctx, label)
+	local key = seedOf(Isaac.GetPlayer(0))
+	ctx.merged = key
+	expectOne(ctx, label, 4, ctx.floors[1], key)
+	expectOne(ctx, label, 5, ctx.floors[2], key)
+	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+end
+
+-- r1, after the next Flip: a fresh Dead form whose only entry is its Flip; the stored survivor keeps c4 (floor 1), c5 (floor 2) and one
+-- Flip (which floor's Flip survives is not checked: the oldest goes once the survivor settles).
+local function r1Fresh(ctx, label)
+	local key = seedOf(Isaac.GetPlayer(0))
+	expect(ctx, label .. ": a new form", key ~= ctx.merged and key ~= ctx.stored, true)
+	expectCount(ctx, label, 1, FLIP, nil, nil, key)
+	local n = 0
+	for _, e in ipairs(entries()) do
+		if e.owner == key then n = n + 1 end
+	end
+	expect(ctx, label .. ": entries of the new form", n, 1)
+	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.merged)
+	expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.merged)
+	expectCount(ctx, label, 1, FLIP, nil, nil, ctx.merged)
+	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": left entries", leftEntries(), 0)
+end
+
+-- r1 mirror, after ChangePlayerType(38) on the 29 form with the Dead form stored: unobserved in game, so the merge run 8 showed for r1 is
+-- expected, and the engine state is logged; a resumed stored form (its seed back at player 0) fails here.
+local function mirrorMerged(ctx, label)
+	local p = Isaac.GetPlayer(0)
+	local key = seedOf(p)
+	P("INFO", ctx.name, "engine after ChangePlayerType(38): type", p:GetPlayerType(), "seed", key, "was", ctx.active, "stored", ctx.stored,
+		"pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
+	expect(ctx, label .. ": player 0 keeps its seed", key, ctx.active)
+	expectOne(ctx, label, 4, ctx.floors[1], key)
+	expectOne(ctx, label, 5, ctx.floors[2], key)
+	expectN(ctx, label, FLIP, 1)
+	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": left entries", leftEntries(), 0)
 end
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
@@ -848,10 +879,29 @@ local SCENARIOS = {
 		end),
 		clicker, look("after Clicker", afterTLazClicker),
 	} },
-	-- R1 (judge): does ChangePlayerType(29) on the Dead form, with the 29 form stored, merge the two (Q8)? Data only.
+	-- R1: ChangePlayerType(29) on the Dead form, with the 29 form stored, merges the two and keeps Flip; the next Flip brings a fresh Dead form (run 8).
 	{ name = "r1", kind = "small", steps = {
-		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before"), changeType(T_LAZ), look("after ChangePlayerType"),
-		unless(function() return Isaac.GetPlayer(0):GetActiveItem(ActiveSlot.SLOT_POCKET) ~= FLIP and "r1 no Flip" end, { flip("Flip after"), look("after Flip") }),
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5),
+		look("before", function(ctx, label)
+			for _, e in ipairs(entries()) do
+				if e.id == 4 then ctx.stored = e.owner end
+			end
+			expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.stored)
+		end),
+		changeType(T_LAZ), look("after ChangePlayerType", r1Merged), flip("Flip after"), look("after Flip", r1Fresh),
+	} },
+	-- r1 the other way: the 29 form turned 38 with the Dead form stored (unobserved; expects r1's merge).
+	{ name = "r1 mirror", kind = "small", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), flip("Flip back"),
+		look("before", function(ctx, label)
+			ctx.active = seedOf(Isaac.GetPlayer(0))
+			for _, e in ipairs(entries()) do
+				if e.id == 5 then ctx.stored = e.owner end
+			end
+			expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.active)
+			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.stored)
+		end),
+		changeType(DEAD_LAZ), look("after ChangePlayerType", mirrorMerged),
 	} },
 	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
 	{ name = "continue", kind = "large", new = true, steps = continueSteps() },

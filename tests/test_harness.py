@@ -4,7 +4,7 @@ import sys
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1",
+SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1"}
 LARGE = NEW = {"continue", "continue settled", "L1"}  # NEW mirrors main.lua's new = true flags
@@ -24,15 +24,16 @@ WANT = {
     "S1b": "PASS 7 checks",
     "S2": "PASS 9 checks",
     "S3": "PASS 12 checks",
-    "r1": "INFO data only",
+    "r1": "PASS 12 checks",
+    "r1 mirror": "PASS 8 checks",
     "L1": "PASS 15 checks",
 }
-FLOOR_CHECKED = ["test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S3", "continue", "continue settled", "L1"]
+FLOOR_CHECKED = ["test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
 STORED = "spent nothing: stored presser seen with no drop after its use"
 SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "S4": STORED,
-              "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED,
+              "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
               "continue": STORED, "continue settled": STORED}
 ASK = "ACTION exit to the menu and Continue now by type"
 
@@ -113,6 +114,12 @@ def main(path):
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
+
+    # Clicker from the Dead form rolling 29 (run 8): S3's merge checks with Flip kept, the rest unchanged
+    got = check_finished(run(path, tlazRoll=29), "Clicker rolls 29")
+    for name in SCENARIOS:
+        assert got[name] == ("PASS 11 checks" if name == "S3" else WANT[name]), f"Clicker rolls 29: {name}: {got[name]}"
+    print("PASS Clicker rolling 29:", got["S3"])
 
     got = check_finished(run(path, mode=""), "default mode")
     for name in SCENARIOS:

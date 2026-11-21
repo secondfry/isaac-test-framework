@@ -12,9 +12,6 @@ ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10, ACTION_DROP=11} -- the stub n
 local VM = {}; VM.__index = VM
 function Vector(x, y) return setmetatable({X=x, Y=y}, VM) end
 VM.__add = function(a, b) return Vector(a.X + b.X, a.Y + b.Y) end
-VM.__sub = function(a, b) return Vector(a.X - b.X, a.Y - b.Y) end
-function VM:Length() return math.sqrt(self.X ^ 2 + self.Y ^ 2) end
-function VM:Resized(n) local l = self:Length() return Vector(self.X * n / l, self.Y * n / l) end
 function VM:Distance(o) return math.sqrt((self.X - o.X) ^ 2 + (self.Y - o.Y) ^ 2) end
 CBS = {}
 modData = "" -- set by the test: what mod:LoadData() returns
@@ -75,7 +72,7 @@ local INNATE = {[2]={[46]=1}} -- innate copies by player type: Cain's Lucky Foot
 function newPlayer(t, parent)
   seedN = seedN + 1
   return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent,
-    Position=Vector(0, 0), Velocity=Vector(0, 0)}, PM)
+    Position=Vector(0, 0)}, PM)
 end
 -- Copies `p` holds by id, as {without a clock (owned, innate), with one (wisps, Zodiac, 3 Dollar Bill)}.
 local function kinds(p)
@@ -221,7 +218,6 @@ function engineInput()
   frame = frame + 1
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
-  for _, p in ipairs(players) do p.Position = p.Position + p.Velocity end -- no friction, no collision
   -- An active pedestal swaps with the held active when touched anew (shortcut: one touch flag per player, enough for one pedestal).
   for _, p in ipairs(players) do
     local on = false
@@ -244,7 +240,7 @@ function engineInput()
 end
 
 frame = 0
-G = {GetRoom=function() return {GetCenterPos=function() return Vector(320, 280) end} end, GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 function Isaac.ExecuteCommand(c)

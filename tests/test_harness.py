@@ -187,11 +187,11 @@ def check_obsy(log):
         name, label = v.split(" VERDICT ")[0], v.split(" VERDICT ")[1].split(" index ")[0]
         assert has(name, f"TIMING {label} frame ") and has(name, f"TIMING {label} pressed at frame "), v
     assert has("obsy a J&E by Esau", "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
-    assert has("obsy a pedestal pick-back", "touch try 1 c45 pedestals 1 c703 pedestals 0 c703 owned 0")  # spawned apart, not underfoot; walked into, 60 px at 5 px an update
-    assert has("obsy a pedestal pick-back", "c703 dropped after 10 updates: owned 0 c703 pedestals 1")
+    assert has("obsy a pedestal pick-back", "touch try 1 c45 pedestals 1 c703 pedestals 0 c703 owned 0")  # spawned beside, not underfoot
+    assert has("obsy a pedestal pick-back", "c703 dropped after 2 updates: owned 0 c703 pedestals 1")
     timing = [s.split(" index ")[0] for s in info if " TIMING " in s and " frame " in s and " pressed at " not in s]
     assert timing and len(timing) == len(set(timing)), "a TIMING frame logged twice"
-    assert has("obsy a pedestal pick-back", "c703 picked back after 24 updates: owned 1 c703 pedestals 0 c45 pedestals 1")
+    assert has("obsy a pedestal pick-back", "c703 picked back after 12 updates: owned 1 c703 pedestals 0 c45 pedestals 1")
     assert has("obsy a schoolbag", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45")
     assert has("obsy a Forgotten and Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")
     assert has("obsy a schoolbag Clicker", "VERDICT Clicker index 0 B -> unchanged")

@@ -1,5 +1,7 @@
 # rehud_test_harness
 
+Install: copy `main.lua` and `metadata.xml` over to `mods\rehud_test_harness` in the game folder and delete `disable.it` there; put `disable.it` back after each session.
+
 On the first new run after launch, on save slot 1 (unlocked there: Cain, Eve, Samson, Lazarus, Lilith, The Forgotten, J&E, Tainted Lazarus, Tainted Forgotten), it plays the scenarios in `SCENARIOS` by itself; the user only starts the run, exits and continues when the screen says so, and exits to the menu after DONE (that flushes `log.txt`).
 
 Each scenario is `kind = "small"` (passes on its own) or `"large"` (needs the user's exit and Continue; runs last, back to back, each asking for its own); a large one carries `new = true` until it has passed in game, then clear the flag; set it again whenever its steps or checks change.

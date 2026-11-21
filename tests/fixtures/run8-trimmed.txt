@@ -1,0 +1,23 @@
+[WARN] - Different number of collectibles in collection 0/733
+[INFO] - Lua Debug: PROBE HARNESS START 16 scenarios, default mode, mod data of 'ReHUD Test Harness' read ""
+[INFO] - Lua Debug: (WARN) [Stats+@MenuProvidersSection] Could not find provider for extension, skipping provider options registration. | {"providerId":"tear-cap-provider","addonId":"stats-plus-essentials"}
+[INFO] - Lua Debug: PROBE INFO probes MaxCharges c482 6
+[INFO] - Lua Debug: PROBE INFO probes MaxCharges c703 1
+[INFO] - Lua Debug: PROBE INFO probes MaxCharges c711 6
+[INFO] - Lua Debug: PROBE RESULT probes PASS 10 checks
+[INFO] - Lua Debug: PROBE INFO P2 after Clicker 1: left entries 0
+[INFO] - Lua Debug: PROBE INFO P2 after Clicker 1: characterCount = playable players 1
+[INFO] - Lua Debug: PROBE INFO P2 after Clicker 1: merged Esau's number nil
+[INFO] - Lua Debug: PROBE INFO P2 after Clicker 2: left entries 0
+[INFO] - Lua Debug: PROBE INFO P2 after Clicker 2: characterCount = playable players 1
+[INFO] - Lua Debug: PROBE RESULT P2 PASS 61 checks; unobserved: split (20 Clicker uses)
+[INFO] - Lua Debug: PROBE INFO S3 before Clicker: c4 on Basement I of 3789853395 1
+[INFO] - Lua Debug: PROBE INFO S3 before Clicker: c5 on Basement II of 3163811243 1
+[INFO] - Lua Debug: PROBE INFO S3 Clicker rolled type 29
+[INFO] - Lua Debug: PROBE RESULT S3 PASS 2 checks; unobserved: rolled Tainted Lazarus, see r1
+[INFO] - Lua Debug: PROBE ACTION exit to the menu and Continue now by type 38
+[WARN] - Different number of collectibles in collection 0/733
+[INFO] - Lua Debug: PROBE GAME START 19 continued true
+[INFO] - Lua Debug: PROBE DONE exit to the menu and Continue now after 83 updates
+[INFO] - Lua Debug: PROBE RESULT continue PASS 4 checks
+[INFO] - Lua Debug: PROBE HARNESS DONE

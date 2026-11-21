@@ -31,6 +31,10 @@ ignorePress = false -- set by the test: the engine polls input but ignores a for
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 wrongFloor = false -- set by the test: the fake ReHUD lists new entries on a wrong floor
 tlazRoll = 21 -- set by the test: the type Clicker rolls from Tainted Lazarus
+-- Negative modes for the invariants, set by the test: the fake ReHUD never lists c4 (missCopy), lists each c4 twice (dupCopy), keeps the
+-- stored form unmerged when a Tainted Lazarus turns another character (keepStored), marks a vanished owner's list left instead of merging
+-- it (leaveNotMerge), lists new entries under the next floor (laterFloor).
+missCopy, dupCopy, keepStored, leaveNotMerge, laterFloor = false, false, false, false, false
 players, stageN, pendingStart = {}, 1, nil
 local stored = {} -- the form each swap item (Flip, Esau Jr.) swapped out
 local seedN = 100
@@ -81,6 +85,7 @@ end
 local function merge(into, from) for id, n in pairs(from.items) do into.items[id] = (into.items[id] or 0) + n end end
 function PM:ChangePlayerType(t)
   local from = stored[711]
+  if keepStored and not tlaz(t) then from = nil end
   if from then merge(self, from); stored[711] = nil end
   self.t = t
   if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 5)
@@ -178,7 +183,9 @@ end
 local entries, settle, numbers, nextNumber = {}, {}, {}, 0
 local tracker = {entries=entries, characterCount=0}
 local function isStored(key) for _, p in pairs(stored) do if p.seed == key then return true end end return false end
-ReHUD = {dbg={tracker=tracker, roster={isSettling=function(key) return (settle[key] or 0) > 0 end, isSwapped=isStored, number=function(key) return numbers[key] end}}}
+ReHUD = {dbg={tracker=tracker, roster={isSettling=function(key) return (settle[key] or 0) > 0 end, isSwapped=isStored, number=function(key) return numbers[key] end,
+  group=function(key) return numbers[key] and 0 end, -- one human: every character shares ControllerIndex 0
+  serialize=function() local rows = {} for key in pairs(numbers) do rows[#rows+1] = {key=key, swapped=isStored(key)} end return rows end}}}
 function fakeTrack()
   local all, held = {}, {}
   for _, p in ipairs(players) do
@@ -191,25 +198,30 @@ function fakeTrack()
   for _, p in pairs(stored) do if not p.unseen then all[#all+1] = p end end
   for _, p in ipairs(all) do
     if not numbers[p.seed] then numbers[p.seed], nextNumber = nextNumber, nextNumber + 1 end
-    held[p.seed] = kinds(p)
+    local k = kinds(p)
+    if dupCopy and k[4] then k[4] = {k[4][1] * 2, k[4][2] * 2} elseif missCopy then k[4] = nil end
+    held[p.seed] = k
   end
-  for key in pairs(numbers) do if not held[key] then numbers[key] = nil end end
+  for key in pairs(numbers) do if not held[key] and not leaveNotMerge then numbers[key] = nil end end
   local have = {}
   local function slot(owner, id, kind) return owner .. ":" .. id .. ":" .. kind end
   for i = #entries, 1, -1 do -- newest first, so the oldest of a kind goes
     local e = entries[i]
-    if not held[e.owner] then e.owner = players[1].seed end
-    local kind = e.temporary and 2 or 1
-    local s = slot(e.owner, e.id, kind)
-    have[s] = (have[s] or 0) + 1
-    local c = held[e.owner][e.id]
-    if have[s] > (c and c[kind] or 0) then table.remove(entries, i) else e.number = numbers[e.owner] end
+    if not held[e.owner] and leaveNotMerge then e.left = true end
+    if not e.left then
+      if not held[e.owner] then e.owner = players[1].seed end
+      local kind = e.temporary and 2 or 1
+      local s = slot(e.owner, e.id, kind)
+      have[s] = (have[s] or 0) + 1
+      local c = held[e.owner][e.id]
+      if have[s] > (c and c[kind] or 0) then table.remove(entries, i) else e.number = numbers[e.owner] end
+    end
   end
   for _, p in ipairs(all) do
     for id, c in pairs(held[p.seed]) do
       for kind = 1, 2 do
         for _ = (have[slot(p.seed, id, kind)] or 0) + 1, c[kind] do
-          entries[#entries+1] = {id=id, number=numbers[p.seed], owner=p.seed, floor=wrongFloor and "Wrong" or "Floor"..stageN, temporary=kind == 2}
+          entries[#entries+1] = {id=id, number=numbers[p.seed], owner=p.seed, floor=wrongFloor and "Wrong" or "Floor"..(laterFloor and stageN + 1 or stageN), temporary=kind == 2}
         end
       end
     end

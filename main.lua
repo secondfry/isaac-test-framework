@@ -78,11 +78,12 @@ local function wispsOf(p)
 end
 
 -- shortcut: copy of ReHUD main.lua isCharacter; expose it on ReHUD.dbg if the copy drifts.
+local function isCharacter(p) return p.Variant == 0 and not p.Parent and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B end
+
 local function playable()
 	local n = 0
 	for i = 0, game:GetNumPlayers() - 1 do
-		local p = Isaac.GetPlayer(i)
-		if p.Variant == 0 and not p.Parent and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B then n = n + 1 end
+		if isCharacter(Isaac.GetPlayer(i)) then n = n + 1 end
 	end
 	return n
 end
@@ -508,7 +509,84 @@ local function storedSettling()
 	return table.concat(t, ",")
 end
 
--- Once ReHUD has settled: probe, then run `check(ctx, label)` if given.
+-- One check per invariant: it fails naming every problem found.
+local function holds(ctx, label, what, problems)
+	ctx.checks = (ctx.checks or 0) + 1
+	if problems[1] then fail(ctx, label .. ": invariant " .. what .. ": " .. table.concat(problems, "; ")) end
+end
+
+-- A stored form can come back only through the engine's two swap items (lua-api-notes.md): Flip, by a present Tainted Lazarus of its
+-- group without Birthright (with it both forms play), or Esau Jr., held by a present member. Stricter than ReHUD's own rule (roster.lua
+-- keeps a form swapped while any member of its group plays, merging it only into a former Tainted Lazarus form), so a form ReHUD forgot to
+-- merge or drop shows here.
+local function revivable(r, key, present)
+	for k, p in pairs(present) do
+		if p and r.group(k) == r.group(key) then
+			local t = p:GetPlayerType()
+			if (t == T_LAZ or t == DEAD_LAZ) and owned(p, BIRTHRIGHT) == 0 then return true end
+			for slot = 0, 2 do -- primary, secondary, pocket
+				if p:GetActiveItem(slot) == ESAU_JR then return true end
+			end
+		end
+	end
+end
+
+-- Invariants every settled look checks, whatever the scenario: (1) for each present character and item, ReHUD's entries match the
+-- engine's GetCollectibleNum(id, false) (ReHUD lists every copy: owned and innate without a clock, each wisp and the Zodiac copy with
+-- one), at least the wisps and Zodiac copy clocked, and no entry of an owner gone without being stored or left; (2) no duplicates past
+-- that count; (3) every stored form revivable; (4) no left entries unless the scenario sets `leftOk`; (5) no entry on a floor later
+-- than the current one. A ghost's list is frozen, so ghosts are left out of (1) and (2).
+-- shortcut: a 3 Dollar Bill grant shows only on ReHUD's 30-update scan, so a look within 30 updates of a re-grant would fail (1); every
+-- look after a grant follows `listed`, far inside the ~170-update interval. Wait for that scan in look if a scenario looks later.
+local function invariants(ctx, label)
+	local r, present, have = dbg().roster, {}, {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if isCharacter(p) then present[seedOf(p)] = not p:IsCoopGhost() and p end
+	end
+	local rank, stageNow = {}, game:GetLevel():GetStage()
+	for k = 1, stageNow do
+		if ctx.floors[k] then rank[ctx.floors[k]] = k end
+	end
+	local counts, dups, phantoms, lefts, floors = {}, {}, {}, {}, {}
+	for _, e in ipairs(entries()) do
+		local tag = "c" .. e.id .. " of " .. tostring(e.owner)
+		have[e.owner] = have[e.owner] or {}
+		local h = have[e.owner][e.id] or { all = 0, clocked = 0 }
+		have[e.owner][e.id] = h
+		h.all, h.clocked = h.all + 1, h.clocked + (e.temporary and 1 or 0)
+		if present[e.owner] == nil and not r.isSwapped(e.owner) and not e.left then counts[#counts + 1] = tag .. ": owner gone, neither stored nor left" end
+		if e.left then lefts[#lefts + 1] = tag end
+		if not rank[e.floor] then floors[#floors + 1] = tag .. " on '" .. tostring(e.floor) .. "', not a floor up to stage " .. stageNow end
+	end
+	for key, p in pairs(present) do
+		if p then
+			local w, z = wispsOf(p), p:GetZodiacEffect()
+			for id = 1, maxId do
+				if itemConfig:GetCollectible(id) then
+					local engine = p:GetCollectibleNum(id, false)
+					local h = (have[key] or {})[id] or { all = 0, clocked = 0 }
+					local tag = "c" .. id .. " of " .. key .. ": " .. h.all .. " entries, engine " .. engine
+					if h.all < engine then counts[#counts + 1] = tag .. ", missing"
+					elseif h.all > engine and engine == 0 then counts[#counts + 1] = tag .. ", stale"
+					elseif h.all > engine then dups[#dups + 1] = tag .. ", duplicate" end
+					local clocks = (w[id] or 0) + (z == id and 1 or 0)
+					if h.clocked < clocks then counts[#counts + 1] = tag .. ", " .. h.clocked .. " clocked for " .. clocks .. " wisp/Zodiac copies" end
+				end
+			end
+		end
+	end
+	for _, row in ipairs(r.serialize()) do
+		if row.swapped and not revivable(r, row.key, present) then phantoms[#phantoms + 1] = tostring(row.key) .. " stored, nobody can swap it back" end
+	end
+	holds(ctx, label, "engine counts", counts)
+	holds(ctx, label, "duplicates", dups)
+	holds(ctx, label, "phantom stored forms", phantoms)
+	holds(ctx, label, "left entries", ctx.leftOk and {} or lefts)
+	holds(ctx, label, "floors", floors)
+end
+
+-- Once ReHUD has settled: probe, run `check(ctx, label)` if given, then the invariants (not while ReHUD still settles at the ceiling).
 local function look(label, check)
 	return function(ctx)
 		ctx.t = (ctx.t or 0) + 1
@@ -519,6 +597,7 @@ local function look(label, check)
 		ctx.t = nil
 		probe(ctx, label)
 		if check then check(ctx, label) end
+		if not busy then invariants(ctx, label) end
 	end
 end
 
@@ -709,7 +788,7 @@ local function mirrorMerged(ctx, label)
 end
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
--- again whenever its steps or checks change.
+-- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
 local SCENARIOS = {
 	{ name = "probes", kind = "small", steps = {
 		restart(ISAAC), maxCharges, give(ESAU_JR), esauJr("Esau Jr."), onePress("Esau Jr."),
@@ -948,7 +1027,8 @@ local function tick()
 	end
 	local step = sc.steps[H.pi]
 	if not step then return finish() end
-	H.ctx.name = sc.name
+	if not H.ctx.name then P("SCENARIO START", sc.name) end -- tools/run_report.py pairs it with a RESULT
+	H.ctx.name, H.ctx.leftOk = sc.name, sc.leftOk
 	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. (H.ctx.label and (": " .. H.ctx.label) or "")
 	local ok, res = pcall(step, H.ctx)
 	if not ok then return finish("error in step " .. H.pi .. ": " .. tostring(res)) end

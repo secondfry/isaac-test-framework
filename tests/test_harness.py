@@ -1,6 +1,8 @@
 """Dry run of main.lua against tests/stub.lua. Run: python -I tests/test_harness.py main.lua (venv with lupa)."""
 import os
+import subprocess
 import sys
+import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -8,27 +10,28 @@ SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1"}
 LARGE = NEW = {"continue", "continue settled", "L1"}  # NEW mirrors main.lua's new = true flags
-# Exact verdicts: a lost check or note shows. P2 counts 3 or 4 checks per Clicker use: 7 here (the stub's Clicker splits on its second use), any number in game.
+# Exact verdicts: a lost check or note shows. Each look adds 5 invariant checks. P2 counts 8 or 9 checks per Clicker use: 22 here (the stub's
+# Clicker splits on its second use), any number in game.
 WANT = {
     "probes": "PASS 10 checks",
-    "test3": "PASS 5 checks",
-    "birthright": "PASS 16 checks",
-    "P3": "PASS 10 checks",
-    "P4a": "PASS 3 checks",
-    "S4": "PASS 14 checks",
-    "P1": "PASS 5 checks",
-    "P2": "PASS 7 checks",
-    "continue": "PASS 4 checks",
-    "continue settled": "PASS 5 checks",
-    "S1": "PASS 18 checks",
-    "S1b": "PASS 7 checks",
-    "S2": "PASS 9 checks",
-    "S3": "PASS 12 checks",
-    "r1": "PASS 12 checks",
-    "r1 mirror": "PASS 8 checks",
-    "L1": "PASS 15 checks",
+    "test3": "PASS 15 checks",
+    "birthright": "PASS 36 checks",
+    "P3": "PASS 30 checks",
+    "P4a": "PASS 18 checks",
+    "S4": "PASS 29 checks",
+    "P1": "PASS 25 checks",
+    "P2": "PASS 22 checks",
+    "continue": "PASS 14 checks",
+    "continue settled": "PASS 20 checks",
+    "S1": "PASS 53 checks",
+    "S1b": "PASS 37 checks",
+    "S2": "PASS 29 checks",
+    "S3": "PASS 22 checks",
+    "r1": "PASS 27 checks",
+    "r1 mirror": "PASS 18 checks",
+    "L1": "PASS 30 checks",
 }
-FLOOR_CHECKED = ["test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
+FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes"]  # the floor invariant covers every scenario with a look
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
 STORED = "spent nothing: stored presser seen with no drop after its use"
@@ -36,6 +39,17 @@ SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STO
               "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
               "continue": STORED, "continue settled": STORED}
 ASK = "ACTION exit to the menu and Continue now by type"
+# Each invariant's negative stub mode, and the scenarios it must fail on with that invariant's message (the rest may fail on their own checks).
+HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
+INVARIANT_MODES = {
+    "missCopy": ("invariant engine counts: c4 of ", HOLDS_C4),
+    "dupCopy": ("invariant duplicates: c4 of ", HOLDS_C4),
+    "keepStored": ("invariant phantom stored forms: ", ["test3", "S3", "continue", "continue settled"]),
+    "leaveNotMerge": ("invariant left entries: ", ["test3", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
+    # S4, P1, P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached
+    "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "S1", "S1b", "S2", "r1", "r1 mirror", "continue", "continue settled", "L1"]),
+}
+REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 
 
 def run(path, mode="regression", on_exit="continue", **flags):
@@ -99,6 +113,22 @@ def all_fail(got, label, why, names=SCENARIOS):
     print(f"PASS {label} fails:", got["test3"])
 
 
+def run_report(log):
+    """tools/run_report.py on these lines (a list) or on a file path: (exit code, last line)."""
+    tmp = isinstance(log, list)
+    if tmp:
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            f.write("\n".join(log))
+        log = f.name
+    try:
+        p = subprocess.run([sys.executable, "-B", "-I", REPORT, log], capture_output=True, text=True)
+    finally:
+        if tmp:
+            os.remove(log)
+    assert not p.stderr, p.stderr
+    return p.returncode, p.stdout.strip().splitlines()[-1]
+
+
 def main(path):
     log = run(path)
     got = check_finished(log, "regression mode")
@@ -114,11 +144,16 @@ def main(path):
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
+    assert run_report(log) == (0, "ALL PASS"), run_report(log)
+    print("PASS run_report on the dry run: ALL PASS")
+    code, verdict = run_report(os.path.join(HERE, "fixtures", "run8-trimmed.txt"))
+    assert (code, verdict) == (1, "NEEDS ANALYSIS: S3 unobserved: rolled Tainted Lazarus, see r1; results for 4 of 16 scenarios"), (code, verdict)
+    print("PASS run_report parses the run 8 fixture:", verdict)
 
     # Clicker from the Dead form rolling 29 (run 8): S3's merge checks with Flip kept, the rest unchanged
     got = check_finished(run(path, tlazRoll=29), "Clicker rolls 29")
     for name in SCENARIOS:
-        assert got[name] == ("PASS 11 checks" if name == "S3" else WANT[name]), f"Clicker rolls 29: {name}: {got[name]}"
+        assert got[name] == ("PASS 21 checks" if name == "S3" else WANT[name]), f"Clicker rolls 29: {name}: {got[name]}"
     print("PASS Clicker rolling 29:", got["S3"])
 
     got = check_finished(run(path, mode=""), "default mode")
@@ -153,6 +188,16 @@ def main(path):
         else:
             assert got[name] == WANT[name], f"wrong floor: {name}: {got[name]}"
     print("PASS a wrong ReHUD floor fails:", got["test3"][:90])
+
+    for mode, (why, names) in INVARIANT_MODES.items():
+        log = run(path, **{mode: True})
+        got = check_finished(log, mode)
+        hit = [n for n in SCENARIOS if got[n].startswith("FAIL") and why in got[n]]
+        assert hit == names, f"{mode}: invariant fired in {hit}"
+        print(f"PASS {mode} fails the invariant in {len(hit)} scenarios")
+    code, verdict = run_report(log)
+    assert code == 1 and verdict.startswith("NEEDS ANALYSIS: test3 FAIL;"), (code, verdict)
+    print("PASS run_report on a failing run:", verdict[:60])
     print("PASS dry run")
 
 

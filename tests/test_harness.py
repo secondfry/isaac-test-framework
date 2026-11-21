@@ -9,9 +9,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror",
        "obs esaujr birthright keep", "obs esaujr cross35", "obs esaujr dead seed", "obs esaujr birthright flip"]
 DISPUTES = [
-    "obsx cancelled Clicker", "obsx cancelled Clicker then change", "obsx Clicker callback timing",
-    "obsx Clicker on returned original", "obsx Clicker after Flip", "obsx Clicker from 29 to 38",
-    "obsx Clicker with Birthright", "obsx Isaac Esau Jr Clicker",
+    "obsx cancelled Clicker", "obsx cancelled Clicker then change", "obsx Clicker on returned original",
+    "obsx Clicker after Flip", "obsx Clicker with Birthright", "obsx Isaac Esau Jr Clicker",
+    "obsx form loses Esau Jr.", "obsx form uses Clicker effect", "obsx Isaac form loses Esau Jr.", "obsx original loses Esau Jr.",
 ]
 OBS += DISPUTES
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
@@ -63,7 +63,7 @@ REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 
 
-def run(path, mode="regression", on_exit="continue", **flags):
+def run(path, mode="regression", on_exit="continue", render_every=1, **flags):
     """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"."""
     lua = LuaRuntime()
     assert lua.eval("_VERSION") == "Lua 5.3", lua.eval("_VERSION")
@@ -77,14 +77,15 @@ def run(path, mode="regression", on_exit="continue", **flags):
         g[k] = v
     g.startRun(3, False)
     seen = 0
-    for _ in range(200000):
+    for update in range(1, 200001):
         if g.pendingStart is not None:
             t = g.pendingStart
             g.pendingStart = None
             g.startRun(t, False)
         g.engineInput()
         g.fire(1)
-        g.fire(2)
+        if update % render_every == 0:
+            g.fire(2)
         log = g.LOG
         size = len(log)
         if any(ASK in log[i] for i in range(seen + 1, size + 1)):
@@ -92,7 +93,7 @@ def run(path, mode="regression", on_exit="continue", **flags):
         seen = size
         if log[size] == "PROBE HARNESS DONE":
             break
-    run.saved = g.SAVED
+    run.saved, run.updates = g.SAVED, update
     return list(g.LOG.values())
 
 
@@ -204,10 +205,7 @@ def main(path):
         assert got[name] == (WANT[name] if name in OBS else "SKIP not obs (only obs mode)"), f"only obs mode: {name}: {got[name]}"
     print("PASS only obs runs just the obs scenarios")
 
-    assert sum("obsx Clicker from 29 to 38 Clicker attempt " in s for s in log) == 6
-    assert any("no verified roll to type 38 in 6 tries" in s for s in log)
-
-    log = run(path, mode="only obsx", tlazRoll=38)
+    log = run(path, mode="only obsx", ignoreFirstVetoPress=True, birthrightDeadFirst=True)
     got = check_finished(log, "only obsx mode")
     for name in SCENARIOS:
         assert got[name] == (WANT[name] if name in DISPUTES else "SKIP not obsx (only obsx mode)"), (name, got[name])
@@ -220,22 +218,44 @@ def main(path):
     assert len(crossed) == 1, crossed
     assert crossed[0].endswith("type 35"), crossed
     assert crossed[0].rsplit(" update ", 1)[1].split()[0] == cancelled[1].rsplit(" update ", 1)[1].split()[0], (crossed, cancelled)
-    timing = [s.split("callback timing ")[1] for s in log if "callback timing MC_" in s]
-    assert len(timing) == 2 and timing[0].startswith("MC_PRE_USE_ITEM ") and timing[1].startswith("MC_USE_ITEM "), timing
-    direct = [s for s in log if "obsx Clicker from 29 to 38 Clicker attempt " in s]
-    assert len(direct) == 1 and direct[0].endswith("attempt 1 rolled type 38"), direct
-    print("PASS only obsx, cancelled press and same-update change, timing probes, and both bounded-roll outcomes")
+    assert any(s.startswith("PROBE SWAP put type 29 in player 0 ") for s in log), "conditional Birthright Flip did not complete"
+    assert any("obsx form uses Clicker effect UseActiveItem Clicker type 29 -> 21 changed true primary 703 -> 703" in s for s in log)
+    assert any("obsx form uses Clicker effect MC_USE_ITEM " in s and s.endswith("slot -1 charge n/a") for s in log)
+    for name in DISPUTES[-4:]:
+        history = [s for s in log if s.startswith(f"PROBE INFO {name} press #") and " A seed " in s]
+        expected = ["false", "true"] if name == "obsx original loses Esau Jr." else ["true", "false"]
+        assert [s.rsplit(" ", 1)[1] for s in history] == expected, history
+    b_returns = [s for s in log if s.startswith("PROBE INFO obsx original loses Esau Jr. press #") and " B seed " in s]
+    assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["true", "false"], b_returns
+    print("PASS only obsx, re-armed veto, same-update change, Birthright Flip, and controls")
+
+    log = run(path, mode="only obsx", ignoreClickerEffect=True)
+    check_finished(log, "Clicker effect does nothing")
+    prefix = "PROBE INFO obsx form uses Clicker effect "
+    assert any(s.startswith(prefix + "UseActiveItem Clicker type 29 -> 29 changed false") for s in log)
+    assert not any(s.startswith(prefix + "press #") for s in log)
+    log = run(path, mode="only obsx", ignoreRestart=True)
+    got = check_finished(log, "obsx setup step times out")
+    assert all(got[name] == WANT[name] for name in DISPUTES)
+    assert sum(s.endswith("never happened: obsx ceiling 120 updates") for s in log) == len(DISPUTES)
+    log = run(path, mode="only obsx", render_every=200)
+    got = check_finished(log, "obsx scenario times out")
+    assert all(got[name] == WANT[name] for name in DISPUTES)
+    assert sum(s.endswith("scenario ceiling 525 updates") for s in log) == len(DISPUTES)
+    assert run.updates == 525 * len(DISPUTES) + len(SCENARIOS) - len(DISPUTES) + 1 < 3 * 60 * 30, run.updates
+    print("PASS obsx unchanged effect stops, setup step and scenario limits, and total update budget")
 
     got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
     for name in LARGE:
         assert got[name].startswith("FAIL") and "a new run started, not a Continue" in got[name], got[name]
     print("PASS new run instead of Continue fails:", got["continue"])
 
-    all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates")
+    all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
+             [n for n in SCENARIOS if n not in DISPUTES])
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
     log = run(path, ignorePress=True)
-    assert any("obsx Clicker from 29 to 38 2 try 1 Esau Jr. never happened:" in s for s in log)
-    assert not any("obsx Clicker from 29 to 38 Clicker attempt" in s for s in log)
+    assert any("obsx form loses Esau Jr. 2 Esau Jr. never happened:" in s for s in log)
+    assert not any(s == "PROBE CMD giveitem c105" for s in log)
     all_fail(check_finished(log, "press ignored"), "press ignored", "no new character, arms ",
              [n for n in SCENARIOS if n not in NO_SWAP])
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]

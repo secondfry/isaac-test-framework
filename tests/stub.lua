@@ -2,7 +2,7 @@
 ModCallbacks = {MC_POST_UPDATE=1, MC_POST_RENDER=2, MC_USE_ITEM=3, MC_INPUT_ACTION=13, MC_POST_GAME_STARTED=15, MC_PRE_USE_ITEM=23, MC_POST_PLAYER_UPDATE=31}
 CallbackPriority = {EARLY=-100, LATE=100}
 EntityType = {ENTITY_FAMILIAR=3}; FamiliarVariant = {ITEM_WISP=237}
-CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619}
+CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105}
 PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_JACOB=19, PLAYER_ESAU=20, PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_THESOUL_B=40}
 ActiveSlot = {SLOT_PRIMARY=0, SLOT_POCKET=2}
 Card = {CARD_SOUL_JACOB=97}
@@ -92,8 +92,18 @@ function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(s
 local function pair(a, b) a.partner, b.partner = b, a return b end
 function PM:AddCollectible(id)
   self.items[id] = (self.items[id] or 0) + 1
-  if id == 482 or id == 703 then self.active = id end
-  if id == 619 and tlaz(self.t) then players[2] = pair(self, stored[711] or newPlayer(self.t == 29 and 38 or 29)); stored[711] = nil end
+  if id == 105 or id == 482 or id == 703 then
+    if self.active then self.items[self.active] = nil end
+    self.active, self.items[id] = id, 1
+  end
+  if id == 619 and tlaz(self.t) then
+    players[2] = pair(self, stored[711] or newPlayer(self.t == 29 and 38 or 29))
+    stored[711] = nil
+    if birthrightDeadFirst and players[2].t == 38 then
+      players[2].items[619] = self.items[619]
+      players[1], players[2] = players[2], players[1]
+    end
+  end
 end
 local function merge(into, from) for id, n in pairs(from.items) do into.items[id] = (into.items[id] or 0) + n end end
 function PM:ChangePlayerType(t)
@@ -124,6 +134,15 @@ local function swapForm(p, id)
   end
 end
 
+-- Simulate a scripted Clicker effect without touching the active slot or its charge.
+function PM:UseActiveItem(id, flags)
+  assert(id == 482 and flags == 0)
+  if not fire(23, id, nil, self, flags, -1, 0) then
+    if not ignoreClickerEffect then swapForm(self, id) end
+    fire(3, id, nil, self, flags, -1, 0)
+  end
+end
+
 -- The use behind a press of `button` by `p`: a held card first for PILLCARD, then the pocket active; an active needs a full charge.
 -- MC_USE_ITEM runs before the discharge (IsaacDocs); the form swap is queued in `swaps`, as the engine stores the presser only after
 -- its MC_POST_PLAYER_UPDATE (run 6).
@@ -137,6 +156,7 @@ local function use(p, button, swaps)
   local slot = button == 10 and 2 or 0
   local id = p:GetActiveItem(slot)
   if id == 0 or p:NeedsCharge(slot) then return end
+  if id == 482 and ignoreFirstVetoPress and HARNESS.cancelClicker and HARNESS.cancelClicker.arms == 1 then return end
   local cancelled = fire(23, id, nil, p, 0, slot, 0)
   if not cancelled then fire(3, id, nil, p, 0, slot, 0) end
   if not noSpend then p.charge[slot] = 0 end

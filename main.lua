@@ -876,19 +876,25 @@ end
 
 local function startObs() HARNESS.obs = { u = 0, step = "start" } end
 
+-- Ten obsx scenarios at 525 updates each leave headroom for mode skips and HARNESS DONE within three minutes.
+local OBSX_STEP_LIMIT, OBSX_SCENARIO_LIMIT = 120, 525
+
 -- An obs step: tags later OBS lines with `tag` (unique within its scenario); a step that errors (its postcondition never came) is
--- logged as INFO. A failed dispute step ends its trial so later presses cannot run on the wrong setup.
+-- logged as INFO and skipped, not failed; in an obsx scenario it also ends the scenario, so later presses cannot run on the wrong setup.
 local function obs(tag, step, when, stopOnError)
 	return function(ctx)
-		if ctx.obsInterrupted or (when and not when(ctx)) then return end
+		if ctx.obsInterrupted or (not ctx.t and when and not when(ctx)) then return end
 		local H = HARNESS
-		if H.obs.step ~= tag then H.obs.step = tag; P("OBS u" .. H.obs.u, "step " .. tag .. " begins") end
+		if H.obs and H.obs.step ~= tag then H.obs.step = tag; P("OBS u" .. H.obs.u, "step " .. tag .. " begins") end
 		local ok, res = pcall(step, ctx)
+		if ok and stopOnError and res == "again" and ctx.t >= OBSX_STEP_LIMIT then
+			ok, res = false, "obsx ceiling " .. OBSX_STEP_LIMIT .. " updates"
+		end
 		if ok then return res end
 		P("INFO", ctx.name, tag, "never happened:", res)
 		ctx.obsInterrupted = stopOnError
 		ctx.t, ctx.held, ctx.before, ctx.label = nil, nil, nil, nil
-		H.press, H.full, H.fullPolled, H.watch = nil, nil, nil, nil
+		H.press, H.full, H.fullPolled, H.watch, H.cancelClicker = nil, nil, nil, nil, nil
 	end
 end
 
@@ -920,8 +926,10 @@ local playerCount = obsInfo("players in game", function() return game:GetNumPlay
 local function obsScenario(name, pre, steps)
 	local all, n = {}, 0
 	local stopOnError = name:sub(1, 5) == "obsx "
-	for _, s in ipairs(pre) do all[#all + 1] = s end
-	all[#all + 1] = settled
+	for _, s in ipairs(pre) do
+		all[#all + 1] = stopOnError and obs("setup " .. (#all + 1), s, nil, true) or s
+	end
+	all[#all + 1] = stopOnError and obs("setup settle", settled, nil, true) or settled
 	all[#all + 1] = startObs
 	steps[#steps + 1] = { "settle", settled }
 	for _, s in ipairs(steps) do
@@ -930,9 +938,10 @@ local function obsScenario(name, pre, steps)
 			all[#all + 1] = obs(n .. " " .. pair[1], pair[2], pair[3], stopOnError)
 		end
 	end
-	return { name = name, kind = "small", steps = all }
+	return { name = name, kind = "small", steps = all, obsBudget = stopOnError and OBSX_SCENARIO_LIMIT }
 end
-local function tlazJr() return { restart(T_LAZ), give(4), give(ESAU_JR) } end
+local function jrSetup(playerType) return { restart(playerType), give(4), give(ESAU_JR) } end
+local function tlazJr() return jrSetup(T_LAZ) end
 local function jrFirst() return { { "Esau Jr.", esauJr("Esau Jr.") }, { "give c5", give(5) } } end
 local function jrAgain() return { { "re-give c703", regiveEsauJr() }, { "Esau Jr. again", esauJr("Esau Jr. again") } } end
 local PRIMARY = ActiveSlot.SLOT_PRIMARY
@@ -941,7 +950,7 @@ local function clickerCallback(name, p, slot)
 	local H = HARNESS
 	if not H.obs or H.ctx.name:sub(1, 5) ~= "obsx " then return end
 	P("INFO", H.ctx.name, name, "update", H.obs.u + 1, "type", p:GetPlayerType(),
-		"seed", seedOf(p), "slot", slot, "charge", p:GetActiveCharge(slot))
+		"seed", seedOf(p), "slot", slot, "charge", slot >= 0 and p:GetActiveCharge(slot) or "n/a")
 end
 
 -- Let ReHUD's default-priority PRE callback see the attempt before returning the veto.
@@ -979,6 +988,7 @@ mod:AddPriorityCallback(ModCallbacks.MC_POST_UPDATE, CallbackPriority.EARLY, fun
 	P("INFO", H.ctx.name, "same-update ChangePlayerType", "update", H.obs.u + 1, "type", Isaac.GetPlayer(0):GetPlayerType())
 end)
 
+-- shortcut: one veto per press, matched by GetPtrHash of player 0; extend it if a second player must press.
 local function cancelledClicker(change)
 	return action("cancelled Clicker", function()
 		local H, p = HARNESS, Isaac.GetPlayer(0)
@@ -992,10 +1002,9 @@ local function cancelledClicker(change)
 		return b
 	end, function(ctx, b)
 		if b.observed then return true end
-		if ctx.t < 3 then return false end
-		HARNESS.cancelClicker, HARNESS.press = nil, nil
-		error("single press did not reach MC_PRE_USE_ITEM")
-	end, 3)
+		if not HARNESS.press and ctx.t < 10 then arm(HARNESS, b) end
+		return false, "press did not reach MC_PRE_USE_ITEM"
+	end, 10)
 end
 
 local obsClicker = swap("Clicker", CLICKER, PRIMARY, nil, 60)
@@ -1003,42 +1012,65 @@ local function jrTwice()
 	return jrAgain(), { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") }
 end
 
-local function clickerToDead()
-	local steps, attempts = {}, 6
-	local function pending(ctx) return not ctx.deadRoll end
-	-- An off-target roll can destroy the original. Each retry needs a fresh type-29 Esau Jr. form.
-	for n = 1, attempts do
-		local function add(tag, step) steps[#steps + 1] = { "try " .. n .. " " .. tag, step, pending } end
-		if n > 1 then
-			for i, step in ipairs(tlazJr()) do add(({ "restart", "give c4", "give c703" })[i], step) end
-			add("settle original", settled)
-		end
-		add("record original", function(ctx) ctx.rollOriginal = seedOf(Isaac.GetPlayer(0)) end)
-		for _, pair in ipairs(jrFirst()) do add(pair[1], pair[2]) end
-		add("give Clicker", give(CLICKER))
-		add("Clicker", function(ctx)
-			if not ctx.t then
-				local p = Isaac.GetPlayer(0)
-				if p:GetPlayerType() ~= T_LAZ or seedOf(p) == ctx.rollOriginal then
-					error("expected a distinct type-29 Esau Jr. form before Clicker")
-				end
-			end
-			return obsClicker(ctx)
-		end)
-		add("roll result", function(ctx)
-			local t = Isaac.GetPlayer(0):GetPlayerType()
-			P("INFO", ctx.name, "Clicker attempt", n, "rolled type", t)
-			ctx.deadRoll = t == DEAD_LAZ
-			if n == attempts and not ctx.deadRoll then P("INFO", ctx.name, "no verified roll to type 38 in", attempts, "tries") end
-		end)
-	end
-	local first, regive, second = jrTwice()
-	for _, pair in ipairs({ first[1], first[2], regive, second }) do
-		pair[3] = function(ctx) return ctx.deadRoll end
-		steps[#steps + 1] = pair
-	end
-	return steps
+local function giveClicker()
+	return { { "give Clicker", give(CLICKER) }, { "give c1", give(1) } }
 end
+
+local function rememberOriginal(ctx)
+	ctx.originalSeed = seedOf(Isaac.GetPlayer(0))
+end
+
+local function rememberForm(ctx)
+	ctx.formSeed = seedOf(Isaac.GetPlayer(0))
+end
+
+local function recordReturn(label)
+	return function(ctx)
+		P("INFO", ctx.name, label, "A seed", ctx.originalSeed, "present", playerBySeed(ctx.originalSeed) ~= nil)
+		if ctx.formSeed then
+			P("INFO", ctx.name, label, "B seed", ctx.formSeed, "present", playerBySeed(ctx.formSeed) ~= nil)
+		end
+	end
+end
+
+local function controlPresses()
+	return {
+		{ "Esau Jr. after intervention", esauJr("Esau Jr. after intervention") },
+		{ "record return #1", recordReturn("press #1") },
+		{ "Esau Jr. after intervention #2", esauJr("Esau Jr. after intervention #2") },
+		{ "record return #2", recordReturn("press #2") },
+	}
+end
+
+local function replaceEsauJr()
+	return {
+		{ "check Esau Jr. in primary", function()
+			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. before giving D6") end
+		end },
+		{ "give D6", give(CollectibleType.COLLECTIBLE_D6) },
+		{ "check D6 in primary", function()
+			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= CollectibleType.COLLECTIBLE_D6 then error("D6 did not replace Esau Jr.") end
+		end },
+		{ "re-give c703", give(ESAU_JR) },
+	}
+end
+
+local useClickerEffect = action("UseActiveItem Clicker", function()
+	local p = Isaac.GetPlayer(0)
+	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. in primary before UseActiveItem") end
+	local before = { seed = seedOf(p), who = p:GetPlayerType() }
+	p:UseActiveItem(CLICKER, 0) -- vanilla flags = 0, slot defaults to -1
+	return before
+end, function(ctx, before)
+	local p = playerBySeed(before.seed)
+	local who = p and p:GetPlayerType()
+	local primary = p and p:GetActiveItem(PRIMARY)
+	P("INFO", ctx.name, "UseActiveItem Clicker type", before.who, "->", who, "changed", who ~= nil and who ~= before.who,
+		"primary", ESAU_JR, "->", primary)
+	if not who or who == before.who then error("UseActiveItem did not verify a type change on the presser") end
+	if primary ~= ESAU_JR then error("Esau Jr. did not stay in primary after UseActiveItem") end
+	return true
+end)
 
 local birthrightFlip = flip("put type 29 in player 0")
 local OBS = {
@@ -1066,27 +1098,37 @@ local OBS = {
 	obsScenario("obs esaujr dead seed", tlazJr(), { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld }, { "Flip on A", flip("Flip on A") } }),
 	obsScenario("obs esaujr birthright flip", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled },
 		{ "Flip", flip("Flip") } }),
-	obsScenario("obsx cancelled Clicker", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
+	obsScenario("obsx cancelled Clicker", tlazJr(), { jrFirst(), giveClicker(),
 		{ "cancel Clicker", cancelledClicker(false) }, jrAgain() }),
-	obsScenario("obsx cancelled Clicker then change", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
+	obsScenario("obsx cancelled Clicker then change", tlazJr(), { jrFirst(), giveClicker(),
 		{ "cancel Clicker and change type", cancelledClicker(true) }, jrAgain() }),
-	obsScenario("obsx Clicker callback timing", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) },
-		{ "Clicker", obsClicker }, { "Clicker roll", typeNow } }),
-	obsScenario("obsx Clicker on returned original", tlazJr(), { jrFirst(), jrAgain(), { "give Clicker", give(CLICKER) },
+	obsScenario("obsx Clicker on returned original", tlazJr(), { jrFirst(), jrAgain(), giveClicker(),
 		{ "Clicker", obsClicker }, jrTwice() }),
 	obsScenario("obsx Clicker after Flip", tlazJr(), { jrFirst(), { "Flip of the form", flip("Flip of the form") },
-		{ "give Clicker", give(CLICKER) }, { "Clicker", obsClicker }, jrTwice() }),
-	obsScenario("obsx Clicker from 29 to 38", tlazJr(), clickerToDead()),
+		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
 	obsScenario("obsx Clicker with Birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
 		{ "select type-29 twin", birthrightFlip, function() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ end },
-		{ "give Clicker", give(CLICKER) }, { "Clicker by type 29", function(ctx)
+		giveClicker(), { "Clicker by type 29", function(ctx)
 			if not ctx.t and (Isaac.GetPlayer(0):GetPlayerType() ~= T_LAZ or not playerOfType(DEAD_LAZ)) then
 				error("expected type 29 in player 0 with the type-38 Birthright twin present")
 			end
 			return obsClicker(ctx)
 		end }, jrTwice() }),
-	obsScenario("obsx Isaac Esau Jr Clicker", { restart(ISAAC), give(4), give(ESAU_JR) }, { jrFirst(),
-		{ "give Clicker", give(CLICKER) }, { "Clicker", obsClicker }, jrTwice() }),
+	obsScenario("obsx Isaac Esau Jr Clicker", jrSetup(ISAAC), { jrFirst(),
+		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
+	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
+		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
+	obsScenario("obsx form uses Clicker effect", tlazJr(), {
+		{ "record A", rememberOriginal }, jrFirst(), { "use Clicker effect", useClickerEffect }, controlPresses() }),
+	obsScenario("obsx Isaac form loses Esau Jr.", jrSetup(ISAAC), {
+		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
+	obsScenario("obsx original loses Esau Jr.", tlazJr(), {
+		{ "record A", rememberOriginal }, jrFirst(), { "record B", rememberForm },
+		{ "Esau Jr. back to A", esauJr("Esau Jr. back to A") },
+		{ "verify A returned", function(ctx)
+			if seedOf(Isaac.GetPlayer(0)) ~= ctx.originalSeed then error("expected original A in player 0") end
+		end },
+		replaceEsauJr(), controlPresses() }),
 }
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
@@ -1374,7 +1416,7 @@ end
 local function tick()
 	local H = HARNESS
 	observe()
-	if not H.running or H.pending then return end
+	if not H.running then return end
 	local sc = SCENARIOS[H.si]
 	if not sc then
 		H.running, H.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
@@ -1391,6 +1433,17 @@ local function tick()
 		H.si = H.si + 1
 		return
 	end
+	if sc.obsBudget then
+		local ctx = H.ctx
+		if ctx.obsInterrupted then return finish() end
+		ctx.obsUpdates = (ctx.obsUpdates or 0) + 1
+		if ctx.obsUpdates >= sc.obsBudget then
+			P("INFO", sc.name, "scenario ceiling", sc.obsBudget, "updates")
+			H.pending = nil
+			return finish()
+		end
+	end
+	if H.pending then return end
 	local step = sc.steps[H.pi]
 	if not step then return finish() end
 	if not H.ctx.name then P("SCENARIO START", sc.name) end -- tools/run_report.py pairs it with a RESULT

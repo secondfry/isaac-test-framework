@@ -517,7 +517,7 @@ end
 
 -- A stored form can come back only through the engine's two swap items (lua-api-notes.md): Flip, by a present Tainted Lazarus of its
 -- group without Birthright (with it both forms play), or Esau Jr., held by a present member. Stricter than ReHUD's own rule (roster.lua
--- keeps a form swapped while any member of its group plays, merging it only into a former Tainted Lazarus form), so a form ReHUD forgot to
+-- keeps a form swapped while any member of its group plays, merging it only into its Flip partner turned another type), so a form ReHUD forgot to
 -- merge or drop shows here.
 local function revivable(r, key, present)
 	for k, p in pairs(present) do
@@ -787,6 +787,28 @@ local function mirrorMerged(ctx, label)
 	expect(ctx, label .. ": left entries", leftEntries(), 0)
 end
 
+-- P4c: an Esau Jr. form of Tainted Lazarus taken out of Tainted Lazarus. ReHUD merges a stored form only into its recorded Flip partner,
+-- so it assumes the engine leaves the Esau Jr. original stored (lupa X2, X3, Y1); unobserved, so each engine state is logged as INFO
+-- and a different outcome fails the checks. ctx.orig: the Esau Jr. presser; ctx.form: the Esau Jr. form; ctx.dead: a Flip partner.
+local function engineInfo(ctx, what)
+	local p = Isaac.GetPlayer(0)
+	P("INFO", ctx.name, "engine " .. what .. ": type", p:GetPlayerType(), "seed", seedOf(p), "original", ctx.orig, "form", ctx.form, "dead", ctx.dead,
+		"primary", p:GetActiveItem(ActiveSlot.SLOT_PRIMARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
+end
+local function origStored(ctx, label)
+	expect(ctx, label .. ": Esau Jr. original stored", dbg().roster.isSwapped(ctx.orig), true)
+	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
+end
+local function esauJrForm(ctx, label)
+	ctx.form = seedOf(Isaac.GetPlayer(0))
+	expect(ctx, label .. ": a new form", ctx.form ~= ctx.orig and ctx.form ~= ctx.dead, true)
+	origStored(ctx, label)
+end
+local function origBeforeEsauJr(ctx, label)
+	ctx.orig, ctx.form, ctx.dead = seedOf(Isaac.GetPlayer(0)), nil, nil
+	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
+end
+
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
 local SCENARIOS = {
@@ -834,6 +856,55 @@ local SCENARIOS = {
 	{ name = "P4a", kind = "small", steps = {
 		restart(T_LAZ), give(4), give(ESAU_JR), stage(2), look("after c4", oneC4),
 		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
+	} },
+	-- Three runs: ChangePlayerType out on the Esau Jr. form, then Esau Jr. again (swap refills its 1 charge, spent by the first press);
+	-- a Flip of the Esau Jr. form, whose new Dead form is turned Isaac; and the 29->38 crossing on the Esau Jr. form of a flipped one.
+	{ name = "P4c", kind = "small", steps = {
+		restart(T_LAZ), give(4), give(ESAU_JR), stage(2), look("before Esau Jr.", origBeforeEsauJr),
+		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", esauJrForm), changeType(ISAAC),
+		look("after ChangePlayerType on the form", function(ctx, label)
+			engineInfo(ctx, "after ChangePlayerType(0) on the Esau Jr. form")
+			expect(ctx, label .. ": player 0 is the form", seedOf(Isaac.GetPlayer(0)), ctx.form)
+			origStored(ctx, label)
+		end),
+		esauJr("Esau Jr. 2"), look("after Esau Jr. 2", function(ctx, label)
+			engineInfo(ctx, "after Esau Jr. from the form turned Isaac")
+			expect(ctx, label .. ": player 0 is the original", seedOf(Isaac.GetPlayer(0)), ctx.orig)
+			expectOne(ctx, label, 4, ctx.floors[1], ctx.orig)
+			expect(ctx, label .. ": left entries", leftEntries(), 0)
+		end),
+		restart(T_LAZ), give(4), give(ESAU_JR), stage(2), look("before Esau Jr.", origBeforeEsauJr),
+		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), flip("Flip of the form"),
+		look("after Flip of the form", function(ctx, label)
+			engineInfo(ctx, "after a Flip of the Esau Jr. form")
+			ctx.dead = seedOf(Isaac.GetPlayer(0))
+			expect(ctx, label .. ": a new Dead form", ctx.dead ~= ctx.orig and ctx.dead ~= ctx.form and Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ, true)
+			expect(ctx, label .. ": form stored", dbg().roster.isSwapped(ctx.form), true)
+			origStored(ctx, label)
+		end),
+		give(ESAU_JR), -- so the original stays revivable (invariant 3) once the Dead form is no Tainted Lazarus
+		changeType(ISAAC), look("after ChangePlayerType on the Dead form", function(ctx, label)
+			engineInfo(ctx, "after ChangePlayerType(0) on the Esau Jr. form's Dead form")
+			expect(ctx, label .. ": form merged", dbg().roster.number(ctx.form), nil)
+			origStored(ctx, label)
+		end),
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), flip("Flip back"), give(ESAU_JR),
+		look("before Esau Jr.", function(ctx, label)
+			origBeforeEsauJr(ctx, label)
+			for _, e in ipairs(entries()) do
+				if e.id == 5 then ctx.dead = e.owner end
+			end
+			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
+		end),
+		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), changeType(DEAD_LAZ),
+		look("after the crossing on the form", function(ctx, label)
+			engineInfo(ctx, "after ChangePlayerType(38) on the Esau Jr. form")
+			expect(ctx, label .. ": player 0 is the form", seedOf(Isaac.GetPlayer(0)), ctx.form)
+			expect(ctx, label .. ": Dead form stored", dbg().roster.isSwapped(ctx.dead), true)
+			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
+			origStored(ctx, label)
+			expect(ctx, label .. ": left entries", leftEntries(), 0)
+		end),
 	} },
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. form 2 (run 7's P4b).
 	{ name = "S4", kind = "small", steps = {

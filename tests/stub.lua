@@ -77,20 +77,23 @@ function PM:NeedsCharge(s) return self:GetActiveCharge(s) < full(self, s) end
 function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
 function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip scenario
+-- Flip partners, both ways: the two forms of one Tainted Lazarus. Returns `b`.
+local function pair(a, b) a.partner, b.partner = b, a return b end
 function PM:AddCollectible(id)
   self.items[id] = (self.items[id] or 0) + 1
   if id == 482 or id == 703 then self.active = id end
-  if id == 619 and tlaz(self.t) then players[2] = stored[711] or newPlayer(self.t == 29 and 38 or 29); stored[711] = nil end
+  if id == 619 and tlaz(self.t) then players[2] = pair(self, stored[711] or newPlayer(self.t == 29 and 38 or 29)); stored[711] = nil end
 end
 local function merge(into, from) for id, n in pairs(from.items) do into.items[id] = (into.items[id] or 0) + n end end
 function PM:ChangePlayerType(t)
   local from = stored[711]
+  if from and from.partner ~= self then from = nil end -- the stub's guess (P4c): only the presser's own Flip partner merges, not an Esau Jr. original's
   if keepStored and not tlaz(t) then from = nil end
   if from then merge(self, from); stored[711] = nil end
   self.t = t
   if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 5)
   elseif from then -- Flip kept once, a fresh other form stored (run 8), unseen by ReHUD until it plays
-    self.items[711], stored[711] = 1, newPlayer(t == 29 and 38 or 29); stored[711].unseen = true
+    self.items[711], stored[711] = 1, pair(self, newPlayer(t == 29 and 38 or 29)); stored[711].unseen = true
   end
 end
 
@@ -100,7 +103,7 @@ local function swapForm(p, id)
   if id == 711 and players[2] and tlaz(players[2].t) then players[1], players[2] = players[2], players[1]
   elseif id == 711 or id == 703 then
     local other, s = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
-    if id == 703 then other.active = 703 end
+    if id == 703 then other.active = 703 else pair(p, other) end
     other.charge[s], other.battery[s] = p.charge[s], p.battery[s]
     stored[id], players[1] = players[1], other
   elseif id == 482 then

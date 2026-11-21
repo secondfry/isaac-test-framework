@@ -6,7 +6,7 @@ import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
+SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1"}
 LARGE = NEW = {"continue", "continue settled", "L1"}  # NEW mirrors main.lua's new = true flags
@@ -18,6 +18,7 @@ WANT = {
     "birthright": "PASS 36 checks",
     "P3": "PASS 30 checks",
     "P4a": "PASS 18 checks",
+    "P4c": "PASS 87 checks",
     "S4": "PASS 29 checks",
     "P1": "PASS 25 checks",
     "P2": "PASS 22 checks",
@@ -35,19 +36,19 @@ FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes"]  # the floor invariant c
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
 STORED = "spent nothing: stored presser seen with no drop after its use"
-SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "S4": STORED,
+SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4c": STORED, "S4": STORED,
               "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
               "continue": STORED, "continue settled": STORED}
 ASK = "ACTION exit to the menu and Continue now by type"
 # Each invariant's negative stub mode, and the scenarios it must fail on with that invariant's message (the rest may fail on their own checks).
-HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
+HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
 INVARIANT_MODES = {
     "missCopy": ("invariant engine counts: c4 of ", HOLDS_C4),
     "dupCopy": ("invariant duplicates: c4 of ", HOLDS_C4),
     "keepStored": ("invariant phantom stored forms: ", ["test3", "S3", "continue", "continue settled"]),
-    "leaveNotMerge": ("invariant left entries: ", ["test3", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
+    "leaveNotMerge": ("invariant left entries: ", ["test3", "P4c", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
     # S4, P1, P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached
-    "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "S1", "S1b", "S2", "r1", "r1 mirror", "continue", "continue settled", "L1"]),
+    "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S1", "S1b", "S2", "r1", "r1 mirror", "continue", "continue settled", "L1"]),
 }
 REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 

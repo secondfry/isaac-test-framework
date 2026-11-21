@@ -91,19 +91,26 @@ local function input(e, hook, button)
     end
   end
 end
--- One game update's input: every player polls both buttons once, triggered and pressed. The stub's guess (run 2 showed only that a
--- triggered PILLCARD alone never used Flip): the pocket active needs the button held too, so the probes settle on mode b.
+-- One game update's input. Run 3: each update polls PILLCARD triggered, pressed, triggered; a card reads the first triggered, the pocket
+-- active (Flip) the second. ITEM: one triggered poll. The stub's guess: a card is not used when the second triggered is true too and
+-- pressed is not (run 3's TRIGGERED-only flood used no card).
+frameN = 0
 function engineInput()
+  frameN = frameN + 1
   for _, p in ipairs({table.unpack(players)}) do
-    for _, b in ipairs({9, 10}) do
-      local trig, held = input(p, 1, b) == true, input(p, 0, b) == true
-      local pocket = b == 10 and not p.cards[1]
-      if trig and (held or not pocket) and not ignorePress then use(p, b) end
+    if input(p, 1, 9) == true and not ignorePress then use(p, 9) end
+    local t1 = input(p, 1, 10) == true
+    local held = input(p, 0, 10) == true
+    local t2 = input(p, 1, 10) == true
+    if not ignorePress then
+      if p.cards[1] then
+        if t1 and (held or not t2) then use(p, 10) end
+      elseif t2 then use(p, 10) end
     end
   end
 end
 
-G = {GetNumPlayers=function() return #players end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+G = {GetFrameCount=function() return frameN end, GetNumPlayers=function() return #players end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 function Isaac.ExecuteCommand(c)

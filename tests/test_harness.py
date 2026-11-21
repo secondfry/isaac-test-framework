@@ -69,9 +69,7 @@ def main(path):
         print("RESULT", name, got[name])
         assert got[name].startswith(WANT.get(name, "PASS")), f"{name}: {got[name]}"
     assert any(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log), "continue did not resume"
-    assert any(s.endswith("pocket press mode that swaps b") for s in log), "probes did not settle on mode b"
-    print("PASS probes find pocket press mode b after a fails")
-    presses = [s for s in log if s.startswith("PROBE PRESS ") and not s.startswith("PROBE PRESS Flip mode a")]  # a is meant to fail
+    presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
     assert presses and len(presses) == len(swaps) and all(" spent " in s for s in swaps), (len(presses), len(swaps))
     print("PASS every swap spends:", len(swaps), "swaps")
@@ -85,7 +83,7 @@ def main(path):
 
     all_fail(check_finished(run(path, ignore_restart=True), "restart ignored"), "restart timeout", "no new game after 600 updates")
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
-    all_fail(check_finished(run(path, ignore_press=True), "press ignored"), "press ignored", "no new character, mode ")
+    all_fail(check_finished(run(path, ignore_press=True), "press ignored"), "press ignored", "no new character, arms ")
     all_fail(check_finished(run(path, no_spend=True), "no spend"), "swap without a spend", "spent nothing")
     print("PASS dry run")
 

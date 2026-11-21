@@ -887,7 +887,7 @@ local function obs(tag, step, when, stopOnError)
 		local H = HARNESS
 		if H.obs and H.obs.step ~= tag then H.obs.step = tag; P("OBS u" .. H.obs.u, "step " .. tag .. " begins") end
 		local ok, res = pcall(step, ctx)
-		if ok and stopOnError and res == "again" and ctx.t >= OBSX_STEP_LIMIT then
+		if ok and stopOnError and res == "again" and not ctx.held and ctx.t >= OBSX_STEP_LIMIT then
 			ok, res = false, "obsx ceiling " .. OBSX_STEP_LIMIT .. " updates"
 		end
 		if ok then return res end
@@ -1048,8 +1048,12 @@ local function replaceEsauJr()
 			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. before giving D6") end
 		end },
 		{ "give D6", give(CollectibleType.COLLECTIBLE_D6) },
-		{ "check D6 in primary", function()
-			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= CollectibleType.COLLECTIBLE_D6 then error("D6 did not replace Esau Jr.") end
+		{ "check D6 in primary", function(ctx)
+			local p = Isaac.GetPlayer(0)
+			if p:GetActiveItem(PRIMARY) ~= CollectibleType.COLLECTIBLE_D6 then error("D6 did not replace Esau Jr.") end
+			local n = owned(p, ESAU_JR)
+			P("INFO", ctx.name, "c703 owned", n, "pedestals", #Isaac.FindByType(5, 100, ESAU_JR))
+			if n ~= 0 then error("c703 still owned after D6") end
 		end },
 		{ "re-give c703", give(ESAU_JR) },
 	}
@@ -1059,7 +1063,7 @@ local useClickerEffect = action("UseActiveItem Clicker", function()
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. in primary before UseActiveItem") end
 	local before = { seed = seedOf(p), who = p:GetPlayerType() }
-	p:UseActiveItem(CLICKER, 0) -- vanilla flags = 0, slot defaults to -1
+	p:UseActiveItem(CLICKER, 0)
 	return before
 end, function(ctx, before)
 	local p = playerBySeed(before.seed)
@@ -1119,7 +1123,7 @@ local OBS = {
 	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
 	obsScenario("obsx form uses Clicker effect", tlazJr(), {
-		{ "record A", rememberOriginal }, jrFirst(), { "use Clicker effect", useClickerEffect }, controlPresses() }),
+		{ "record A", rememberOriginal }, jrFirst(), { "give c1", give(1) }, { "use Clicker effect", useClickerEffect }, controlPresses() }),
 	obsScenario("obsx Isaac form loses Esau Jr.", jrSetup(ISAAC), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
 	obsScenario("obsx original loses Esau Jr.", tlazJr(), {

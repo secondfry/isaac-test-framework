@@ -14,11 +14,17 @@ DISPUTES = [
     "obsx merge 38 to 29 then Flip", "obsx merge 29 to 38 then Esau Jr.",
     "obsx form loses Esau Jr.", "obsx form uses Clicker effect", "obsx Isaac form loses Esau Jr.", "obsx original loses Esau Jr.",
 ]
-OBS += DISPUTES
+OBSY_A = ["obsy a pedestal pick-back", "obsy a schoolbag", "obsy a schoolbag Clicker", "obsy a Dead form after A lost", "obsy a Isaac Clicker effect",
+          "obsy a J&E by Jacob", "obsy a J&E by Esau", "obsy a Forgotten and Soul", "obsy a Tainted Forgotten", "obsy a Lazarus Risen"]
+OBSY_B = ["obsy b Tainted Jacob", "obsy b Eden", "obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"]
+OBSY_LARGE = {"obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"}  # kind "large", not new
+OBSY = OBSY_A + OBSY_B
+OBS += DISPUTES + OBSY
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              "continue", "continue settled", "L1"]
 NO_SWAP = {"S1", "S1b", "S2", "L1", *OBS}  # an obs press that never swaps is INFO, not a fail
-LARGE = NEW = {"continue", "continue settled", "L1"}  # NEW mirrors main.lua's new = true flags
+NEW = {"continue", "continue settled", "L1"}  # mirrors main.lua's new = true flags
+LARGE = NEW | OBSY_LARGE
 # Exact verdicts: a lost check or note shows. Each look adds 5 invariant checks. P2 counts 8 or 9 checks per Clicker use: 22 here (the stub's
 # Clicker splits on its second use), any number in game.
 WANT = {
@@ -165,6 +171,29 @@ def obs_report(log):
     print("PASS obs_report: timelines and summaries for", len(OBS), "obs scenarios")
 
 
+def check_obsy(log):
+    """The obsy lines a log reader decides on, as the stub plays them."""
+    info = [s[len("PROBE INFO "):] for s in log if s.startswith("PROBE INFO obsy ")]
+    def has(name, text):
+        return any(s.startswith(name + " ") and text in s for s in info)
+    for name in OBSY:  # every scenario reaches its last press and names who holds the pressed index
+        assert has(name, "VERDICT ") and not has(name, "never happened"), name
+    verdicts = [s for s in info if " VERDICT Esau Jr." in s]
+    for v in verdicts:  # each Esau Jr. press logs the form's first update
+        name, label = v.split(" VERDICT ")[0], v.split(" VERDICT ")[1].split(" index ")[0]
+        assert has(name, f"TIMING {label} frame ") and has(name, f"TIMING {label} pressed at frame "), v
+    assert has("obsy a J&E by Esau", "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
+    assert has("obsy a pedestal pick-back", "c703 dropped after 1 updates: owned 0 c703 pedestals 1")
+    assert has("obsy a pedestal pick-back", "c703 picked back after 12 updates: owned 1 c703 pedestals 0 c45 pedestals 1")
+    assert has("obsy a schoolbag", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45")
+    assert has("obsy a Forgotten and Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")
+    assert has("obsy a schoolbag Clicker", "VERDICT Clicker index 0 B -> unchanged")
+    assert sum(" after Continue: player seeds " in s for s in info) == len(OBSY_LARGE)
+    ids = [s for s in info if s.startswith("obsy b identity IDS ")]
+    assert len(ids) == 7 * 2 and all(" InitSeed " in s and " OtherTwin " in s and " MainTwin " in s for s in ids), ids
+    print("PASS obsy verdicts, timing, pedestal, Schoolbag, Soul switch, Continue and ids lines")
+
+
 def main(path):
     log = run(path)
     got = check_finished(log, "regression mode")
@@ -172,7 +201,7 @@ def main(path):
         print("RESULT", name, got[name])
         assert got[name] == WANT[name], f"{name}: {got[name]}"
     assert any(s.startswith("PROBE HARNESS START") and "regression mode" in s for s in log), "mode not logged"
-    assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 3, "the three continues did not resume"
+    assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 3 + len(OBSY_LARGE), "the continues did not resume"
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
     stored = [s for s in swaps if " spent stored presser charge, " in s]
@@ -183,6 +212,7 @@ def main(path):
     assert run_report(log) == (0, "ALL PASS"), run_report(log)
     print("PASS run_report on the dry run: ALL PASS")
     obs_report(log)
+    check_obsy(log)
     code, verdict = run_report(os.path.join(HERE, "fixtures", "run8-trimmed.txt"))
     assert (code, verdict) == (1, "NEEDS ANALYSIS: S3 unobserved: rolled Tainted Lazarus, see r1; results for 4 of 16 scenarios"), (code, verdict)
     print("PASS run_report parses the run 8 fixture:", verdict)
@@ -238,7 +268,7 @@ def main(path):
     log = run(path, mode="only obsx", ignoreRestart=True)
     got = check_finished(log, "obsx setup step times out")
     assert all(got[name] == WANT[name] for name in DISPUTES)
-    assert sum(s.endswith("never happened: obsx ceiling 120 updates") for s in log) == len(DISPUTES)
+    assert sum(s.endswith("never happened: obsx ceiling 120 updates: no new game") for s in log) == len(DISPUTES)
     log = run(path, mode="only obsx", render_every=200)
     got = check_finished(log, "obsx scenario times out")
     assert all(got[name] == WANT[name] for name in DISPUTES)
@@ -246,13 +276,28 @@ def main(path):
     assert run.updates == 445 * len(DISPUTES) + len(SCENARIOS) - len(DISPUTES) + 1 < 3 * 60 * 30, run.updates
     print("PASS obsx unchanged effect stops, setup step and scenario limits, and total update budget")
 
-    got = check_finished(run(path, on_exit="new"), "new run instead of Continue")
-    for name in LARGE:
+    # Each obsy mode's worst case: no console command ever runs, so every scenario stalls to its ceiling.
+    for mode, names in (("a", OBSY_A), ("b", OBSY_B)):
+        log = run(path, mode=f"only obsy {mode}", render_every=10 ** 6)
+        got = check_finished(log, f"only obsy {mode}")
+        for name in SCENARIOS:
+            assert got[name] == (WANT[name] if name in names else f"SKIP not obsy {mode} (only obsy {mode} mode)"), (name, got[name])
+        budget = {n: 1000 if n in OBSY_LARGE else 445 for n in names}
+        assert all(f"PROBE INFO {n} scenario ceiling {b} updates" in log for n, b in budget.items()), mode
+        worst = sum(budget.values()) + len(SCENARIOS) - len(names) + 1
+        assert run.updates == worst < 3 * 60 * 30, (mode, run.updates, worst)
+        print(f"PASS only obsy {mode}: worst case {worst} updates")
+
+    log = run(path, on_exit="new")
+    got = check_finished(log, "new run instead of Continue")
+    for name in NEW:
         assert got[name].startswith("FAIL") and "a new run started, not a Continue" in got[name], got[name]
+    for name in OBSY_LARGE:  # INFO only: the Continue step is logged as never happened and ends the scenario
+        assert got[name] == WANT[name] and any(s.startswith(f"PROBE INFO {name} ") and " exit and Continue never happened: " in s and s.endswith("a new run started, not a Continue") for s in log), name
     print("PASS new run instead of Continue fails:", got["continue"])
 
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
-             [n for n in SCENARIOS if n not in DISPUTES])
+             [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY])
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
     log = run(path, ignorePress=True)
     assert any("obsx form loses Esau Jr. 2 Esau Jr. never happened:" in s for s in log)

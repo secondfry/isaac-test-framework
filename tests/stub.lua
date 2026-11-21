@@ -1,13 +1,18 @@
 -- Fake Isaac API and a fake ReHUD for tests/test_harness.py. Not the real engine: just enough for main.lua's steps to see their postconditions.
 ModCallbacks = {MC_POST_UPDATE=1, MC_POST_RENDER=2, MC_USE_ITEM=3, MC_INPUT_ACTION=13, MC_POST_GAME_STARTED=15, MC_PRE_USE_ITEM=23, MC_POST_PLAYER_UPDATE=31}
 CallbackPriority = {EARLY=-100, LATE=100}
-EntityType = {ENTITY_FAMILIAR=3}; FamiliarVariant = {ITEM_WISP=237}
-CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105}
-PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_JACOB=19, PLAYER_ESAU=20, PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_THESOUL_B=40}
-ActiveSlot = {SLOT_PRIMARY=0, SLOT_POCKET=2}
+EntityType = {ENTITY_FAMILIAR=3, ENTITY_PICKUP=5}; FamiliarVariant = {ITEM_WISP=237}; PickupVariant = {PICKUP_COLLECTIBLE=100}
+CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105, COLLECTIBLE_YUM_HEART=45, COLLECTIBLE_SCHOOLBAG=534}
+PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
+  PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_JACOB_B=37, PLAYER_THESOUL_B=40}
+ActiveSlot = {SLOT_PRIMARY=0, SLOT_SECONDARY=1, SLOT_POCKET=2}
 Card = {CARD_SOUL_JACOB=97}
 InputHook = {IS_ACTION_PRESSED=0, IS_ACTION_TRIGGERED=1, GET_ACTION_VALUE=2}
-ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10}
+ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10, ACTION_DROP=11} -- the stub never polls ACTION_DROP: drop presses take their fallback
+local VM = {}; VM.__index = VM
+function Vector(x, y) return setmetatable({X=x, Y=y}, VM) end
+VM.__add = function(a, b) return Vector(a.X + b.X, a.Y + b.Y) end
+function VM:Distance(o) return math.sqrt((self.X - o.X) ^ 2 + (self.Y - o.Y) ^ 2) end
 CBS = {}
 modData = "" -- set by the test: what mod:LoadData() returns
 local function addPriorityCallback(_, id, priority, f, arg)
@@ -34,7 +39,14 @@ wisps = {} -- item wisps: {SubType=id, Player=p}
 local WM = {}; WM.__index = WM
 function WM:ToFamiliar() return self end
 function WM:Kill() for i, w in ipairs(wisps) do if w == self then table.remove(wisps, i) return end end end
-function Isaac.FindByType() return {table.unpack(wisps)} end
+pickups = {} -- spawned pedestals: {Type, Variant, SubType, Position}
+function Isaac.FindByType(t, v, s)
+  if t == 3 then return {table.unpack(wisps)} end
+  local r = {}
+  for _, e in ipairs(pickups) do if e.Type == t and ((v or -1) < 0 or e.Variant == v) and ((s or -1) < 0 or e.SubType == s) then r[#r+1] = e end end
+  return r
+end
+function Isaac.Spawn(t, v, s, pos) local e = {Type=t, Variant=v, SubType=s, Position=Vector(pos.X, pos.Y), Wait=20}; e.ToPickup = function() return e end; pickups[#pickups+1] = e; return e end
 function GetPtrHash(p) return p.seed end
 
 ignoreRestart = false -- set by the test: `restart` does nothing
@@ -54,7 +66,8 @@ local function tlaz(t) return t == 29 or t == 38 end
 local INNATE = {[2]={[46]=1}} -- innate copies by player type: Cain's Lucky Foot
 function newPlayer(t, parent)
   seedN = seedN + 1
-  return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent}, PM)
+  return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent,
+    Position=Vector(0, 0)}, PM)
 end
 -- Copies `p` holds by id, as {without a clock (owned, innate), with one (wisps, Zodiac, 3 Dollar Bill)}.
 local function kinds(p)
@@ -79,7 +92,8 @@ end
 function PM:GetZodiacEffect() return self.zodiac end
 function PM:AddItemWisp(id) wisps[#wisps+1] = setmetatable({SubType=id, Player=self}, WM) end
 function PM:IsCoopGhost() return false end
-function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 end return self.active or 0 end
+function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 elseif s == 1 then return self.secondary or 0 end return self.active or 0 end
+function PM:SwapActiveItems() self.active, self.secondary = self.secondary, self.active end
 function PM:GetActiveCharge(s) return self.charge[s or 0] or 0 end
 local function full(p, s) local id = p:GetActiveItem(s) return id == 711 and 4 or MAX[id] or 0 end -- REP+ Flip takes 4, MaxCharges says 6
 function PM:SetActiveCharge(n, s) local f = full(self, s) self.charge[s or 0], self.battery[s or 0] = math.min(n, f), math.max(n - f, 0) end
@@ -92,8 +106,9 @@ function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(s
 local function pair(a, b) a.partner, b.partner = b, a return b end
 function PM:AddCollectible(id)
   self.items[id] = (self.items[id] or 0) + 1
-  if id == 105 or id == 482 or id == 703 then
-    if self.active then self.items[self.active] = nil end
+  if id == 45 or id == 105 or id == 482 or id == 703 then -- an active: the held one moves to a free Schoolbag slot, else is lost
+    if self.items[534] and self.active and not self.secondary then self.secondary = self.active
+    elseif self.active then self.items[self.active] = nil end
     self.active, self.items[id] = id, 1
   end
   if id == 619 and tlaz(self.t) then
@@ -126,7 +141,9 @@ local function swapForm(p, id)
     local other, s = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
     if id == 703 then other.active = 703 else pair(p, other) end
     other.charge[s], other.battery[s] = p.charge[s], p.battery[s]
-    stored[id], players[1] = players[1], other
+    local i = 1
+    for k, q in ipairs(players) do if q == p then i = k end end
+    stored[id], players[i] = players[i], other
   elseif id == 482 then
     if p.t == 19 then merge(p, players[2]); players[2] = nil; p.t = 5
     elseif tlaz(p.t) then p:ChangePlayerType(tlazRoll) -- like ChangePlayerType: into 21 (in-game 2026-11-21), into 29 from 38 (run 8)
@@ -187,15 +204,32 @@ function engineInput()
       elseif t2 then use(p, 10, swaps) end
     end
   end
+  frame = frame + 1
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
+  -- An active pedestal swaps with the held active when touched anew (shortcut: one touch flag per player, enough for one pedestal).
+  for _, p in ipairs(players) do
+    local on = false
+    for _, e in ipairs(pickups) do
+      if p.Position:Distance(e.Position) < 20 then
+        on = true
+        if not p.touching and p.active then
+          local held, got = p.active, e.SubType
+          p.items[held] = nil
+          p.active, p.items[got], e.SubType = got, 1, held
+        end
+      end
+    end
+    p.touching = on
+  end
   -- 3 Dollar Bill: one granted item, changing every 180 updates (about 6 s, wiki)
   for _, p in ipairs(players) do
     if (p.items[191] or 0) > 0 then p.billT = (p.billT or -1) + 1; p.bill = 10 + math.floor(p.billT / 180) % 3 end
   end
 end
 
-G = {GetNumPlayers=function() return #players end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+frame = 0
+G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 function Isaac.ExecuteCommand(c)
@@ -276,7 +310,7 @@ end
 function startRun(t, cont)
   if not cont then
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
-    stageN = 1; stored, wisps, numbers, nextNumber = {}, {}, {}, 0; for i = #entries, 1, -1 do entries[i] = nil end
+    stageN = 1; stored, wisps, pickups, numbers, nextNumber = {}, {}, {}, {}, 0; for i = #entries, 1, -1 do entries[i] = nil end
   end
   fire(15, cont)
 end

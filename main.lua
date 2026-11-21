@@ -1,0 +1,412 @@
+-- ReHUD test harness: on the first new run after launch it plays SCENARIOS by itself and logs PROBE/RESULT lines to log.txt.
+-- Needs the `ReHUD.dbg` hook (ReHUD eeae5c0 or later).
+local mod = RegisterMod("ReHUD Test Harness", 1)
+local game = Game()
+local itemConfig = Isaac.GetItemConfig()
+local maxId = itemConfig:GetCollectibles().Size - 1
+
+-- shortcut: ceilings count updates only, so a paused game or menu stalls the run with no fail; add a wall-clock ceiling if that bites.
+local TIMEOUT, CONTINUE_TIMEOUT = 600, 9000 -- ceilings in updates, not waits: 20 s; 5 min of play for the user's exit and Continue
+
+local function P(...)
+	local t = {}
+	for i = 1, select("#", ...) do t[i] = tostring((select(i, ...))) end
+	local s = table.concat(t, " ")
+	print(s)
+	Isaac.DebugString("PROBE " .. s)
+end
+
+-- Lua state survives `restart` and exit/continue, so the state lives in a global; a reload of this file keeps it.
+-- shortcut: one pass per launch, and a native crash restarts the suite from the first scenario; add a rerun trigger, or SaveData resume, when either gets in the way.
+HARNESS = HARNESS or { started = false, running = false, gen = 0, si = 1, pi = 1, ctx = { floors = {}, fails = {} }, status = "waiting for a run" }
+
+-- shortcut: copy of tracker.lua currentFloorName (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
+local function floorName()
+	if StageAPI and StageAPI.Loaded and StageAPI.InOverriddenStage() then
+		local name = StageAPI.GetCurrentStageDisplayName()
+		if name then return name end
+	end
+	return game:GetLevel():GetName()
+end
+
+local function seedOf(p) return p:GetCollectibleRNG(1):GetSeed() end
+
+local function dbg()
+	local d = ReHUD and ReHUD.dbg
+	if not (d and d.tracker and d.roster) then error("ReHUD.dbg missing: install ReHUD eeae5c0 or later") end
+	return d
+end
+
+local function entries() return dbg().tracker.entries end
+
+local function playerOfType(t)
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if p:GetPlayerType() == t then return p, i end
+	end
+end
+
+local function owned(p, id) return p:GetCollectibleNum(id, true) end
+
+local function probe(ctx, label)
+	P("STEP", ctx.name, label, "floor", floorName(), "stage", game:GetLevel():GetStage())
+	local wisps = Isaac.FindByType(EntityType.ENTITY_FAMILIAR, FamiliarVariant.ITEM_WISP)
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		P("PLAYER", i, "type", p:GetPlayerType(), "ctrl", p.ControllerIndex, "variant", p.Variant, "parent", p.Parent ~= nil,
+			"ghost", p:IsCoopGhost(), "seed", seedOf(p), "count", p:GetCollectibleCount())
+		local hash, wispOf = GetPtrHash(p), {}
+		for _, e in ipairs(wisps) do
+			local f = e:ToFamiliar()
+			if f and f.Player and GetPtrHash(f.Player) == hash then wispOf[e.SubType] = (wispOf[e.SubType] or 0) + 1 end
+		end
+		for id = 1, maxId do
+			if itemConfig:GetCollectible(id) then
+				local all = p:GetCollectibleNum(id, false)
+				if all > 0 then
+					local own, w = owned(p, id), wispOf[id] or 0
+					P("ITEM", i, "c" .. id, "owned", own, "wisp", w, "other", all - own - w)
+				end
+			end
+		end
+	end
+	for n, e in ipairs(entries()) do
+		P("ENTRY", n, "c" .. e.id, "number", e.number, "owner", e.owner, "floor", e.floor, "temporary", e.temporary, "left", e.left, "merged", e.merged)
+	end
+end
+
+local function fail(ctx, why)
+	table.insert(ctx.fails, why)
+	P("CHECK FAIL", ctx.name, why)
+end
+
+-- Exactly `n` ReHUD entries of item `id`, each on `floor` and owned by `owner` when given.
+local function expectN(ctx, label, id, n, floor, owner)
+	ctx.checks = (ctx.checks or 0) + 1
+	local found = {}
+	for _, e in ipairs(entries()) do
+		if e.id == id then table.insert(found, e) end
+	end
+	if #found ~= n then return fail(ctx, label .. ": c" .. id .. " has " .. #found .. " entries, want " .. n) end
+	for _, e in ipairs(found) do
+		if floor and e.floor ~= floor then fail(ctx, label .. ": c" .. id .. " on '" .. tostring(e.floor) .. "', want '" .. floor .. "'") end
+		if owner and e.owner ~= owner then fail(ctx, label .. ": c" .. id .. " owner " .. tostring(e.owner) .. ", want " .. owner) end
+	end
+end
+local function expectOne(ctx, label, id, floor, owner) expectN(ctx, label, id, 1, floor, owner) end
+
+-- A step is function(ctx) returning "again" to run itself next update, anything else to move on.
+-- Console commands are queued for MC_POST_RENDER, not run in the middle of other mods' MC_POST_UPDATE.
+
+-- An action: `act(ctx)` runs once and its result is kept as `ctx.before`; then `done(ctx, ctx.before)` is polled every update until it
+-- returns true, or the step errors naming `label` at the ceiling. One more update follows, so ReHUD's MC_POST_UPDATE has seen the
+-- effect whatever the mod load order (not guaranteed, AGENTS.md).
+local function action(label, act, done, ceiling)
+	return function(ctx)
+		if not ctx.t then
+			ctx.t, ctx.label = 0, label
+			P("ACTION", label, "by type", Isaac.GetPlayer(0):GetPlayerType())
+			ctx.before = act(ctx)
+			return "again"
+		end
+		ctx.t = ctx.t + 1
+		if ctx.held then
+			P("DONE", label, "after", ctx.t - 1, "updates")
+			ctx.t, ctx.held, ctx.before = nil, nil, nil
+			return
+		end
+		local ok, why = done(ctx, ctx.before)
+		if ok then ctx.held = true return "again" end
+		if ctx.t >= (ceiling or TIMEOUT) then error(label .. ": " .. (why or "no effect") .. " after " .. ctx.t .. " updates") end
+		return "again"
+	end
+end
+
+-- giveitem/remove by console on player 0: one copy more or less, and `players` players when given (Birthright on Tainted Lazarus: 2, removed: 1).
+local function changeOwned(verb, id, delta, players)
+	return action(verb .. " c" .. id, function()
+		HARNESS.pending = verb .. " c" .. id
+		return owned(Isaac.GetPlayer(0), id)
+	end, function(_, n)
+		if owned(Isaac.GetPlayer(0), id) ~= n + delta then return false, "owned copies did not change by " .. delta end
+		if players and game:GetNumPlayers() ~= players then return false, game:GetNumPlayers() .. " players, want " .. players end
+		return true
+	end)
+end
+local function give(id, players) return changeOwned("giveitem", id, 1, players) end
+local function remove(id, players) return changeOwned("remove", id, -1, players) end
+
+local function giveEsau(id)
+	return action("Esau AddCollectible c" .. id, function()
+		local esau = playerOfType(PlayerType.PLAYER_ESAU)
+		if not esau then error("no Esau (type 20) to give c" .. id) end
+		local n = owned(esau, id)
+		esau:AddCollectible(id)
+		return n
+	end, function(_, n)
+		local esau = playerOfType(PlayerType.PLAYER_ESAU)
+		return esau and owned(esau, id) == n + 1, "Esau's owned copies did not rise by 1"
+	end)
+end
+
+-- Records the new floor as ctx.floors[n]; an unchanged name would make every floor check meaningless.
+local function stage(n)
+	return action("stage " .. n, function()
+		HARNESS.pending = "stage " .. n
+		return floorName()
+	end, function(ctx, old)
+		if game:GetLevel():GetStage() ~= n then return false, "stage is " .. game:GetLevel():GetStage() end
+		if floorName() == old then return false, "floor name unchanged: floor checks inconclusive" end
+		ctx.floors[n] = floorName()
+		P("FLOOR", n, ctx.floors[n])
+		return true
+	end)
+end
+
+-- A new (not continued) game with player 0 of type `t`; records floor 1.
+local function restart(t)
+	return action("restart " .. t, function()
+		local H = HARNESS
+		H.pending, H.expectStart = "restart " .. t, true
+		return H.gen
+	end, function(ctx, gen)
+		local H = HARNESS
+		if H.gen == gen or game:GetNumPlayers() == 0 then return false, "no new game" end
+		if H.continued then error("restart " .. t .. " continued a run") end
+		local got = Isaac.GetPlayer(0):GetPlayerType()
+		if got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
+		ctx.floors[1] = floorName()
+		P("FLOOR", 1, ctx.floors[1])
+		return true
+	end)
+end
+
+local function seeds()
+	local t = {}
+	for i = 0, game:GetNumPlayers() - 1 do t[#t + 1] = seedOf(Isaac.GetPlayer(i)) end
+	return table.concat(t, ",")
+end
+
+-- The user exits to the menu and continues: a continued game with the same players (seeds) as before the exit.
+local function exitAndContinue()
+	return action("exit to the menu and Continue now", function()
+		HARNESS.expectStart = true
+		return { gen = HARNESS.gen, seeds = seeds() }
+	end, function(ctx, b)
+		local H = HARNESS
+		if H.gen == b.gen then
+			if ctx.t % 300 == 0 then P("ACTION exit to the menu and Continue now") end
+			return false, "no Continue"
+		end
+		if not H.continued then error("a new run started, not a Continue") end
+		return seeds() == b.seeds, "players " .. seeds() .. ", want " .. b.seeds
+	end, CONTINUE_TIMEOUT)
+end
+
+-- Not a press, so only the new-character half of the swap rule applies: there is no item to spend.
+local function changeType(t)
+	return action("ChangePlayerType " .. t, function() Isaac.GetPlayer(0):ChangePlayerType(t) end,
+		function() return Isaac.GetPlayer(0):GetPlayerType() == t, "player 0 is type " .. Isaac.GetPlayer(0):GetPlayerType() end)
+end
+
+local function snapshot()
+	local p = Isaac.GetPlayer(0)
+	return { count = game:GetNumPlayers(), who = p:GetPlayerType() .. "/" .. seedOf(p) }
+end
+
+-- blocked on R1/R2/R4: becomes a real press through MC_INPUT_ACTION (card or active `id` in `slot`), after setting a full charge or giving the card.
+local function press(p, id, slot)
+	if slot == "card" then p:UseCard(id, 0) else p:UseActiveItem(id, 0) end
+end
+
+-- Every character swap: a new character (`count` players after, when given), then the spent charge, item or card.
+local function swap(label, id, slot, count)
+	return action(label, function()
+		local b = snapshot()
+		press(Isaac.GetPlayer(0), id, slot)
+		return b
+	end, function(_, b)
+		local a = snapshot()
+		if a.who == b.who and a.count == b.count then return false, "no new character" end
+		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
+		-- blocked on R1/R2/R4: fail here unless the use spent its charge, the item or the card; UseActiveItem and UseCard spend nothing (run 1).
+		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count)
+		return true
+	end)
+end
+
+local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT = CollectibleType.COLLECTIBLE_FLIP, CollectibleType.COLLECTIBLE_ESAU_JR, CollectibleType.COLLECTIBLE_CLICKER, CollectibleType.COLLECTIBLE_BIRTHRIGHT
+local T_LAZ, JE, ISAAC = PlayerType.PLAYER_LAZARUS_B, PlayerType.PLAYER_JACOB, PlayerType.PLAYER_ISAAC
+
+local function flip(label) return swap(label, FLIP, ActiveSlot.SLOT_POCKET) end
+local function esauJr(label) return swap(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
+local soulJE = swap("Soul of Jacob and Esau", Card.CARD_SOUL_JACOB, "card", 2)
+
+-- What ReHUD is still settling, or nil. The roster key is the Sad Onion RNG seed (roster.lua playerKey), which is seedOf.
+local function settling()
+	for _, e in ipairs(entries()) do
+		if e.merged then return "a merge" end
+	end
+	local roster = dbg().roster
+	for i = 0, game:GetNumPlayers() - 1 do
+		if roster.isSettling(seedOf(Isaac.GetPlayer(i))) then return "a new character" end
+	end
+end
+
+-- Once ReHUD has settled: probe, then run `check(ctx, label)` if given.
+local function look(label, check)
+	return function(ctx)
+		ctx.t = (ctx.t or 0) + 1
+		local busy = settling()
+		if busy and ctx.t < TIMEOUT then return "again" end
+		if busy then fail(ctx, label .. ": ReHUD still settling " .. busy .. " after " .. ctx.t .. " updates") end
+		P("SETTLED", label, "after", ctx.t, "updates")
+		ctx.t = nil
+		probe(ctx, label)
+		if check then check(ctx, label) end
+	end
+end
+
+local function c4c5(ctx, label)
+	expectOne(ctx, label, 4, ctx.floors[1])
+	expectOne(ctx, label, 5, ctx.floors[2])
+end
+local function oneC4(ctx, label) expectOne(ctx, label, 4, ctx.floors[1]) end
+local function twoC4(ctx, label) expectN(ctx, label, 4, 2, ctx.floors[1], seedOf(Isaac.GetPlayer(0))) end
+
+local clicker = swap("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
+local clickerLook = look("after Clicker", function(ctx, label)
+	local n = 0
+	for i = 0, game:GetNumPlayers() - 1 do n = n + owned(Isaac.GetPlayer(i), 4) end
+	expectN(ctx, label .. " " .. ctx.uses, 4, n, ctx.floors[1])
+end)
+
+-- Clicker on Jacob until it is Jacob & Esau again, up to 6 uses; each use is a checked swap followed by a settled probe.
+local function clickerLoop(ctx)
+	if not ctx.phase then
+		if ctx.back then return end
+		if (ctx.uses or 0) >= 6 then return fail(ctx, "not back to Jacob & Esau in 6 Clicker uses: split untested") end
+		ctx.uses, ctx.phase = (ctx.uses or 0) + 1, "press"
+		local p = Isaac.GetPlayer(0)
+		if p:GetActiveItem() ~= CLICKER then p:AddCollectible(CLICKER) end -- a consumed Clicker is given again
+		if p:GetActiveItem() ~= CLICKER then error("Clicker not in the active slot after AddCollectible") end
+	end
+	if ctx.phase == "press" then
+		if clicker(ctx) == "again" then return "again" end
+		ctx.phase = "look"
+	end
+	if clickerLook(ctx) == "again" then return "again" end
+	ctx.phase = nil
+	ctx.back = Isaac.GetPlayer(0):GetPlayerType() == JE and playerOfType(PlayerType.PLAYER_ESAU) ~= nil
+	return "again"
+end
+
+local SCENARIOS = {
+	{ name = "test3", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before ChangePlayerType"), changeType(ISAAC),
+		look("after ChangePlayerType", function(ctx, label)
+			c4c5(ctx, label)
+			local key = seedOf(Isaac.GetPlayer(0))
+			expectOne(ctx, label .. " (Isaac owns)", 4, nil, key)
+			expectOne(ctx, label .. " (Isaac owns)", 5, nil, key)
+		end),
+	} },
+	{ name = "birthright", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), give(BIRTHRIGHT, 2), look("after Birthright", c4c5),
+		flip("Flip 1 of 2"), look("after Flip 1", c4c5), flip("Flip 2 of 2"), look("after two Flips", c4c5),
+		stage(3), look("on stage 3", c4c5),
+	} },
+	{ name = "P3", steps = {
+		restart(T_LAZ), give(4), stage(2), look("after c4", oneC4),
+		give(BIRTHRIGHT, 2), look("after Birthright", oneC4),
+		remove(BIRTHRIGHT, 1), look("after remove Birthright", oneC4),
+		flip("Flip"), look("after Flip", oneC4),
+	} },
+	{ name = "P4a", steps = {
+		restart(T_LAZ), give(4), give(ESAU_JR), stage(2), look("after c4", oneC4),
+		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
+	} },
+	{ name = "P4b", steps = {
+		restart(JE), give(ESAU_JR), look("start"),
+		esauJr("Esau Jr. 1"), look("after Esau Jr. 1"), esauJr("Esau Jr. 2"), look("after Esau Jr. 2"),
+	} },
+	{ name = "P1", steps = {
+		restart(ISAAC), give(4), give(4), stage(2), look("before Soul of Jacob and Esau", twoC4),
+		soulJE, look("after Soul of Jacob and Esau", twoC4),
+		giveEsau(1), look("after Esau c1", twoC4), stage(3), look("on stage 3", twoC4),
+	} },
+	{ name = "P2", steps = {
+		restart(JE), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
+	} },
+	{ name = "continue", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), look("before exit"), exitAndContinue(), changeType(ISAAC),
+		look("after continue and ChangePlayerType", function(ctx, label) expectOne(ctx, label, 4, ctx.floors[1], seedOf(Isaac.GetPlayer(0))) end),
+	} },
+}
+
+local function finish(err)
+	local H = HARNESS
+	local sc, ctx = SCENARIOS[H.si], H.ctx
+	local verdict
+	if err then
+		verdict = "FAIL " .. err
+	elseif #ctx.fails > 0 then
+		verdict = "FAIL " .. table.concat(ctx.fails, "; ")
+	else
+		verdict = ctx.checks and ("PASS " .. ctx.checks .. " checks") or "INFO data only"
+	end
+	P("RESULT", sc.name, verdict)
+	H.si, H.pi, H.expectStart = H.si + 1, 1, nil
+	H.ctx = { floors = {}, fails = {} }
+end
+
+local function tick()
+	local H = HARNESS
+	if not H.running or H.pending then return end
+	local sc = SCENARIOS[H.si]
+	if not sc then
+		H.running, H.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
+		P("HARNESS DONE")
+		return
+	end
+	local step = sc.steps[H.pi]
+	if not step then return finish() end
+	H.ctx.name = sc.name
+	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. (H.ctx.label and (": " .. H.ctx.label) or "")
+	local ok, res = pcall(step, H.ctx)
+	if not ok then return finish("error in step " .. H.pi .. ": " .. tostring(res)) end
+	if res ~= "again" then H.pi = H.pi + 1 end
+end
+
+mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+	local ok, err = pcall(tick)
+	if not ok then
+		P("HARNESS ERROR", err)
+		if HARNESS.si <= #SCENARIOS then pcall(finish, "harness error: " .. tostring(err)) end
+	end
+end)
+
+mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+	local H = HARNESS
+	if H.pending then
+		local c = H.pending
+		H.pending = nil
+		P("CMD", c)
+		Isaac.ExecuteCommand(c)
+	end
+	Isaac.RenderText("HARNESS: " .. H.status, 60, 30, 1, 1, 0, 1)
+end)
+
+mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
+	local H = HARNESS
+	H.gen, H.continued = H.gen + 1, isContinued
+	P("GAME START", H.gen, "continued", isContinued)
+	if not H.started then
+		if isContinued then P("HARNESS idle: start a new run to test") return end
+		H.started, H.running = true, true
+		P("HARNESS START", #SCENARIOS, "scenarios")
+		return
+	end
+	if H.running and not H.expectStart then finish("unexpected game start (hold-R, new run or continue)") end
+	H.expectStart = nil
+end)

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+    <name>ReHUD Test Harness</name>
+    <directory>rehud_test_harness</directory>
+    <description>ReHUD test harness: on the first new run after launch it plays its scenarios by itself and logs PROBE/RESULT lines to log.txt. Needs the ReHUD.dbg hook. Do not upload.</description>
+    <version>1</version>
+    <visibility>Private</visibility>
+</metadata>

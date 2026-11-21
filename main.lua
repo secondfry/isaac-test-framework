@@ -64,18 +64,36 @@ local function cards(p, id)
 	return n
 end
 
+-- Item wisps of `p`: counts by item id, and the first wisp entity of each. Owners match by GetPtrHash only: a wisp's Player may be a
+-- removed entity, and methods on one crash natively (lua-api-notes.md).
+local function wispsOf(p)
+	local hash, n, first = GetPtrHash(p), {}, {}
+	for _, e in ipairs(Isaac.FindByType(EntityType.ENTITY_FAMILIAR, FamiliarVariant.ITEM_WISP)) do
+		local f = e:ToFamiliar()
+		if f and f.Player and GetPtrHash(f.Player) == hash then
+			n[e.SubType], first[e.SubType] = (n[e.SubType] or 0) + 1, first[e.SubType] or e
+		end
+	end
+	return n, first
+end
+
+-- shortcut: copy of ReHUD main.lua isCharacter; expose it on ReHUD.dbg if the copy drifts.
+local function playable()
+	local n = 0
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if p.Variant == 0 and not p.Parent and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B then n = n + 1 end
+	end
+	return n
+end
+
 local function probe(ctx, label)
 	P("STEP", ctx.name, label, "floor", floorName(), "stage", game:GetLevel():GetStage())
-	local wisps = Isaac.FindByType(EntityType.ENTITY_FAMILIAR, FamiliarVariant.ITEM_WISP)
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
 		P("PLAYER", i, "type", p:GetPlayerType(), "ctrl", p.ControllerIndex, "variant", p.Variant, "parent", p.Parent ~= nil,
 			"ghost", p:IsCoopGhost(), "seed", seedOf(p), "count", p:GetCollectibleCount())
-		local hash, wispOf = GetPtrHash(p), {}
-		for _, e in ipairs(wisps) do
-			local f = e:ToFamiliar()
-			if f and f.Player and GetPtrHash(f.Player) == hash then wispOf[e.SubType] = (wispOf[e.SubType] or 0) + 1 end
-		end
+		local wispOf = wispsOf(p)
 		for id = 1, maxId do
 			if itemConfig:GetCollectible(id) then
 				local all = p:GetCollectibleNum(id, false)
@@ -116,6 +134,31 @@ local function expect(ctx, label, got, want)
 	ctx.checks = (ctx.checks or 0) + 1
 	P("INFO", ctx.name, label, got)
 	if got ~= want then fail(ctx, label .. ": " .. tostring(got) .. ", want " .. tostring(want)) end
+end
+
+-- ReHUD entries of item `id` matching every given field (nil: any); `temporary` true is a copy with a clock.
+local function countOf(id, floor, temporary, owner)
+	local n = 0
+	for _, e in ipairs(entries()) do
+		if e.id == id and (floor == nil or e.floor == floor) and (temporary == nil or e.temporary == temporary) and (owner == nil or e.owner == owner) then n = n + 1 end
+	end
+	return n
+end
+
+local function expectCount(ctx, label, want, id, floor, temporary, owner)
+	local kind = temporary == nil and "" or (temporary and " clocked" or " unclocked")
+	expect(ctx, label .. ": c" .. id .. kind .. (floor and (" on " .. floor) or "") .. (owner and (" of " .. owner) or ""), countOf(id, floor, temporary, owner), want)
+end
+
+-- expectCount with player 0 as the owner.
+local function own(ctx, label, want, id, floor, temporary) expectCount(ctx, label, want, id, floor, temporary, seedOf(Isaac.GetPlayer(0))) end
+
+local function leftEntries()
+	local n = 0
+	for _, e in ipairs(entries()) do
+		if e.left then n = n + 1 end
+	end
+	return n
 end
 
 -- A step is function(ctx) returning "again" to run itself next update, anything else to move on.
@@ -229,6 +272,89 @@ end
 local function changeType(t)
 	return action("ChangePlayerType " .. t, function() Isaac.GetPlayer(0):ChangePlayerType(t) end,
 		function() return Isaac.GetPlayer(0):GetPlayerType() == t, "player 0 is type " .. Isaac.GetPlayer(0):GetPlayerType() end)
+end
+
+-- One item wisp more or fewer on player 0 (`act` adds or kills one), seen in its wisp count and in GetCollectibleNum(id, false) both.
+-- The DONE line's update count answers how soon a killed wisp leaves the engine count (Q4).
+local function changeWisps(label, id, delta, act)
+	local function counts()
+		local p = Isaac.GetPlayer(0)
+		return wispsOf(p)[id] or 0, p:GetCollectibleNum(id, false)
+	end
+	return action(label .. " c" .. id, function()
+		local w, n = counts()
+		act(Isaac.GetPlayer(0))
+		return { w = w, n = n }
+	end, function(_, b)
+		local w, n = counts()
+		return w == b.w + delta and n == b.n + delta, "wisps " .. b.w .. " -> " .. w .. ", GetCollectibleNum(false) " .. b.n .. " -> " .. n
+	end)
+end
+local function wisp(id) return changeWisps("AddItemWisp", id, 1, function(p) p:AddItemWisp(id, p.Position) end) end
+local function killWisp(id)
+	return changeWisps("Kill wisp", id, -1, function(p)
+		local e = select(2, wispsOf(p))[id]
+		if not e then error("no c" .. id .. " wisp of player 0 to kill") end
+		e:Kill()
+	end)
+end
+
+-- An engine fact the next checks rest on: its FAIL names the engine, not ReHUD.
+local function engineWisps(label, id, want)
+	return function(ctx) expect(ctx, "engine, not ReHUD: c" .. id .. " wisps of player 0 " .. label, wispsOf(Isaac.GetPlayer(0))[id] or 0, want) end
+end
+
+-- Polls player 0's Zodiac item; a new id sets ctx.zodiac and the floor it appeared on, the last one stays as ctx.zodiacOld.
+-- With `ceiling`, nothing by then is the answer, logged (Q1: does giveitem c392 grant on its own floor), not a fail.
+-- shortcut: takes the first nonzero read after `stage`, so a re-roll landing later is read as "rolled the same item"; poll longer if Q1/Q2 answers look odd.
+local function zodiacOn(label, ceiling)
+	return function(ctx)
+		ctx.t = (ctx.t or 0) + 1
+		local z = Isaac.GetPlayer(0):GetZodiacEffect()
+		if z == 0 and ctx.t < (ceiling or TIMEOUT) then return "again" end
+		P("INFO", ctx.name, "Zodiac item " .. label, z, "after", ctx.t, "updates")
+		ctx.t = nil
+		if z == 0 then
+			if ceiling then return end
+			error("Zodiac granted nothing " .. label .. " (engine, not ReHUD)")
+		end
+		ctx.zodiacOld = ctx.zodiac
+		if z ~= ctx.zodiac then ctx.zodiac, ctx.zodiacFloor = z, floorName() end
+	end
+end
+
+-- 3 Dollar Bill's grant on player 0: an id held but not owned, not a wisp and not the Zodiac item, other than the last grant
+-- (kept as ctx.grantOld). Logs every such id, so one-at-a-time shows, and the DONE line the interval (Q6).
+-- shortcut: an owned id cannot be told from the owned copy, so a grant of one is missed (part of Q6 unanswered); compare counts with a pre-grant snapshot if that matters.
+local grant3DB = action("3 Dollar Bill grant", function(ctx) ctx.grantOld = ctx.grant end, function(ctx)
+	local p = Isaac.GetPlayer(0)
+	local w, z, found = wispsOf(p), p:GetZodiacEffect(), {}
+	for id = 1, maxId do
+		if itemConfig:GetCollectible(id) and id ~= z and id ~= ctx.grantOld and not w[id] and owned(p, id) == 0 and p:GetCollectibleNum(id, false) > 0 then found[#found + 1] = id end
+	end
+	if not found[1] then return false, "no new grant" end
+	ctx.grant = found[1]
+	P("INFO", ctx.name, "3 Dollar Bill grants c" .. table.concat(found, " c"))
+	return true
+end, 600)
+-- ReHUD finds a 3 Dollar Bill grant only on its periodic scan (tracker.lua SCAN_INTERVAL 30).
+local listed = action("3 Dollar Bill grant listed", function() end, function(ctx)
+	local n = countOf(ctx.grant, nil, true)
+	return n == 1, "c" .. ctx.grant .. " has " .. n .. " clocked entries, want 1"
+end, 60)
+
+-- `steps` run as one step, or none when `skip(ctx)` gives a reason, logged as INFO.
+local function unless(skip, steps)
+	return function(ctx)
+		if not ctx.sub then
+			local why = skip(ctx)
+			if why then return P("INFO", ctx.name, why) end
+			ctx.sub = 1
+		end
+		if steps[ctx.sub](ctx) ~= "again" then ctx.sub = ctx.sub + 1 end
+		if steps[ctx.sub] then return "again" end
+		ctx.sub = nil
+	end
 end
 
 local function snapshot()
@@ -359,7 +485,7 @@ local function swap(label, id, slot, count)
 end
 
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT = CollectibleType.COLLECTIBLE_FLIP, CollectibleType.COLLECTIBLE_ESAU_JR, CollectibleType.COLLECTIBLE_CLICKER, CollectibleType.COLLECTIBLE_BIRTHRIGHT
-local T_LAZ, JE, ISAAC = PlayerType.PLAYER_LAZARUS_B, PlayerType.PLAYER_JACOB, PlayerType.PLAYER_ISAAC
+local T_LAZ, DEAD_LAZ, JE, ISAAC, CAIN = PlayerType.PLAYER_LAZARUS_B, PlayerType.PLAYER_LAZARUS2_B, PlayerType.PLAYER_JACOB, PlayerType.PLAYER_ISAAC, PlayerType.PLAYER_CAIN
 
 local function flip(label) return swap(label, FLIP, ActiveSlot.SLOT_POCKET) end
 local function esauJr(label) return swap(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
@@ -420,14 +546,23 @@ local function twoC4(ctx, label) expectN(ctx, label, 4, 2, ctx.floors[1], seedOf
 local function birthrightOwners(ctx, label)
 	c4c5(ctx, label)
 	expectOne(ctx, label, 4, nil, seedOf(playerOfType(T_LAZ)))
-	expectOne(ctx, label, 5, nil, seedOf(playerOfType(PlayerType.PLAYER_LAZARUS2_B)))
+	expectOne(ctx, label, 5, nil, seedOf(playerOfType(DEAD_LAZ)))
+end
+
+-- No list marked left, and ReHUD counts every playable player (no swapped-out form holds a list here).
+local function noneLeft(ctx, label)
+	expect(ctx, label .. ": left entries", leftEntries(), 0)
+	expect(ctx, label .. ": characterCount = playable players", dbg().tracker.characterCount, playable())
 end
 
 local clicker = swap("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
 local clickerLook = look("after Clicker", function(ctx, label)
+	label = label .. " " .. ctx.uses
 	local n = 0
 	for i = 0, game:GetNumPlayers() - 1 do n = n + owned(Isaac.GetPlayer(i), 4) end
-	expectN(ctx, label .. " " .. ctx.uses, 4, n, ctx.floors[1])
+	expectN(ctx, label, 4, n, ctx.floors[1])
+	noneLeft(ctx, label)
+	if ctx.esau and not playerBySeed(ctx.esau) then expect(ctx, label .. ": merged Esau's number", dbg().roster.number(ctx.esau), nil) end
 end)
 
 -- Clicker on Jacob until it is Jacob & Esau again, up to 20 uses (each refilled by the swap); each use is a checked swap followed by
@@ -438,6 +573,8 @@ local function clickerLoop(ctx)
 		if (ctx.uses or 0) >= 20 then table.insert(ctx.notes, "split (20 Clicker uses)") return end
 		ctx.uses, ctx.phase = (ctx.uses or 0) + 1, "press"
 		if Isaac.GetPlayer(0):GetActiveItem() ~= CLICKER then error("Clicker left the active slot") end
+		local esau = playerOfType(PlayerType.PLAYER_ESAU)
+		ctx.esau = esau and seedOf(esau)
 	end
 	if ctx.phase == "press" then
 		if clicker(ctx) == "again" then return "again" end
@@ -502,6 +639,44 @@ local function continueSteps(beforeFlip)
 	return steps
 end
 
+local function jeCopies(ctx, label)
+	expectCount(ctx, label, 1, 4, ctx.floors[1], false, ctx.jacob)
+	expectCount(ctx, label, 1, 5, ctx.floors[1], false, ctx.esau)
+end
+
+-- L1's copies: Cain's owned and innate c46 on floor 1, a c46 wisp from floor 2, an owned c4 and a c4 wisp from floor 1. The totals
+-- catch a continue re-listing copies under the current floor.
+local function copyKinds(ctx, label)
+	own(ctx, label, 2, 46, ctx.floors[1], false)
+	own(ctx, label, 1, 46, ctx.floors[2], true)
+	own(ctx, label, 1, 4, ctx.floors[1], false)
+	own(ctx, label, 1, 4, ctx.floors[1], true)
+	expectCount(ctx, label, 3, 46)
+	expectCount(ctx, label, 2, 4)
+end
+
+-- After Clicker out of Tainted Lazarus (S3): every c4 (floor 1, the stored form's) and c5 (floor 2, the Dead form's) the engine counts,
+-- wisps aside, is listed once, floor kept, under the player holding it; the stored form is forgotten.
+local function afterTLazClicker(ctx, label)
+	local t = Isaac.GetPlayer(0):GetPlayerType()
+	P("INFO", ctx.name, "Clicker rolled type", t) -- Q7
+	if t == T_LAZ or t == DEAD_LAZ then return table.insert(ctx.notes, "rolled Tainted Lazarus, see r1") end
+	for id, floor in pairs({ [4] = ctx.floors[1], [5] = ctx.floors[2] }) do
+		local sum = 0
+		for i = 0, game:GetNumPlayers() - 1 do
+			local q = Isaac.GetPlayer(i)
+			local n = q:GetCollectibleNum(id, false) - (wispsOf(q)[id] or 0)
+			sum = sum + n
+			expectCount(ctx, label .. " (player " .. i .. ")", n, id, nil, nil, seedOf(q))
+		end
+		expectCount(ctx, label .. " (all)", sum, id)
+		expectCount(ctx, label .. " (all)", sum, id, floor)
+	end
+	expectN(ctx, label, FLIP, 0)
+	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	noneLeft(ctx, label)
+end
+
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change.
 local SCENARIOS = {
@@ -526,19 +701,53 @@ local SCENARIOS = {
 		flip("Flip 1 of 2"), look("after Flip 1", birthrightOwners), flip("Flip 2 of 2"), look("after two Flips", birthrightOwners),
 		stage(3), look("on stage 3", birthrightOwners),
 	} },
+	-- Run 7: the Dead form, number 1, holds c711 from Basement II.
 	{ name = "P3", kind = "small", steps = {
 		restart(T_LAZ), give(4), stage(2), look("after c4", oneC4),
-		give(BIRTHRIGHT, 2), look("after Birthright", oneC4),
-		remove(BIRTHRIGHT, 1), look("after remove Birthright", oneC4),
-		flip("Flip"), look("after Flip", oneC4),
+		give(BIRTHRIGHT, 2), look("after Birthright", function(ctx, label)
+			oneC4(ctx, label)
+			ctx.dead = seedOf(playerOfType(DEAD_LAZ))
+		end),
+		remove(BIRTHRIGHT, 1), look("after remove Birthright", function(ctx, label)
+			oneC4(ctx, label)
+			expect(ctx, label .. ": Dead form swapped", dbg().roster.isSwapped(ctx.dead), true)
+			expect(ctx, label .. ": Dead form number", dbg().roster.number(ctx.dead), 1)
+			expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
+		end),
+		stage(3), flip("Flip"), look("after Flip", function(ctx, label)
+			oneC4(ctx, label)
+			expect(ctx, label .. ": player 0 is the Dead form", seedOf(Isaac.GetPlayer(0)), ctx.dead)
+			expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
+			expect(ctx, label .. ": left entries", leftEntries(), 0)
+		end),
 	} },
 	{ name = "P4a", kind = "small", steps = {
 		restart(T_LAZ), give(4), give(ESAU_JR), stage(2), look("after c4", oneC4),
 		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
 	} },
-	{ name = "P4b", kind = "small", steps = {
-		restart(JE), give(ESAU_JR), look("start"),
-		esauJr("Esau Jr. 1"), look("after Esau Jr. 1"), esauJr("Esau Jr. 2"), look("after Esau Jr. 2"),
+	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. form 2 (run 7's P4b).
+	{ name = "S4", kind = "small", steps = {
+		restart(JE), give(4), giveEsau(5), give(ESAU_JR), stage(2),
+		look("start", function(ctx, label)
+			ctx.jacob, ctx.esau = seedOf(Isaac.GetPlayer(0)), seedOf(playerOfType(PlayerType.PLAYER_ESAU))
+			jeCopies(ctx, label)
+		end),
+		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", function(ctx, label)
+			local r, esau = dbg().roster, playerOfType(PlayerType.PLAYER_ESAU)
+			ctx.form = seedOf(Isaac.GetPlayer(0))
+			expect(ctx, "engine, not ReHUD: Esau's owned c5 after Jacob's Esau Jr. (Q9)", esau and owned(esau, 5), 1)
+			jeCopies(ctx, label)
+			expect(ctx, label .. ": Jacob swapped", r.isSwapped(ctx.jacob), true)
+			expect(ctx, label .. ": numbers Jacob, Esau, form", tostring(r.number(ctx.jacob)) .. "," .. tostring(r.number(ctx.esau)) .. "," .. tostring(r.number(ctx.form)), "0,1,2")
+			expect(ctx, label .. ": left entries", leftEntries(), 0)
+			expect(ctx, label .. ": characterCount", dbg().tracker.characterCount, 3)
+		end),
+		esauJr("Esau Jr. 2"), look("after Esau Jr. 2", function(ctx, label)
+			jeCopies(ctx, label)
+			expect(ctx, label .. ": player 0 is Jacob", seedOf(Isaac.GetPlayer(0)), ctx.jacob)
+			expect(ctx, label .. ": form swapped", dbg().roster.isSwapped(ctx.form), true)
+			expect(ctx, label .. ": left entries", leftEntries(), 0)
+		end),
 	} },
 	{ name = "P1", kind = "small", steps = {
 		restart(ISAAC), give(4), give(4), stage(2), look("before Soul of Jacob and Esau", twoC4),
@@ -549,10 +758,111 @@ local SCENARIOS = {
 	{ name = "P2", kind = "small", steps = {
 		restart(JE), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
 	} },
+	-- One entry per copy, by kind (clocked: wisps), floors kept; a lost copy takes the oldest entry of its kind.
+	{ name = "S1", kind = "small", steps = {
+		restart(CAIN), look("start", function(ctx, label)
+			own(ctx, label, 2, 46, ctx.floors[1], false) -- owned + innate
+			expectCount(ctx, label, 0, 46, nil, true)
+		end),
+		give(4), stage(2), give(4), look("two c4", function(ctx, label)
+			own(ctx, label, 1, 4, ctx.floors[1], false)
+			own(ctx, label, 1, 4, ctx.floors[2], false)
+		end),
+		wisp(4), look("c4 wisp", function(ctx, label)
+			own(ctx, label, 2, 4, nil, false)
+			own(ctx, label, 1, 4, ctx.floors[2], true)
+		end),
+		stage(3), engineWisps("after stage (Q3)", 4, 1), wisp(4), look("second c4 wisp", function(ctx, label)
+			own(ctx, label, 1, 4, ctx.floors[2], true)
+			own(ctx, label, 1, 4, ctx.floors[3], true)
+		end),
+		killWisp(4), look("one c4 wisp killed", function(ctx, label)
+			own(ctx, label, 1, 4, nil, true)
+			own(ctx, label, 1, 4, ctx.floors[3], true)
+			own(ctx, label, 2, 4, nil, false)
+		end),
+		remove(4), look("c4 removed", function(ctx, label)
+			own(ctx, label, 1, 4, nil, false)
+			own(ctx, label, 1, 4, ctx.floors[2], false)
+			own(ctx, label, 1, 4, ctx.floors[3], true)
+		end),
+		killWisp(4), look("last c4 wisp killed", function(ctx, label)
+			own(ctx, label, 0, 4, nil, true)
+			own(ctx, label, 1, 4, ctx.floors[2], false)
+			own(ctx, label, 2, 46, ctx.floors[1], false)
+		end),
+	} },
+	-- Zodiac and 3 Dollar Bill copies are clocked. Settled before each grant, so neither is learned as innate.
+	{ name = "S1b", kind = "small", steps = {
+		restart(ISAAC), look("start"), give(392), zodiacOn("on the floor given", 30), stage(2), zodiacOn("on stage 2"),
+		look("Zodiac", function(ctx, label)
+			expectCount(ctx, label, 1, ctx.zodiac, ctx.zodiacFloor, true)
+			expectCount(ctx, label, 0, ctx.zodiac, nil, false)
+			expectCount(ctx, label, 1, 392, ctx.floors[1], false)
+		end),
+		stage(3), zodiacOn("on stage 3"), look("Zodiac on stage 3", function(ctx, label) -- Q2
+			if ctx.zodiac == ctx.zodiacOld then
+				table.insert(ctx.notes, "Zodiac rolled the same item")
+				return expectCount(ctx, label, 1, ctx.zodiac, nil, true)
+			end
+			expectCount(ctx, label, 0, ctx.zodiacOld)
+			expectCount(ctx, label, 1, ctx.zodiac, ctx.floors[3], true)
+		end),
+		restart(ISAAC), look("before 3 Dollar Bill"), give(191), grant3DB, listed,
+		look("3 Dollar Bill", function(ctx, label) expectCount(ctx, label, 0, ctx.grant, nil, false) end),
+		grant3DB, listed, look("next 3 Dollar Bill grant", function(ctx, label)
+			if Isaac.GetPlayer(0):GetCollectibleNum(ctx.grantOld, false) > 0 then return table.insert(ctx.notes, "3 Dollar Bill still grants c" .. ctx.grantOld) end
+			expectCount(ctx, label, 0, ctx.grantOld, nil, true)
+		end),
+	} },
+	-- ChangePlayerType re-settles: the new type's innate c46 is learned, the wisp and the Zodiac copy stay clocked.
+	{ name = "S2", kind = "small", steps = {
+		restart(ISAAC), look("start"), give(392), stage(2), zodiacOn("on stage 2"), wisp(46),
+		look("Zodiac and a c46 wisp", function(ctx, label)
+			own(ctx, label, 1, 46, nil, true)
+			own(ctx, label, 0, 46, nil, false)
+			own(ctx, label, 1, ctx.zodiac, nil, true)
+		end),
+		changeType(CAIN), look("as Cain", function(ctx, label)
+			own(ctx, label, 1, 46, nil, false) -- innate
+			own(ctx, label, 1, 46, nil, true) -- wisp
+			local z = Isaac.GetPlayer(0):GetZodiacEffect()
+			P("INFO", ctx.name, "Zodiac item after ChangePlayerType", z, "was", ctx.zodiac) -- Q5
+			if z == 0 then return table.insert(ctx.notes, "ChangePlayerType dropped the Zodiac item") end
+			own(ctx, label, 1, z, nil, true)
+			own(ctx, label, 0, z, nil, false)
+		end),
+		killWisp(46), look("c46 wisp killed", function(ctx, label)
+			own(ctx, label, 1, 46, nil, false)
+			own(ctx, label, 0, 46, nil, true)
+		end),
+	} },
+	{ name = "S3", kind = "small", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), give(CLICKER), stage(3),
+		look("before Clicker", function(ctx, label)
+			for _, e in ipairs(entries()) do
+				if e.id == 4 then ctx.stored = e.owner end
+			end
+			expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.stored)
+			own(ctx, label, 1, 5, ctx.floors[2])
+		end),
+		clicker, look("after Clicker", afterTLazClicker),
+	} },
+	-- R1 (judge): does ChangePlayerType(29) on the Dead form, with the 29 form stored, merge the two (Q8)? Data only.
+	{ name = "r1", kind = "small", steps = {
+		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before"), changeType(T_LAZ), look("after ChangePlayerType"),
+		unless(function() return Isaac.GetPlayer(0):GetActiveItem(ActiveSlot.SLOT_POCKET) ~= FLIP and "r1 no Flip" end, { flip("Flip after"), look("after Flip") }),
+	} },
 	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
 	{ name = "continue", kind = "large", new = true, steps = continueSteps() },
 	-- The settle wait first, so the 29 form is stored settled, as in real play.
 	{ name = "continue settled", kind = "large", new = true, steps =continueSteps(look("before Flip", oneC4)) },
+	-- Copy kinds survive a continue, and Cain's saved innate row means no second settle.
+	{ name = "L1", kind = "large", new = true, steps = {
+		restart(CAIN), look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
+		function(ctx) expect(ctx, "no re-settle after continue", dbg().roster.isSettling(seedOf(Isaac.GetPlayer(0))), false) end,
+		engineWisps("after continue", 4, 1), engineWisps("after continue", 46, 1), look("after continue", copyKinds),
+	} },
 }
 
 local function finish(err)

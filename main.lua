@@ -453,6 +453,9 @@ local function swap(label, id, slot, count)
 		local H, a = HARNESS, snapshot()
 		local polls = "arms " .. b.arms .. ", fired " .. (H.fired - b.fired) .. ", pressed " .. (H.pressed - b.pressed)
 		if a.who == b.who and a.count == b.count then
+			-- A use that spends the charge and swaps nothing (obs2: Flip on a 38 whose other form is gone) never swaps later: stop early.
+			local c = slot ~= "card" and chargeOf(playerBySeed(b.seed), id, slot)
+			if c and c < b.charge and ctx.t >= 30 then error(label .. ": charge spent " .. b.charge .. " -> " .. c .. ", no new character after " .. ctx.t .. " updates") end
 			-- shortcut: re-arms until a new character shows (the one-shot each update, the full press one update after its release, so
 			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless while the
 			-- presser holds no battery or second card; count uses per swap before a scenario gives either.

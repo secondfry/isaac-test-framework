@@ -239,13 +239,22 @@ end
 
 -- A real press: HARNESS.press is answered true once, on the first triggered poll of that button by player 0 (one-shot, so a card
 -- press cannot also use the next pocket item); HARNESS.flood keeps answering until cleared (the probes' double-fire test).
-mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, e, _, button)
+-- HARNESS.hold, while set, also holds the button: IS_ACTION_PRESSED true, and with `value` GET_ACTION_VALUE 1 (pocket press modes b, c).
+mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, e, hook, button)
 	local H = HARNESS
-	if not H.press or button ~= H.press or not e or GetPtrHash(e) ~= GetPtrHash(Isaac.GetPlayer(0)) then return end
-	if not H.flood then H.press = nil end
-	H.fired = H.fired + 1
+	if not (H.press or H.hold) or not e or GetPtrHash(e) ~= GetPtrHash(Isaac.GetPlayer(0)) then return end -- polled ~1470/s: cheap exit first
+	if hook == InputHook.IS_ACTION_TRIGGERED then
+		if button ~= H.press then return end
+		if not H.flood then H.press = nil end
+		H.fired = H.fired + 1
+		return true
+	end
+	local hold = H.hold
+	if not hold or button ~= hold.button or (hook == InputHook.GET_ACTION_VALUE and not hold.value) then return end
+	H.polls[hook] = (H.polls[hook] or 0) + 1
+	if hook == InputHook.GET_ACTION_VALUE then return 1.0 end
 	return true
-end, InputHook.IS_ACTION_TRIGGERED)
+end)
 
 local function chargeOf(p, id, slot) return p and p:GetActiveItem(slot) == id and p:GetActiveCharge(slot) end
 
@@ -267,43 +276,60 @@ local function spentHow(b, id, slot, gone)
 	return nil, read
 end
 
+local HOLD = 5 -- updates a held press (modes b, c) stays down, then as many up before the next arm, so each arm is a fresh press
+
+local function arm(H, b) H.press, H.hold, b.arms = b.button, b.hold, b.arms + 1 end
+
 -- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
 -- character appears (`count` players after, when given) and the use spent the charge, the card, or with `gone` the item.
-local function swap(label, id, slot, count, gone)
+-- `mode` is the pocket press: "a" triggered only (cards and ACTION_ITEM, verified in run 2), "b" also held, "c" also an action value.
+-- Run 2: a triggered PILLCARD never used Flip, so a pocket press takes the mode the probes found, or b.
+local function swap(label, id, slot, count, gone, mode, ceiling)
 	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	return action(label, function()
 		local p, H = Isaac.GetPlayer(0), HARNESS
 		local b = snapshot()
-		b.seed = seedOf(p)
+		b.seed, b.button, b.mode = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET and (mode or H.pocketMode or "b") or "a"
+		if b.mode ~= "a" then b.hold = { button = button, value = b.mode == "c" } end
+		local read = ""
 		if slot == "card" then
 			b.cards = cards(p, id)
 			if b.cards == 0 then error(label .. ": card " .. id .. " not held") end
 		else
 			if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
-			-- Full, so a drop is visible. Run 2: SetActiveCharge(6, SLOT_POCKET) read back 4 and no Flip press ever swapped.
-			-- shortcut: FullCharge on the pocket slot is run 3's guess, not a verified fix; keep it or revert once the probes answer.
-			if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot, true) else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
+			-- Full, so a drop is visible. ItemConfig MaxCharges reads 6 for Flip, but REP+ Flip takes 4, and SetActiveCharge(6, 2) gave
+			-- 4 + 2 battery (user, in game); FullCharge without force fills the first bar only when no Battery is held (IsaacDocs).
+			if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot) else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
 			b.charge = p:GetActiveCharge(slot)
+			read = " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
 		end
-		H.press, b.arms, b.fired = button, 1, H.fired
-		P("PRESS", label, "button", button)
+		H.polls, b.arms, b.n, b.fired = {}, 0, 0, H.fired
+		arm(H, b)
+		P("PRESS", label, "button", button, "mode", b.mode .. read)
 		return b
 	end, function(ctx, b)
 		local H, a = HARNESS, snapshot()
 		if a.who == b.who and a.count == b.count then
-			-- shortcut: re-arms each update until a new character shows, in case the first poll was not the use logic; a press taken
+			b.n = b.n + 1
+			-- shortcut: mode a re-arms each update until a new character shows, in case the first poll was not the use logic; a press taken
 			-- but shown late could fire twice, harmless while the charge is spent; wait a frame before re-arming if probes show that.
-			if not H.press then H.press, b.arms = button, b.arms + 1 end
-			return false, "no new character, arms " .. b.arms .. ", fired " .. (H.fired - b.fired) -- fired 0: the use logic never polled the press
+			if not b.hold then
+				if not H.press then arm(H, b) end
+			elseif b.n % (2 * HOLD) == HOLD then H.hold = nil
+			elseif b.n % (2 * HOLD) == 0 then arm(H, b) end
+			-- fired 0: the use logic never polled the triggered press; pressed/value: held polls answered
+			return false, "no new character, mode " .. b.mode .. ", arms " .. b.arms .. ", fired " .. (H.fired - b.fired)
+				.. ", pressed " .. (H.polls[InputHook.IS_ACTION_PRESSED] or 0) .. ", value " .. (H.polls[InputHook.GET_ACTION_VALUE] or 0)
 		end
-		H.press = nil
+		H.press, H.hold = nil, nil
 		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
 		local how, read = spentHow(b, id, slot, gone)
 		if not how then return false, "spent nothing: " .. read end
 		ctx.arms = b.arms
-		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, "spent", how, "arms", b.arms, "fired", H.fired - b.fired)
+		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, "spent", how, "mode", b.mode, "arms", b.arms, "fired", H.fired - b.fired,
+			"pressed", H.polls[InputHook.IS_ACTION_PRESSED] or 0, "value", H.polls[InputHook.GET_ACTION_VALUE] or 0)
 		return true
-	end)
+	end, ceiling)
 end
 
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT = CollectibleType.COLLECTIBLE_FLIP, CollectibleType.COLLECTIBLE_ESAU_JR, CollectibleType.COLLECTIBLE_CLICKER, CollectibleType.COLLECTIBLE_BIRTHRIGHT
@@ -407,7 +433,7 @@ local function esauJrDirect(flags)
 	end
 end
 
--- Run 2: SetActiveCharge(6) read back 4 on the pocket slot. NeedsCharge says whether 4 is full there; FullCharge is the other way in.
+-- REP+ Flip takes 4 though MaxCharges reads 6 (user, in game): SetActiveCharge(6) should read 4 + 2 battery; the swap uses FullCharge(2).
 local function pocketCharge(ctx)
 	local p, s = Isaac.GetPlayer(0), ActiveSlot.SLOT_POCKET
 	expect(ctx, "pocket item", p:GetActiveItem(s), FLIP)
@@ -418,10 +444,33 @@ local function pocketCharge(ctx)
 		read("after SetActiveCharge " .. n)
 	end
 	p:SetActiveCharge(0, s)
-	read("FullCharge(2, true) returned " .. tostring(p:FullCharge(s, true)))
+	read("FullCharge(2) returned " .. tostring(p:FullCharge(s)))
 end
 
 local function onePress(label) return function(ctx) expect(ctx, label .. ": arms needed", ctx.arms, 1) end end
+
+-- Which pocket press mode uses Flip: a, b, c in turn, 150 updates each (30 arms in a, 15 in b and c), up to the first that swaps. The
+-- answer becomes HARNESS.pocketMode for every later Flip; a mode that fails is INFO here, and the later Flips fail on their own.
+local POCKET_MODES = { "a", "b", "c" }
+local flipTries = {}
+for i, m in ipairs(POCKET_MODES) do flipTries[i] = swap("Flip mode " .. m, FLIP, ActiveSlot.SLOT_POCKET, nil, nil, m, 150) end
+local function findPocketMode(ctx)
+	local i = ctx.try or 1
+	local ok, res = pcall(flipTries[i], ctx)
+	if ok and res == "again" then return "again" end
+	ctx.t, ctx.held, ctx.before, HARNESS.press, HARNESS.hold = nil, nil, nil, nil, nil
+	if ok then
+		ctx.try, HARNESS.pocketMode = nil, POCKET_MODES[i]
+		return P("INFO", ctx.name, "pocket press mode that swaps", POCKET_MODES[i])
+	end
+	P("INFO", ctx.name, "pocket press mode", POCKET_MODES[i], "failed:", res)
+	if i == #POCKET_MODES then
+		ctx.try = nil
+		return P("INFO", ctx.name, "no pocket press mode swaps; later Flips use b")
+	end
+	ctx.try = i + 1
+	return "again"
+end
 
 -- One press fires at most once: with two Fools held, PILLCARD is answered true on every poll for one update; one card may go.
 local floodCards = action("PILLCARD forced for one update, two cards held", function()
@@ -458,7 +507,7 @@ local SCENARIOS = {
 		give(CollectibleType.COLLECTIBLE_POLYDACTYLY), addCard(Card.CARD_FOOL), addCard(Card.CARD_FOOL), floodCards,
 		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
 		restart(T_LAZ), addCard(Card.CARD_SOUL_JACOB), cardBesideFlip,
-		restart(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"), -- last: in run 2 the Flip press timed out and skipped every probe after it
+		restart(T_LAZ), pocketCharge, findPocketMode, -- last: in run 2 the Flip press timed out and skipped every probe after it
 	} },
 	{ name = "test3", steps = {
 		restart(T_LAZ), give(4), stage(2), flip("Flip"), give(5), look("before ChangePlayerType"), changeType(ISAAC),
@@ -514,7 +563,7 @@ local function finish(err)
 		verdict = ctx.checks and ("PASS " .. ctx.checks .. " checks") or "INFO data only"
 	end
 	P("RESULT", sc.name, verdict)
-	H.si, H.pi, H.expectStart, H.press, H.flood = H.si + 1, 1, nil, nil, nil -- a timed-out press must not reach the next scenario
+	H.si, H.pi, H.expectStart, H.press, H.flood, H.hold = H.si + 1, 1, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {} }
 end
 

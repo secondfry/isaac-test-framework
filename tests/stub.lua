@@ -30,7 +30,7 @@ local PM = {}; PM.__index = PM
 local function tlaz(t) return t == 29 or t == 38 end
 function newPlayer(t, parent)
   seedN = seedN + 1
-  return setmetatable({t=t, seed=seedN, items={}, charge={}, cards={}, pocket=tlaz(t) and 711 or nil, Variant=0, ControllerIndex=0, Parent=parent}, PM)
+  return setmetatable({t=t, seed=seedN, items={}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, Variant=0, ControllerIndex=0, Parent=parent}, PM)
 end
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
@@ -39,10 +39,11 @@ function PM:GetCollectibleNum(id) return self.items[id] or 0 end
 function PM:IsCoopGhost() return false end
 function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 end return self.active or 0 end
 function PM:GetActiveCharge(s) return self.charge[s or 0] or 0 end
-function PM:SetActiveCharge(n, s) self.charge[s or 0] = s == 2 and math.min(n, 4) or n end -- run 2: 6 on the pocket read back 4
-function PM:FullCharge(s) self.charge[s or 0] = MAX[self:GetActiveItem(s)] or 0 return true end -- the stub's guess: fills the pocket too
-function PM:NeedsCharge(s) return self:GetActiveCharge(s) < (MAX[self:GetActiveItem(s)] or 0) end
-function PM:GetBatteryCharge() return 0 end
+local function full(p, s) local id = p:GetActiveItem(s) return id == 711 and 4 or MAX[id] or 0 end -- REP+ Flip takes 4, MaxCharges says 6
+function PM:SetActiveCharge(n, s) local f = full(self, s) self.charge[s or 0], self.battery[s or 0] = math.min(n, f), math.max(n - f, 0) end
+function PM:FullCharge(s) self.charge[s or 0], self.battery[s or 0] = full(self, s), 0 return true end
+function PM:NeedsCharge(s) return self:GetActiveCharge(s) < full(self, s) end
+function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
 function PM:SetCard(i, c) self.cards[i + 1] = c end
 function PM:AddCard(c) table.insert(self.cards, 1, c) end -- a new card goes to slot 0
@@ -69,7 +70,7 @@ local function use(p, button)
   end
   local slot = button == 10 and 2 or 0
   local id = p:GetActiveItem(slot)
-  if id == 0 or p:GetActiveCharge(slot) < MAX[id] then return end
+  if id == 0 or p:NeedsCharge(slot) then return end
   if not noSpend then p.charge[slot] = 0 end
   if id == 711 and players[2] and tlaz(players[2].t) then players[1], players[2] = players[2], players[1]
   elseif id == 711 or id == 703 then
@@ -90,11 +91,14 @@ local function input(e, hook, button)
     end
   end
 end
--- One game update's input: every player polls the triggered edge of both buttons once.
+-- One game update's input: every player polls both buttons once, triggered and pressed. The stub's guess (run 2 showed only that a
+-- triggered PILLCARD alone never used Flip): the pocket active needs the button held too, so the probes settle on mode b.
 function engineInput()
   for _, p in ipairs({table.unpack(players)}) do
     for _, b in ipairs({9, 10}) do
-      if input(p, 1, b) == true and not ignorePress then use(p, b) end
+      local trig, held = input(p, 1, b) == true, input(p, 0, b) == true
+      local pocket = b == 10 and not p.cards[1]
+      if trig and (held or not pocket) and not ignorePress then use(p, b) end
     end
   end
 end

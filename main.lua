@@ -213,15 +213,17 @@ end
 local function give(id, players) return changeOwned("giveitem", id, 1, players) end
 local function remove(id, players) return changeOwned("remove", id, -1, players) end
 
-local function giveEsau(id)
+-- AddCollectible on Esau, or on GetPlayer(`index`) when given (a pressed index may hold an Esau Jr. form, not Esau).
+local function giveEsau(id, index)
+	local function esauNow() return index and Isaac.GetPlayer(index) or playerOfType(PlayerType.PLAYER_ESAU) end
 	return action("Esau AddCollectible c" .. id, function()
-		local esau = playerOfType(PlayerType.PLAYER_ESAU)
-		if not esau then error("no Esau (type 20) to give c" .. id) end
+		local esau = esauNow()
+		if not esau then error("no " .. (index and ("player at index " .. index) or "Esau (type 20)") .. " to give c" .. id) end
 		local n = owned(esau, id)
 		esau:AddCollectible(id)
 		return n
 	end, function(_, n)
-		local esau = playerOfType(PlayerType.PLAYER_ESAU)
+		local esau = esauNow()
 		return esau and owned(esau, id) == n + 1, "Esau's owned copies did not rise by 1"
 	end)
 end
@@ -268,7 +270,7 @@ end
 -- players and logs them (obsy: what a continue does to a stored form is the question).
 local function exitAndContinue(soft)
 	return action("exit to the menu and Continue now", function()
-		HARNESS.expectStart = true
+		HARNESS.expectStart = "continue"
 		return { gen = HARNESS.gen, seeds = seeds() }
 	end, function(ctx, b)
 		local H = HARNESS
@@ -852,6 +854,7 @@ local function heldItems(p)
 	return table.concat(t, " ")
 end
 
+local function pedestals(id) return #Isaac.FindByType(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, id) end
 local function obsLines()
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
@@ -864,7 +867,7 @@ local function obsLines()
 			.. " charge primary " .. p:GetActiveCharge(ActiveSlot.SLOT_PRIMARY) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_PRIMARY)
 			.. " pocket " .. p:GetActiveCharge(ActiveSlot.SLOT_POCKET) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_POCKET) .. " items " .. heldItems(p)
 	end
-	t[#t + 1] = "COUNT players " .. game:GetNumPlayers() .. " c703 pedestals " .. #Isaac.FindByType(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, ESAU_JR)
+	t[#t + 1] = "COUNT players " .. game:GetNumPlayers() .. " c703 pedestals " .. pedestals(ESAU_JR)
 	local rows = dbg().roster.serialize()
 	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
 	for _, r in ipairs(rows) do
@@ -934,7 +937,7 @@ local function obsInfo(what, f) return function(ctx) P("INFO", ctx.name, what, f
 local pocketHeld = obsInfo("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
 local typeNow = obsInfo("player 0 type", function(p) return p:GetPlayerType() end)
 local playerCount = obsInfo("players in game", function() return game:GetNumPlayers() end)
-local storedSettlingNow = function(ctx) P("INFO", ctx.name, "stored forms still settling", storedSettling()) end
+local storedSettlingNow = obsInfo("stored forms still settling", storedSettling)
 -- Watches `n` updates without acting and logs each change of what ReHUD still settles, so the log shows how long a returned survivor settles.
 local function idle(n)
 	return function(ctx)
@@ -1080,7 +1083,7 @@ local function loseEsauJr()
 			local p = Isaac.GetPlayer(0)
 			if p:GetActiveItem(PRIMARY) ~= CollectibleType.COLLECTIBLE_D6 then error("D6 did not replace Esau Jr.") end
 			local n = owned(p, ESAU_JR)
-			P("INFO", ctx.name, "c703 owned", n, "pedestals", #Isaac.FindByType(5, 100, ESAU_JR))
+			P("INFO", ctx.name, "c703 owned", n, "pedestals", pedestals(ESAU_JR))
 			if n ~= 0 then error("c703 still owned after D6") end
 		end },
 	}
@@ -1118,8 +1121,6 @@ local OBSY_CONTINUE_LIMIT, CONTINUE_STEP_LIMIT = 1000, 600
 local PEDESTAL, SECONDARY = PickupVariant.PICKUP_COLLECTIBLE, ActiveSlot.SLOT_SECONDARY
 local YUM_HEART, SCHOOLBAG = CollectibleType.COLLECTIBLE_YUM_HEART, CollectibleType.COLLECTIBLE_SCHOOLBAG
 
-local function pedestals(id) return #Isaac.FindByType(EntityType.ENTITY_PICKUP, PEDESTAL, id) end
-
 -- Seeds as labels A, B, C... in first-seen order within the scenario.
 local function tagOf(ctx, seed)
 	local t = ctx.tags or { n = 0 }
@@ -1140,9 +1141,9 @@ local function lineup(ctx)
 	return table.concat(t, " ")
 end
 
--- The occupant of the pressed index on every player update for 5 game frames from its first sight with a seed other than the
+-- The occupant of the pressed index once per game frame for 5 frames from its first sight with a seed other than the
 -- presser's: does a new Esau Jr. form hold c703 on its very first update? HARNESS.timing lists one watch per press, as the next
--- press may come within those 5 frames.
+-- press may come within those 5 frames; each watch ends early once its index holds a seed other than that first new one.
 local function timingSee(p)
 	local list = HARNESS.timing
 	if not list then return end
@@ -1151,9 +1152,10 @@ local function timingSee(p)
 		local occupant = Isaac.GetPlayer(t.index)
 		local seed, frame = seedOf(p), game:GetFrameCount()
 		if occupant and GetPtrHash(occupant) == GetPtrHash(p) and (seed ~= t.seed or t.first) then
-			t.first = t.first or frame
-			if frame - t.first >= 5 then table.remove(list, i)
-			else
+			t.first, t.firstSeed = t.first or frame, t.firstSeed or seed
+			if frame - t.first >= 5 or seed ~= t.firstSeed then table.remove(list, i)
+			elseif frame ~= t.logged then -- MC_POST_PLAYER_UPDATE runs twice per game frame
+				t.logged = frame
 				P("INFO", HARNESS.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
 					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
 			end
@@ -1168,7 +1170,8 @@ local function verdict(label, step, index, timed)
 	index = index or 0
 	return function(ctx)
 		if not ctx.t then
-			ctx.vBefore, ctx.vSeed = lineup(ctx), seedOf(Isaac.GetPlayer(index))
+			ctx.vBefore, ctx.vSeed, ctx.vType, ctx.vSeeds = lineup(ctx), seedOf(Isaac.GetPlayer(index)), Isaac.GetPlayer(index):GetPlayerType(), {}
+			for i = 0, game:GetNumPlayers() - 1 do ctx.vSeeds[seedOf(Isaac.GetPlayer(i))] = i end
 			if timed then
 				HARNESS.timing = HARNESS.timing or {}
 				table.insert(HARNESS.timing, { index = index, seed = ctx.vSeed, label = label })
@@ -1181,16 +1184,22 @@ local function verdict(label, step, index, timed)
 		local s = p and seedOf(p)
 		local known = s and ctx.tags[s]
 		local after = lineup(ctx)
-		local what = not p and "nobody" or s == ctx.vSeed and "unchanged" or (tagOf(ctx, s) .. (known and " returned" or " new"))
+		local what
+		if not p then what = "nobody"
+		elseif s == ctx.vSeed then
+			local t = p:GetPlayerType()
+			what = "unchanged" .. (t ~= ctx.vType and (" (t" .. ctx.vType .. "->" .. t .. ")") or "")
+		elseif ctx.vSeeds[s] then what = tagOf(ctx, s) .. " moved from " .. ctx.vSeeds[s] -- a Birthright Flip swaps the twins' indices
+		else what = tagOf(ctx, s) .. (known and " returned" or " new") end
 		P("INFO", ctx.name, "VERDICT", label, "index", index, tagOf(ctx, ctx.vSeed), "->", what, "|", ctx.vBefore, "->", after)
 	end
 end
 local function jr(label, who) return verdict(label, swap(label, ESAU_JR, PRIMARY, nil, nil, who), who and who.index, true) end
 local function flipV(label) return verdict(label, flip(label)) end
 
+local function slots(p) return "primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY) end
 -- A real drop press by player 0 (one-shot, re-armed every 10 updates) until `cond(p)`; after 60 updates `fallback(p)` once, pcall'd.
 -- Nothing is pressed when `cond` already holds.
-local function slots(p) return "primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY) end
 local function dropPress(label, cond, fallbackName, fallback)
 	return action(label, function(ctx)
 		ctx.fell, ctx.already = nil, cond(Isaac.GetPlayer(0))
@@ -1215,27 +1224,34 @@ local function primaryIs(id) return function(p) return p:GetActiveItem(PRIMARY) 
 local function jrToPrimary() return dropPress("Esau Jr. to primary", primaryIs(ESAU_JR), "SwapActiveItems", function(p) p:SwapActiveItems() end) end
 local slotsNow = obsInfo("player 0 slots", slots)
 
--- Scenario 1: DropCollectible is REPENTOGON-only in IsaacDocs; logged, not used.
+-- DropCollectible is REPENTOGON-only in IsaacDocs; logged, not used.
 local function dropCollectibleInfo(ctx)
 	local p = Isaac.GetPlayer(0)
 	local ok, v = pcall(function() return p.DropCollectible end)
 	P("INFO", ctx.name, "EntityPlayer.DropCollectible:", ok and type(v) or ("error " .. tostring(v)), "(not used: a pedestal swap instead)")
 end
 
--- A c45 pedestal spawned on player 0 swaps with the held Esau Jr. on touch, leaving c703 on it. Both 80 px off the press spot first,
--- in case a form comes back where it was stored.
-local dropOnPedestal = action("touch a c45 pedestal", function()
+-- A c45 pedestal swaps with the held Esau Jr. on touch, leaving c703 on it. Player 0 goes 80 px off the press spot first, in case a
+-- form comes back where it was stored; the pedestal spawns 40 px beside it (one spawned under a player that never moves onto it was
+-- never touched in game), its Wait zeroed (pcall'd), and player 0 is put onto it every update.
+local dropOnPedestal = action("touch a c45 pedestal", function(ctx)
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
-	local pos = p.Position + Vector(0, 80)
-	p.Position = pos
-	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, pos, Vector(0, 0), nil)
-end, function(ctx)
+	p.Position = p.Position + Vector(0, 80)
+	local pos = p.Position + Vector(40, 0)
+	local e = Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, pos, Vector(0, 0), nil)
+	P("INFO", ctx.name, "c45 pedestal Wait = 0:", tostring(pcall(function() e:ToPickup().Wait = 0 end)))
+	return pos
+end, function(ctx, pos)
 	local p = Isaac.GetPlayer(0)
 	local n, ped = owned(p, ESAU_JR), pedestals(ESAU_JR)
-	if n > 0 or ped == 0 then return false, "c703 owned " .. n .. ", c703 pedestals " .. ped end
-	P("INFO", ctx.name, "c703 dropped after", ctx.t, "updates: owned", n, "c703 pedestals", ped, "c45 pedestals", pedestals(YUM_HEART), slots(p))
-	return true
+	if n == 0 and ped > 0 then
+		P("INFO", ctx.name, "c703 dropped after", ctx.t, "updates: owned", n, "c703 pedestals", ped, "c45 pedestals", pedestals(YUM_HEART), slots(p))
+		return true
+	end
+	P("INFO", ctx.name, "touch try", ctx.t, "c45 pedestals", pedestals(YUM_HEART), "c703 pedestals", ped, "c703 owned", n)
+	p.Velocity, p.Position = Vector(0, 0), pos
+	return false, "c703 owned " .. n .. ", c703 pedestals " .. ped
 end)
 
 -- Then 10 updates away from it (a swapped pedestal is not re-taken while touched), its Wait zeroed (pcall'd), and onto it every update.
@@ -1261,7 +1277,7 @@ end, function(ctx, pos)
 	return false, "c703 owned 0, c703 pedestals " .. pedestals(ESAU_JR)
 end)
 
--- Scenario 8: every vanilla per-entity id of each player, each read pcall'd; twins as the GetPlayer index whose GetPtrHash matches
+-- Every vanilla per-entity id of each player, each read pcall'd; twins as the GetPlayer index whose GetPtrHash matches
 -- (no method is called on a returned twin but GetPtrHash).
 local function ids(label)
 	return function(ctx)
@@ -1289,23 +1305,30 @@ local function ids(label)
 	end
 end
 
--- Scenario 6: press, press back, press to the form again, the form loses Esau Jr. (D6) and gets it back, two presses. `first`: pairs
+-- Press, press back, press to the form again, the form loses Esau Jr. (D6) and gets it back, two presses. `first`: pairs
 -- before the presses; `lose`: pairs for the loss (default: player 0's D6 and re-give).
 local function charPresses(who, first, lose)
 	return { first or {}, { "Esau Jr. #1", jr("Esau Jr. #1", who) }, { "Esau Jr. #2", jr("Esau Jr. #2", who) }, { "Esau Jr. #3", jr("Esau Jr. #3", who) },
 		lose or replaceEsauJr(), { "Esau Jr. #4", jr("Esau Jr. #4", who) }, { "Esau Jr. #5", jr("Esau Jr. #5", who) } }
 end
 local D6 = CollectibleType.COLLECTIBLE_D6
-local esauLoses = { { "Esau gets D6", giveEsau(D6) }, { "Esau gets c703 back", giveEsau(ESAU_JR) } }
+local esauLoses = { { "Esau gets D6", giveEsau(D6, 1) },
+	{ "check D6 on index 1", function(ctx)
+		local p = Isaac.GetPlayer(1)
+		local n = owned(p, ESAU_JR)
+		P("INFO", ctx.name, "index 1 type", p:GetPlayerType(), "primary", p:GetActiveItem(PRIMARY), "c703 owned", n)
+		if n ~= 0 then error("c703 still owned by index 1 after D6") end
+	end },
+	{ "Esau gets c703 back", giveEsau(ESAU_JR, 1) } }
 local continued = { "exit and Continue", exitAndContinue(true), nil, CONTINUE_STEP_LIMIT }
 local deadFirst = function() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ end
 local LARGE_OBSY = { kind = "large", budget = OBSY_CONTINUE_LIMIT }
 
 local OBSY = {
-	-- 1: does A return after its form drops Esau Jr. as a pedestal and picks it up again?
+	-- Does A return after its form drops Esau Jr. as a pedestal and picks it up again?
 	obsScenario("obsy a pedestal pick-back", jrSetup(ISAAC), { { "DropCollectible?", dropCollectibleInfo }, { "Esau Jr. #1", jr("Esau Jr. #1") },
 		{ "drop c703 on a pedestal", dropOnPedestal }, { "pick c703 back", pickBack }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }),
-	-- 2: does A return after its form held Esau Jr. in the Schoolbag's second slot? Variant: a real Clicker press meanwhile.
+	-- Does A return after its form held Esau Jr. in the Schoolbag's second slot? Variant: a real Clicker press meanwhile.
 	obsScenario("obsy a schoolbag", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, { "give Schoolbag", give(SCHOOLBAG) }, { "give c45", give(YUM_HEART) },
 		{ "slots after c45", slotsNow },
 		{ "Esau Jr. to secondary", dropPress("Esau Jr. to secondary", function(p) return p:GetActiveItem(SECONDARY) == ESAU_JR end, "SwapActiveItems", function(p) p:SwapActiveItems() end) },
@@ -1314,13 +1337,13 @@ local OBSY = {
 		{ "slots after Clicker", slotsNow }, { "Clicker to primary", dropPress("Clicker to primary", primaryIs(CLICKER), "SwapActiveItems", function(p) p:SwapActiveItems() end) },
 		{ "Clicker", verdict("Clicker", obsClicker) }, { "slots after the Clicker press", slotsNow }, { "Esau Jr. to primary", jrToPrimary() },
 		{ "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }),
-	-- 5: once A is lost, does A's Dead form X (or A) ever come back through B's Flips or presses?
+	-- Once A is lost, does A's Dead form X (or A) ever come back through B's Flips or presses?
 	obsScenario("obsy a Dead form after A lost", tlazJr(), { { "Flip", flipV("Flip") }, { "Flip back", flipV("Flip back") }, { "Esau Jr. #1", jr("Esau Jr. #1") },
 		replaceEsauJr(), { "Flip of B", flipV("Flip of B") }, { "Flip back to B", flipV("Flip back to B") }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }),
-	-- 7: Clicker's effect with Esau Jr. kept, on a non-Lazarus character.
+	-- Clicker's effect with Esau Jr. kept, on a non-Lazarus character.
 	obsScenario("obsy a Isaac Clicker effect", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, { "give c1", give(1) },
 		{ "use Clicker effect", useClickerEffect }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }),
-	-- 6: other characters.
+	-- Other characters.
 	obsScenario("obsy a J&E by Jacob", jrSetup(JE), charPresses()),
 	obsScenario("obsy a J&E by Esau", { restart(JE), give(4), giveEsau(ESAU_JR) }, charPresses({ index = 1 }, nil, esauLoses)),
 	obsScenario("obsy a Forgotten and Soul", jrSetup(PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
@@ -1332,12 +1355,12 @@ local OBSY = {
 	-- Locked on save slot 1 (README): a restart that never gives the type ends the scenario with an INFO "character locked?" line.
 	obsScenario("obsy b Tainted Jacob", jrSetup(PlayerType.PLAYER_JACOB_B), charPresses()),
 	obsScenario("obsy b Eden", jrSetup(PlayerType.PLAYER_EDEN), charPresses()),
-	-- 3: does a stored A survive exit and Continue, and does a lost one stay lost?
+	-- Does a stored A survive exit and Continue, and does a lost one stay lost?
 	obsScenario("obsy b continue with A stored", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, continued,
 		{ "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }, LARGE_OBSY),
 	obsScenario("obsy b continue after B loses Esau Jr.", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, loseEsauJr(), continued,
 		{ "re-give c703", give(ESAU_JR) }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }, LARGE_OBSY),
-	-- 8: which id tells the two Birthright forms apart and stays stable across Flip, Esau Jr. and Continue?
+	-- Which id tells the two Birthright forms apart and stays stable across Flip, Esau Jr. and Continue?
 	obsScenario("obsy b identity", { restart(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, { { "ids after Birthright", ids("after Birthright") },
 		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
 		{ "select type-29 twin", birthrightFlip, deadFirst }, { "Esau Jr. #1", jr("Esau Jr. #1") }, { "ids after Esau Jr. #1", ids("after Esau Jr. #1") },
@@ -1690,6 +1713,7 @@ local function finish(err)
 	end
 	P("RESULT", sc.name, verdict)
 	H.obs, H.cancelClicker, H.timing, H.pressHash = nil, nil, nil, nil
+	H.lateContinue = H.lateContinue or H.expectStart == "continue" or nil -- the user may still Continue after the step gave up
 	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch = H.si + 1, 1, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {}, notes = {} }
 end
@@ -1771,6 +1795,10 @@ mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
 		P("HARNESS START", #SCENARIOS, "scenarios,", H.mode, "mode, mod data of '" .. mod.Name .. "' read", string.format("%q", raw))
 		return
 	end
-	if H.running and not H.expectStart then finish("unexpected game start (hold-R, new run or continue)") end
+	if H.running and not H.expectStart then
+		if not (isContinued and H.lateContinue) then return finish("unexpected game start (hold-R, new run or continue)") end
+		P("INFO", H.ctx.name or SCENARIOS[H.si].name, "late Continue, ignored")
+		H.lateContinue = nil
+	end
 	H.expectStart = nil
 end)

@@ -70,8 +70,9 @@ REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 
 
-def run(path, mode="regression", on_exit="continue", render_every=1, **flags):
-    """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"."""
+def run(path, mode="regression", on_exit="continue", render_every=1, continue_after=0, **flags):
+    """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"; continue_after
+    delays that answer by this many updates."""
     lua = LuaRuntime()
     assert lua.eval("_VERSION") == "Lua 5.3", lua.eval("_VERSION")
     with open(os.path.join(HERE, "stub.lua"), encoding="utf-8") as f:
@@ -83,7 +84,7 @@ def run(path, mode="regression", on_exit="continue", render_every=1, **flags):
     for k, v in flags.items():
         g[k] = v
     g.startRun(3, False)
-    seen = 0
+    seen, late = 0, []
     for update in range(1, 200001):
         if g.pendingStart is not None:
             t = g.pendingStart
@@ -96,6 +97,9 @@ def run(path, mode="regression", on_exit="continue", render_every=1, **flags):
         log = g.LOG
         size = len(log)
         if any(ASK in log[i] for i in range(seen + 1, size + 1)):
+            late.append(update + continue_after)
+        while late and late[0] <= update:
+            late.pop(0)
             g.startRun(0, on_exit == "continue")
         seen = size
         if log[size] == "PROBE HARNESS DONE":
@@ -183,11 +187,16 @@ def check_obsy(log):
         name, label = v.split(" VERDICT ")[0], v.split(" VERDICT ")[1].split(" index ")[0]
         assert has(name, f"TIMING {label} frame ") and has(name, f"TIMING {label} pressed at frame "), v
     assert has("obsy a J&E by Esau", "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
-    assert has("obsy a pedestal pick-back", "c703 dropped after 1 updates: owned 0 c703 pedestals 1")
+    assert has("obsy a pedestal pick-back", "touch try 1 c45 pedestals 1 c703 pedestals 0 c703 owned 0")  # spawned beside, not underfoot
+    assert has("obsy a pedestal pick-back", "c703 dropped after 2 updates: owned 0 c703 pedestals 1")
+    timing = [s.split(" index ")[0] for s in info if " TIMING " in s and " frame " in s and " pressed at " not in s]
+    assert timing and len(timing) == len(set(timing)), "a TIMING frame logged twice"
     assert has("obsy a pedestal pick-back", "c703 picked back after 12 updates: owned 1 c703 pedestals 0 c45 pedestals 1")
     assert has("obsy a schoolbag", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45")
     assert has("obsy a Forgotten and Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")
     assert has("obsy a schoolbag Clicker", "VERDICT Clicker index 0 B -> unchanged")
+    assert has("obsy a J&E by Esau", "index 1 type ") and has("obsy a J&E by Esau", " primary 105 c703 owned 0")
+    assert has("obsy b identity", "VERDICT Flip after Continue index 0 A -> B moved from 1 |")
     assert sum(" after Continue: player seeds " in s for s in info) == len(OBSY_LARGE)
     ids = [s for s in info if s.startswith("obsy b identity IDS ")]
     assert len(ids) == 7 * 2 and all(" InitSeed " in s and " OtherTwin " in s and " MainTwin " in s for s in ids), ids
@@ -295,6 +304,14 @@ def main(path):
     for name in OBSY_LARGE:  # INFO only: the Continue step is logged as never happened and ends the scenario
         assert got[name] == WANT[name] and any(s.startswith(f"PROBE INFO {name} ") and " exit and Continue never happened: " in s and s.endswith("a new run started, not a Continue") for s in log), name
     print("PASS new run instead of Continue fails:", got["continue"])
+
+    # The user continues after the 600-update Continue step gave up: logged, and the next scenario runs on
+    log = run(path, mode="only obsy b", continue_after=615)  # lands in the next scenario before its own Continue step
+    got = check_finished(log, "late Continue")
+    assert all(got[name] == WANT[name] for name in OBSY_B), got
+    late = [s for s in log if s.endswith(" late Continue, ignored")]
+    assert late and not any("unexpected game start" in s for s in log), late
+    print("PASS a late Continue is ignored:", len(late), "times")
 
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
              [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY])

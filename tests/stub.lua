@@ -46,7 +46,11 @@ function Isaac.FindByType(t, v, s)
   for _, e in ipairs(pickups) do if e.Type == t and ((v or -1) < 0 or e.Variant == v) and ((s or -1) < 0 or e.SubType == s) then r[#r+1] = e end end
   return r
 end
-function Isaac.Spawn(t, v, s, pos) local e = {Type=t, Variant=v, SubType=s, Position=Vector(pos.X, pos.Y), Wait=20}; e.ToPickup = function() return e end; pickups[#pickups+1] = e; return e end
+function Isaac.Spawn(t, v, s, pos)
+  local e = {Type=t, Variant=v, SubType=s, Position=Vector(pos.X, pos.Y), Wait=20}; e.ToPickup = function() return e end; pickups[#pickups+1] = e
+  for _, p in ipairs(players) do if p.Position:Distance(e.Position) < 20 then p.touching = true end end -- spawned underfoot: no touch (in game)
+  return e
+end
 function GetPtrHash(p) return p.seed end
 
 ignoreRestart = false -- set by the test: `restart` does nothing

@@ -409,6 +409,16 @@ local function fullOver(H)
 	return not H.full
 end
 
+-- id:owned/total for every item p holds; total is GetCollectibleNum(id, false), so wisps and the Zodiac copy count too.
+local function heldItems(p)
+	local t = {}
+	for id = 1, maxId do
+		local total = itemConfig:GetCollectible(id) and p:GetCollectibleNum(id, false) or 0
+		if total > 0 then t[#t + 1] = id .. ":" .. owned(p, id) .. "/" .. total end
+	end
+	return table.concat(t, " ")
+end
+
 local function chargeOf(p, id, slot) return p and p:GetActiveItem(slot) == id and p:GetActiveCharge(slot) end
 
 -- How the use spent `id`, or nil and what was read. `b` is the presser before the press: its seed and full charge or card count.
@@ -420,8 +430,10 @@ local function spentHow(b, id, slot)
 		if n == b.cards - 1 then return "spent card " .. b.cards .. "->" .. n end
 		return nil, "card count " .. tostring(n) .. ", was " .. b.cards
 	end
-	local c1 = chargeOf(presser, id, slot)
-	local read = "charge " .. b.charge .. " -> presser " .. tostring(c1) .. ", player 0 " .. tostring(chargeOf(Isaac.GetPlayer(0), id, slot))
+	local c1, moved = chargeOf(presser, id, slot), ""
+	-- A Birthright swap can move the presser's seed to a twin without the item (obsy b identity press #2): read the pressed index.
+	if presser and not c1 then c1, moved = chargeOf(Isaac.GetPlayer(b.index), id, slot), " (seed holds no c" .. id .. ", read index " .. b.index .. ")" end
+	local read = "charge " .. b.charge .. " -> presser " .. tostring(c1) .. moved .. ", player 0 " .. tostring(chargeOf(Isaac.GetPlayer(0), id, slot))
 	if presser then
 		if c1 and c1 < b.charge then return "spent presser charge, " .. read end
 		return nil, read
@@ -452,7 +464,8 @@ local function swap(label, id, slot, count, ceiling, who)
 		if who and who.any then H.pressHash = false elseif who then H.pressHash = GetPtrHash(p) end
 		-- shortcut: the full press answers both triggered polls of its update, safe only while the pocket holds no card (a card reads
 		-- the first, Flip the second); Flip's charge of 4 is spent by one use, so it cannot flip twice. Revisit for a card beside Flip.
-		b.seed, b.button, b.full = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET or who ~= nil
+		b.seed, b.button, b.full, b.index, b.hash = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET or who ~= nil, index, GetPtrHash(p)
+		if H.obs then b.items = heldItems(p) end
 		local read = ""
 		if slot == "card" then
 			b.cards = cards(p, id)
@@ -478,6 +491,14 @@ local function swap(label, id, slot, count, ceiling, who)
 		if a.who == b.who and a.count == b.count then
 			-- A use that spends the charge and swaps nothing (obs2: Flip on a 38 whose other form is gone) never swaps later: stop early.
 			local c = slot ~= "card" and chargeOf(playerBySeed(b.seed), id, slot)
+			-- obs data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1).
+			local p = Isaac.GetPlayer(index)
+			if c and c < b.charge and b.items and (GetPtrHash(p) ~= b.hash or heldItems(p) ~= b.items) then
+				local how = GetPtrHash(p) ~= b.hash and ("new form, same seed " .. b.seed .. ", hash " .. b.hash .. " -> " .. GetPtrHash(p)) or ("acted in place: same seed " .. b.seed)
+				P("INFO", ctx.name, label, how .. ", items " .. b.items .. " -> " .. heldItems(p) .. ", charge " .. b.charge .. " -> " .. c)
+				H.press, H.full, H.fullPolled, H.pressHash, H.watch, ctx.arms = nil, nil, nil, nil, nil, b.arms
+				return true
+			end
 			if c and c < b.charge and ctx.t >= 30 then error(label .. ": charge spent " .. b.charge .. " -> " .. c .. ", no new character after " .. ctx.t .. " updates") end
 			-- shortcut: re-arms until a new character shows (the one-shot each update, the full press one update after its release, so
 			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless while the
@@ -844,16 +865,6 @@ end
 -- obs esaujr: no checks, only what the engine and ReHUD do and in what order. While HARNESS.obs is set, tick logs the whole state on
 -- every update where it changed: one OBS line per player, roster row and tracker entry.
 local OBS_IDS = { 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
--- id:owned/total for every item p holds; total is GetCollectibleNum(id, false), so wisps and the Zodiac copy count too.
-local function heldItems(p)
-	local t = {}
-	for id = 1, maxId do
-		local total = itemConfig:GetCollectible(id) and p:GetCollectibleNum(id, false) or 0
-		if total > 0 then t[#t + 1] = id .. ":" .. owned(p, id) .. "/" .. total end
-	end
-	return table.concat(t, " ")
-end
-
 local function pedestals(id) return #Isaac.FindByType(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, id) end
 local function obsLines()
 	local t = {}
@@ -1312,7 +1323,13 @@ local function charPresses(who, first, lose)
 		lose or replaceEsauJr(), { "Esau Jr. #4", jr("Esau Jr. #4", who) }, { "Esau Jr. #5", jr("Esau Jr. #5", who) } }
 end
 local D6 = CollectibleType.COLLECTIBLE_D6
-local esauLoses = { { "Esau gets D6", giveEsau(D6, 1) },
+local esauLoses = { { "check c703 on index 1", function()
+		local p = Isaac.GetPlayer(1)
+		if not p or p:GetActiveItem(PRIMARY) ~= ESAU_JR then
+			error("index 1 does not hold c703 before the D6: " .. (p and ("type " .. p:GetPlayerType() .. " primary " .. p:GetActiveItem(PRIMARY) .. " c703 owned " .. owned(p, ESAU_JR)) or "no player"))
+		end
+	end },
+	{ "Esau gets D6", giveEsau(D6, 1) },
 	{ "check D6 on index 1", function(ctx)
 		local p = Isaac.GetPlayer(1)
 		local n = owned(p, ESAU_JR)
@@ -1359,7 +1376,7 @@ local OBSY = {
 	obsScenario("obsy b continue with A stored", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, continued,
 		{ "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }, LARGE_OBSY),
 	obsScenario("obsy b continue after B loses Esau Jr.", jrSetup(ISAAC), { { "Esau Jr. #1", jr("Esau Jr. #1") }, loseEsauJr(), continued,
-		{ "re-give c703", give(ESAU_JR) }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") } }, LARGE_OBSY),
+		{ "re-give c703", give(ESAU_JR) }, { "Esau Jr. #2", jr("Esau Jr. #2") }, { "Esau Jr. #3", jr("Esau Jr. #3") }, { "Esau Jr. #4", jr("Esau Jr. #4") } }, LARGE_OBSY),
 	-- Which id tells the two Birthright forms apart and stays stable across Flip, Esau Jr. and Continue?
 	obsScenario("obsy b identity", { restart(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, { { "ids after Birthright", ids("after Birthright") },
 		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
@@ -1711,9 +1728,9 @@ local function finish(err)
 		verdict = (ctx.checks and ("PASS " .. ctx.checks .. " checks") or "INFO data only")
 			.. (#ctx.notes > 0 and ("; unobserved: " .. table.concat(ctx.notes, ", ")) or "")
 	end
-	P("RESULT", sc.name, verdict)
+	P("RESULT", sc.name, verdict .. (ctx.lateContinue and "; late Continue mid-scenario" or ""))
 	H.obs, H.cancelClicker, H.timing, H.pressHash = nil, nil, nil, nil
-	H.lateContinue = H.lateContinue or H.expectStart == "continue" or nil -- the user may still Continue after the step gave up
+	H.lateContinue = H.expectStart == "continue" or nil -- the user may still Continue after the step gave up, during the next scenario
 	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch = H.si + 1, 1, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {}, notes = {} }
 end
@@ -1801,7 +1818,7 @@ mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
 	if H.running and not H.expectStart then
 		if not (isContinued and H.lateContinue) then return finish("unexpected game start (hold-R, new run or continue)") end
 		P("INFO", H.ctx.name or SCENARIOS[H.si].name, "late Continue, ignored")
-		H.lateContinue = nil
+		H.lateContinue, H.ctx.lateContinue = nil, true
 	end
 	H.expectStart = nil
 end)

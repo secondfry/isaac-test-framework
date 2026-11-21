@@ -308,10 +308,22 @@ def main(path):
     # The user continues after the 600-update Continue step gave up: logged, and the next scenario runs on
     log = run(path, mode="only obsy b", continue_after=615)  # lands in the next scenario before its own Continue step
     got = check_finished(log, "late Continue")
-    assert all(got[name] == WANT[name] for name in OBSY_B), got
+    note = "; late Continue mid-scenario"
+    assert all(got[name].removesuffix(note) == WANT[name] for name in OBSY_B), got
     late = [s for s in log if s.endswith(" late Continue, ignored")]
     assert late and not any("unexpected game start" in s for s in log), late
-    print("PASS a late Continue is ignored:", len(late), "times")
+    assert sum(got[name].endswith(note) for name in OBSY_B) == len(late), got
+    print("PASS a late Continue is ignored and noted:", len(late), "times")
+
+    # obsy b run 1: after a Continue, Esau Jr. made a new entity with the presser's seed and type, its items re-rolled
+    name = "obsy b continue after B loses Esau Jr."
+    log = run(path, mode="only " + name, jrSameSeed=True)
+    got = check_finished(log, "Esau Jr. keeps the seed")
+    assert got[name] == WANT[name], got[name]
+    same = [s for s in log if s.startswith(f"PROBE INFO {name} Esau Jr. #") and " new form, same seed " in s]
+    assert len(same) == 4 and " items 4:1/1 703:1/1 -> 53:1/1 703:1/1, charge 1 -> 0" in same[0], same
+    assert not any(s.startswith(f"PROBE INFO {name} ") and "never happened" in s for s in log)
+    print("PASS a press that keeps the seed is logged as data:", same[0])
 
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
              [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY])

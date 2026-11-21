@@ -1242,14 +1242,23 @@ local function dropCollectibleInfo(ctx)
 	P("INFO", ctx.name, "EntityPlayer.DropCollectible:", ok and type(v) or ("error " .. tostring(v)), "(not used: a pedestal swap instead)")
 end
 
--- A c45 pedestal swaps with the held Esau Jr. on touch, leaving c703 on it. Player 0 goes 80 px off the press spot first, in case a
--- form comes back where it was stored; the pedestal spawns 40 px beside it (one spawned under a player that never moves onto it was
--- never touched in game), its Wait zeroed (pcall'd), and player 0 is put onto it every update.
+-- Player 0 walks into `pos`: its Velocity set toward it, as a pedestal's solid collision pushes a teleported player out untouched.
+local function walkTo(p, pos)
+	local d = pos - p.Position
+	p.Velocity = d:Length() > 1 and d:Resized(5) or Vector(0, 0)
+end
+
+-- A c45 pedestal swaps with the held Esau Jr. on touch, leaving c703 on it. In game a pedestal spawned under the player (run 1) and
+-- one beside it with player 0 put onto it every update (run 2: pushed out, left of it by the bottom wall) were never touched. So it
+-- spawns in open floor 100 px from the room centre, on the side away from the press spot (a form may come back where it was stored),
+-- its Wait zeroed (pcall'd), and player 0, put 60 px off it toward the centre, walks into it.
 local dropOnPedestal = action("touch a c45 pedestal", function(ctx)
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
-	p.Position = p.Position + Vector(0, 80)
-	local pos = p.Position + Vector(40, 0)
+	local c = game:GetRoom():GetCenterPos()
+	local side = p.Position.X < c.X and 1 or -1
+	local pos = c + Vector(100 * side, 0)
+	p.Velocity, p.Position = Vector(0, 0), c + Vector(40 * side, 0)
 	local e = Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, pos, Vector(0, 0), nil)
 	P("INFO", ctx.name, "c45 pedestal Wait = 0:", tostring(pcall(function() e:ToPickup().Wait = 0 end)))
 	return pos
@@ -1257,34 +1266,36 @@ end, function(ctx, pos)
 	local p = Isaac.GetPlayer(0)
 	local n, ped = owned(p, ESAU_JR), pedestals(ESAU_JR)
 	if n == 0 and ped > 0 then
+		p.Velocity = Vector(0, 0)
 		P("INFO", ctx.name, "c703 dropped after", ctx.t, "updates: owned", n, "c703 pedestals", ped, "c45 pedestals", pedestals(YUM_HEART), slots(p))
 		return true
 	end
 	P("INFO", ctx.name, "touch try", ctx.t, "c45 pedestals", pedestals(YUM_HEART), "c703 pedestals", ped, "c703 owned", n)
-	p.Velocity, p.Position = Vector(0, 0), pos
+	walkTo(p, pos)
 	return false, "c703 owned " .. n .. ", c703 pedestals " .. ped
 end)
 
--- Then 10 updates away from it (a swapped pedestal is not re-taken while touched), its Wait zeroed (pcall'd), and onto it every update.
+-- Then 10 updates 80 px off it toward the room centre (a swapped pedestal is not re-taken while touched), its Wait zeroed (pcall'd),
+-- and player 0 walks into it, as a teleport onto it is pushed out untouched (run 2, the c45 pedestal).
 local pickBack = action("walk back onto the c703 pedestal", function()
 	local e = Isaac.FindByType(EntityType.ENTITY_PICKUP, PEDESTAL, ESAU_JR)[1]
 	if not e then error("no c703 pedestal") end
-	return Vector(e.Position.X, e.Position.Y)
-end, function(ctx, pos)
+	local pos = Vector(e.Position.X, e.Position.Y)
+	return { pos = pos, away = pos + (game:GetRoom():GetCenterPos() - pos):Resized(80) }
+end, function(ctx, b)
 	local p = Isaac.GetPlayer(0)
 	local n = owned(p, ESAU_JR)
 	if n > 0 then
 		P("INFO", ctx.name, "c703 picked back after", ctx.t, "updates: owned", n, "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART), slots(p))
-		p.Position = pos + Vector(80, 0) -- off the c45 pedestal, so the form a press brings here cannot swap with it
+		p.Velocity, p.Position = Vector(0, 0), b.away -- off the c45 pedestal, so the form a press brings here cannot swap with it
 		return true
 	end
-	p.Velocity = Vector(0, 0)
-	if ctx.t <= 10 then p.Position = pos + Vector(80, 0) return false, "stepping away" end
+	if ctx.t <= 10 then p.Velocity, p.Position = Vector(0, 0), b.away return false, "stepping away" end
 	if ctx.t == 11 then
 		local e = Isaac.FindByType(EntityType.ENTITY_PICKUP, PEDESTAL, ESAU_JR)[1]
 		P("INFO", ctx.name, "c703 pedestal Wait = 0:", e and tostring(pcall(function() e:ToPickup().Wait = 0 end)) or "no pedestal")
 	end
-	p.Position = pos
+	walkTo(p, b.pos)
 	return false, "c703 owned 0, c703 pedestals " .. pedestals(ESAU_JR)
 end)
 

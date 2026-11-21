@@ -10,6 +10,8 @@ Mode: before launch, write the plain text `regression` into `data\rehud_test_har
 
 The `HARNESS START` line logs the mode, the mod name and the raw data read; a skipped one logs `RESULT <name> SKIP`.
 
+A wait (action, look or settle) still unfinished after 60 updates logs `PROBE STUCK` and writes `STUCK <n> <scenario> | <step>` as the second line of that mode file (only its first line sets the mode); `tools\stuck-shots.ps1` screenshots the game window for each new STUCK line, so start it before launching the game: `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`.
+
 Each action polls its postcondition and probes wait for ReHUD to settle; a swap (Flip, Esau Jr., Clicker, Soul of J&E) is a real button press through `MC_INPUT_ACTION` and passes only with a new character plus the spent charge or card; a stored presser's spend (Esau Jr., Flip without Birthright) is read on its seed before the engine stores it (`..\lua-api-notes.md`), and a swap with no such reading FAILs. `probes` re-checks engine facts the checks rely on. Probes read ReHUD state through the permanent `ReHUD.dbg` hook (tracker, config, roster).
 
 Results: `PROBE RESULT <scenario> PASS|FAIL|INFO` in `log.txt`, with a `PROBE CHECK FAIL` line per failed check. Every settled look also checks five invariants (engine vs ReHUD counts, duplicates, phantom stored forms, `left` entries, floors not later than the current one).

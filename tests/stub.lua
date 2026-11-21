@@ -17,6 +17,8 @@ print = function() end
 Isaac = {}
 function Isaac.DebugString(s) LOG[#LOG+1] = s end
 function Isaac.RenderText() end
+SAVED = nil -- the last Isaac.SaveModData text
+function Isaac.SaveModData(_, s) SAVED = s end
 local MAX = {[482]=6, [703]=1, [711]=6}
 function Isaac.GetItemConfig() return {GetCollectibles=function() return {Size=733} end, GetCollectible=function(_, id) return id <= 732 and {MaxCharges=MAX[id] or 0} or nil end} end
 wisps = {} -- item wisps: {SubType=id, Player=p}

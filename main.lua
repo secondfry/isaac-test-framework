@@ -167,6 +167,15 @@ end
 -- An action: `act(ctx)` runs once and its result is kept as `ctx.before`; then `done(ctx, ctx.before)` is polled every update until it
 -- returns true, or the step errors naming `label` at the ceiling. One more update follows, so ReHUD's MC_POST_UPDATE has seen the
 -- effect whatever the mod load order (not guaranteed, AGENTS.md).
+-- At 60 updates a wait is stuck: log it once and append a STUCK line under the mode line for tools\stuck-shots.ps1 to screenshot.
+local function stuckAt(ctx, t, label)
+	if t ~= 60 then return end
+	local H = HARNESS
+	H.stuck = (H.stuck or 0) + 1
+	P("STUCK", ctx.name, label, t)
+	Isaac.SaveModData(mod, (H.modLine or "") .. "\nSTUCK " .. H.stuck .. " " .. tostring(ctx.name) .. " | " .. tostring(label))
+end
+
 local function action(label, act, done, ceiling)
 	return function(ctx)
 		if not ctx.t then
@@ -183,7 +192,8 @@ local function action(label, act, done, ceiling)
 		end
 		local ok, why = done(ctx, ctx.before)
 		if ok then ctx.held = true return "again" end
-		if ctx.t >= (ceiling or TIMEOUT) then error(label .. ": " .. (why or "no effect") .. " after " .. ctx.t .. " updates") end
+		if (ceiling or TIMEOUT) <= TIMEOUT then stuckAt(ctx, ctx.t, label) end -- a longer ceiling waits for the user's Continue
+		if ctx.t >=(ceiling or TIMEOUT) then error(label .. ": " .. (why or "no effect") .. " after " .. ctx.t .. " updates") end
 		return "again"
 	end
 end
@@ -467,7 +477,12 @@ local function swap(label, id, slot, count)
 		H.press, H.full, H.fullPolled = nil, nil, nil
 		if count and a.count ~= count then return false, a.count .. " players, want " .. count end
 		local how, read = spentHow(b, id, slot)
-		if not how then return false, "spent nothing: " .. read end
+		if not how then
+			-- A spend not found 30 updates after the new character never shows (obs3 birthright "Esau Jr. again"): stop early.
+			b.newAt = b.newAt or ctx.t
+			if ctx.t - b.newAt >= 30 then error(label .. ": new character but spent nothing: " .. read .. " after " .. ctx.t .. " updates") end
+			return false, "spent nothing: " .. read
+		end
 		H.watch, ctx.arms = nil, b.arms
 		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, how, polls)
 		return true
@@ -595,7 +610,7 @@ local function look(label, check)
 	return function(ctx)
 		ctx.t = (ctx.t or 0) + 1
 		local busy = settling()
-		if busy and ctx.t < TIMEOUT then return "again" end
+		if busy and ctx.t < TIMEOUT then stuckAt(ctx, ctx.t, label) return "again" end
 		if busy then fail(ctx, label .. ": ReHUD still settling " .. busy .. " after " .. ctx.t .. " updates") end
 		P("SETTLED", label, "after", ctx.t, "updates", "stored settling", storedSettling())
 		ctx.t = nil
@@ -875,11 +890,12 @@ local function obs(tag, step)
 	end
 end
 
--- The settle wait of look, without its checks.
+-- The settle wait of look, without its checks, capped at 120 updates: a merged flag left on a stored survivor (a known ReHUD bug,
+-- obs3 cross and flip) never clears, and obs only notes it.
 local function settled(ctx)
 	ctx.t = (ctx.t or 0) + 1
 	local busy = settling()
-	if busy and ctx.t < TIMEOUT then return "again" end
+	if busy and ctx.t < 120 then stuckAt(ctx, ctx.t, HARNESS.obs and HARNESS.obs.step or "settle") return "again" end
 	P("INFO", ctx.name, "settle wait ended after", ctx.t, "updates", busy and ("still settling " .. busy) or "settled")
 	ctx.t = nil
 end
@@ -1284,7 +1300,8 @@ mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
 		-- The mode file is data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
 		-- "regression" runs every scenario; "only <prefix>" just the scenarios whose name starts with it, whatever their kind; anything else, or none, runs the small ones and the new large ones.
 		local raw = mod:LoadData()
-		local text = raw:match("^%s*(.-)%s*$")
+		H.modLine = raw:match("^[^\r\n]*") -- the first line only: a STUCK line left below it never changes the mode
+		local text = H.modLine:match("^%s*(.-)%s*$")
 		H.only = text:match("^only (.+)$")
 		H.started, H.running, H.mode = true, true, text == "regression" and "regression" or H.only and ("only " .. H.only) or "default"
 		P("HARNESS START", #SCENARIOS, "scenarios,", H.mode, "mode, mod data of '" .. mod.Name .. "' read", string.format("%q", raw))

@@ -87,6 +87,7 @@ def run(path, mode="regression", on_exit="continue", **flags):
             g.startRun(0, on_exit == "continue")
         if log[-1] == "PROBE HARNESS DONE":
             break
+    run.saved = g.SAVED
     return list(g.LOG.values())
 
 
@@ -191,7 +192,7 @@ def main(path):
         assert got[name] == want, f"default mode: {name}: {got[name]}"
     print("PASS default mode runs small and new large scenarios, skips the rest")
 
-    log = run(path, mode="only obs")
+    log = run(path, mode="only obs\r\nSTUCK 3 obs mirror | settle")  # a STUCK line left in the file keeps the mode
     got = check_finished(log, "only obs mode")
     assert any(s.startswith("PROBE HARNESS START") and "only obs mode" in s for s in log), "only mode not logged"
     for name in SCENARIOS:
@@ -205,8 +206,13 @@ def main(path):
 
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates")
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
-    all_fail(check_finished(run(path, ignorePress=True), "press ignored"), "press ignored", "no new character, arms ",
+    log = run(path, ignorePress=True)
+    all_fail(check_finished(log, "press ignored"), "press ignored", "no new character, arms ",
              [n for n in SCENARIOS if n not in NO_SWAP])
+    stuck = [s for s in log if s.startswith("PROBE STUCK ")]
+    assert stuck and stuck[0].endswith(" 60"), stuck[:1]
+    assert run.saved.startswith(f"regression\nSTUCK {len(stuck)} ") and " | " in run.saved, run.saved
+    print("PASS a stuck wait logs STUCK once and saves it under the mode line:", len(stuck), "stuck,", repr(run.saved))
 
     got = check_finished(run(path, noSpend=True), "no spend")
     for name in SCENARIOS:

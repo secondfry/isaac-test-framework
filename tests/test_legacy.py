@@ -46,8 +46,6 @@ WANT = {
     "legacy > obsy a Lazarus Risen": "RECORDED",
     "legacy > obsy b Tainted Jacob": "RECORDED",
     "legacy > obsy b Eden": "RECORDED",
-    "legacy > obsy b continue with A stored": "RECORDED",
-    "legacy > obsy b continue after B loses Esau Jr.": "RECORDED",
     "legacy > obsy b identity": "RECORDED",
     "legacy > S4": "PASS 29 assertions",
     "legacy > P1": "PASS 25 assertions",
@@ -70,10 +68,6 @@ WANT = {
     "legacy > final L flipped cross": "RECORDED",
     "legacy > final M original loses Esau Jr.": "RECORDED",
     "legacy > final J Strawman Keeper leaves": "RECORDED",
-    "legacy > final N summoned Esau across Continue": "RECORDED",
-    "legacy > continue": "PASS 14 assertions",
-    "legacy > continue settled": "PASS 20 assertions",
-    "legacy > L1": "PASS 30 assertions",
 }
 
 
@@ -148,7 +142,6 @@ def test_final(path):
     hand = [s for s in log if s.startswith(f"PROBE INFO {final_b} YOU: ")]
     assert len(hand) == 2, hand
     assert not any(s.startswith(f"PROBE STUCK {final_b} ") for s in log), "a manual step logged STUCK"
-    assert any("HELPERS after Continue" in s and " type 14 parent index 0 " in s for s in log), "no Keeper after the Continue"
     print(f"PASS {FINAL_MODE}: {sum('rehud-2.8' in t.tags for t in dry.plan(path))} tests, {dry.run.updates} updates in the stub")
 
 

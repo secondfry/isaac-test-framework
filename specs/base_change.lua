@@ -15,7 +15,7 @@ local record = include("scripts.record")
 local pocketHeld, playerCount, storedSettlingNow, innerLine, innerOn, innerInfo, innerWatch, typeNow, verdict = record.pocketHeld,
 	record.playerCount, record.storedSettlingNow, record.innerLine, record.innerOn, record.innerInfo, record.innerWatch, record.typeNow, record.verdict
 local settle = include("scripts.settle")
-local look, lookC, settled, idle = settle.look, settle.lookC, settle.settled, settle.idle
+local look, lookC, settled = settle.look, settle.lookC, settle.settled
 local press = include("scripts.press")
 local flip, esauJr, clicker, cancelledClicker = press.flip, press.esauJr, press.clicker, press.cancelledClicker
 local jrSteps = include("scripts.esau_jr_steps")
@@ -123,11 +123,11 @@ local tests = {
 	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
 	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", STORED_CHARACTER_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
-		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }, STRICT),
+		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") } }, STRICT),
 	snapshotTest("ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once", STORED_CHARACTER_TAGS, TLAZ_JR, {
 		{ "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
 		{ "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") }, { "stored settling", storedSettlingNow }, { "settle", settled },
-		jrAgain(), { "watch 60", idle(60) } }, STRICT),
+		jrAgain() }, STRICT),
 }
 -- Recon: each character's Clicker roll (a press by `who` for Tainted Forgotten) and what Exit & Continue keeps of it.
 perCharacter(tests, "base_change", "Clicker, then Exit & Continue", fixtures.RECON_CHARACTERS, fixtures.character, function(c)

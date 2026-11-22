@@ -1,4 +1,4 @@
--- Waits for ReHUD to settle: a look (state, assertions, invariants), a bare settle wait and a timed watch.
+-- Waits for ReHUD to settle: a look (state, assertions, invariants) and a bare settle wait.
 local P = include("scripts.log").P
 local TIMEOUT = include("scripts.wait").TIMEOUT
 local stuck = include("scripts.runner").stuck
@@ -35,17 +35,6 @@ local function settled(ctx)
 	ctx.t = nil
 end
 
--- Watches `n` updates without acting and logs each change of what ReHUD still settles, so the log shows how long a returned survivor settles.
-local function idle(n)
-	return function(ctx)
-		ctx.t = (ctx.t or 0) + 1
-		local busy = settling() or "nothing"
-		if busy ~= ctx.busy then ctx.busy = busy; P("INFO", ctx.name, "idle update", ctx.t, "settling", busy) end
-		if ctx.t < n then return "again" end
-		ctx.t, ctx.busy = nil, nil
-	end
-end
-
 -- A look that also asserts the character numbers.
 local function lookC(label, verify)
 	return look(label, function(ctx, l)
@@ -55,4 +44,4 @@ local function lookC(label, verify)
 	end)
 end
 
-return { look = look, settled = settled, idle = idle, lookC = lookC }
+return { look = look, settled = settled, lookC = lookC }

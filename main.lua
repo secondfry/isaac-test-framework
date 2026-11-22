@@ -10,7 +10,7 @@ local press = include("scripts.press")
 local characters = include("scripts.characters")
 local record = include("scripts.record")
 
--- continue before characters: their Exit & Continue tests then come in HEAD df8ba84's order (the stored, lost, then identity ones).
+-- continue before characters: their Exit & Continue tests then play in the order stored, lost, then identity.
 local SPECS = { "hello", "engine", "continue", "characters", "esau_jr", "base_change", "item_copies", "regressions", "revive" }
 
 runner.setMod(mod)

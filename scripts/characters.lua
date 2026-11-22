@@ -15,8 +15,8 @@ local game = Game()
 
 -- A character is its entity (GetPtrHash): a stored one comes back with it (lua-api-notes.md), and a gone one never comes back, so a
 -- reused hash on a gone one is a new character.
--- shortcut: GetPtrHash renews on Continue (lua-api-notes.md), so every character after a Continue is new; key it otherwise if a checked
--- scenario ever continues.
+-- shortcut: GetPtrHash renews on Continue (lua-api-notes.md), so every character after a Continue is new; key it otherwise if a test
+-- with assertions needs a character across a Continue.
 local function charOf(p)
 	local C = HARNESS.chars
 	local c = C and C.byHash[GetPtrHash(p)]

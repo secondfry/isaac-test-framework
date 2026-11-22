@@ -1,4 +1,4 @@
-# Screenshots the game whenever the harness writes a new STUCK line (main.lua stuckAt) as the last line of its mod data.
+# Screenshots the game whenever the harness writes a new STUCK line (scripts\runner.lua stuck) as the last line of its mod data.
 # Start it before launching the game: pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>
 param(
 	[Parameter(Mandatory)][string]$Out,

@@ -64,7 +64,7 @@ function engineInput()
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
   -- An active pedestal swaps with the held active when walked onto: by Velocity from off it, as a teleport never touched in game
-  -- (lua-api-notes.md). shortcut: a pedestal reached, not a hitbox crossed; model collision if a scenario walks past a pedestal.
+  -- (lua-api-notes.md). shortcut: a pedestal reached, not a hitbox crossed; model collision if a test walks past a pedestal.
   for _, p in ipairs(players) do
     for _, e in ipairs(pickups) do
       if from[p] and p.Position:Distance(e.Position) < 20 and from[p]:Distance(e.Position) >= 20 and p.active then

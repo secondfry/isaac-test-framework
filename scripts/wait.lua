@@ -30,7 +30,7 @@ local function act(label, start, done, ceiling)
 		end
 		local ok, why = done(ctx, ctx.before)
 		if ok then ctx.held = true return "again" end
-		ctx.why = why -- an obs step ceiling names it
+		ctx.why = why -- a snapshot test's step limit names it
 		if (ceiling or TIMEOUT) <= TIMEOUT then stuck(ctx, ctx.t, label) end -- a longer ceiling waits for the user's Continue
 		if ctx.t >=(ceiling or TIMEOUT) then error(label .. ": " .. (why or "no effect") .. " after " .. ctx.t .. " updates") end
 		return "again"

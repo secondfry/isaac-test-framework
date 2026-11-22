@@ -25,7 +25,7 @@ local function look(label, verify)
 end
 
 -- The settle wait of look, without its assertions, capped at 120 updates: a merged flag left on a stored survivor (a known ReHUD bug,
--- obs3 cross and flip) never clears, and obs only notes it.
+-- obs3 cross and flip) never clears, and a snapshot test only notes it.
 local function settled(ctx)
 	ctx.t = (ctx.t or 0) + 1
 	local busy = settling()

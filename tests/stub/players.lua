@@ -59,4 +59,4 @@ function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
 function PM:AddTrinket(id) table.insert(self.trinkets, 1, id) end
 function PM:GetTrinket(i) return self.trinkets[i + 1] or 0 end
-function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip scenario
+function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip press test

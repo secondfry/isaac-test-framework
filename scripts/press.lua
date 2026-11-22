@@ -120,8 +120,8 @@ local function prime(p, id, slot, b, H, label)
 	return " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
 end
 
--- obs data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1). True, logged
--- as INFO, when an obs press (b.items set) spent and left the pressed index on its seed and type with a new entity or other items.
+-- Recon data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1). True, logged
+-- as INFO, when a snapshot test's press (b.items set) spent and left the pressed index on its seed and type with a new entity or other items.
 -- `c`: the presser's charge now; a gone presser's spend is the drop its watch saw before the engine stored it.
 -- ctx.sameSeed tells record.verdict to drop this press's TIMING watch: the seed never changes, so it would wake on a later press.
 local function sameSeedForm(ctx, label, b, presser, c, index)
@@ -172,7 +172,7 @@ local function press(label, id, slot, count, ceiling, who)
 			if c and c < b.charge and ctx.t >= 30 then error(label .. ": charge spent " .. b.charge .. " -> " .. c .. ", no new character after " .. ctx.t .. " updates") end
 			-- shortcut: re-arms until a new character shows (the one-shot each update, the full press one update after its release, so
 			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless while the
-			-- presser holds no battery or second card; count uses per swap before a scenario gives either.
+			-- presser holds no battery or second card; count uses per swap before a test gives either.
 			if b.full then
 				if b.released then arm(H, b); b.released = nil elseif fullOver(H) then b.released = true end
 			elseif not H.oneShot then arm(H, b) end

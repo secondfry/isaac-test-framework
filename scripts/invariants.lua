@@ -1,4 +1,4 @@
--- What every settled look asserts whatever the scenario: ReHUD's entries against the engine, and one row per character.
+-- What every settled look asserts whatever the test: ReHUD's entries against the engine, and one row per character.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ITEM_IDS, owned, wispsOf, isCharacter, countsText = engine.ITEM_IDS, engine.owned, engine.wispsOf, engine.isCharacter, engine.countsText
@@ -122,13 +122,13 @@ local function floors(ctx)
 	return out
 end
 
--- Invariants every settled look asserts, whatever the scenario: (1) for each present character and item, ReHUD's entries match the
+-- Invariants every settled look asserts, whatever the test: (1) for each present character and item, ReHUD's entries match the
 -- engine's GetCollectibleNum(id, false) (ReHUD lists every copy: owned and innate without a clock, each wisp and the Zodiac copy with
 -- one), at least the wisps and Zodiac copy clocked, and no entry of an owner gone without being stored or left; (2) no duplicates past
--- that count; (3) every stored form revivable; (4) no left entries unless the scenario sets `leftOk`; (5) no entry on a floor later
+-- that count; (3) every stored form revivable; (4) no left entries unless the test sets `leftOk`; (5) no entry on a floor later
 -- than the current one. A ghost's list is frozen, so ghosts are left out of (1) and (2).
 -- shortcut: a 3 Dollar Bill grant shows only on ReHUD's 30-update scan, so a look within 30 updates of a re-grant would fail (1); every
--- look after a grant follows `listed`, far inside the ~170-update interval. Wait for that scan in look if a scenario looks later.
+-- look after a grant follows `listed`, far inside the ~170-update interval. Wait for that scan in look if a test looks later.
 local function check(ctx, label)
 	local present, have = presentCharacters(), entriesByOwner()
 	holds(ctx, label, "engine counts", engineCounts(present, have))

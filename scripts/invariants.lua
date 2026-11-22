@@ -6,7 +6,7 @@ local rehud = include("scripts.rehud")
 local dbg, entries, keyOf = rehud.dbg, rehud.entries, rehud.keyOf
 local holds = include("scripts.assert").holds
 local ids = include("scripts.ids")
-local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.T_LAZ, ids.DEAD_LAZ
+local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_T_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.T_LAZ, ids.DEAD_T_LAZ
 
 local game = Game()
 
@@ -18,7 +18,7 @@ local function revivable(r, key, present)
 	for k, p in pairs(present) do
 		if p and r.group(k) == r.group(key) then
 			local t = p:GetPlayerType()
-			if (t == T_LAZ or t == DEAD_LAZ) and owned(p, BIRTHRIGHT) == 0 then return true end
+			if (t == T_LAZ or t == DEAD_T_LAZ) and owned(p, BIRTHRIGHT) == 0 then return true end
 			for slot = 0, 2 do -- primary, secondary, pocket
 				if p:GetActiveItem(slot) == ESAU_JR then return true end
 			end
@@ -140,7 +140,7 @@ end
 
 -- One assertion: every remembered character not gone has its own row (a number no other character's key holds), a stored one is marked
 -- stored and listed with exactly the copies it held when last live, and every ReHUD row is a character's. Live ones are the invariants'
--- engine-count check. A ROWS line per character.
+-- engine-count check. A NUMBERS line per character.
 local function characterNumbers(ctx, label)
 	local r, problems, byNumber = dbg().roster, {}, {}
 	local ids, keys = {}, {}
@@ -153,7 +153,7 @@ local function characterNumbers(ctx, label)
 			if e.owner == c.key then have[e.id] = (have[e.id] or 0) + 1 end
 		end
 		local num = r.number(c.key)
-		P("ROWS", ctx.name, label, "char", id, c.name, c.state, "key", c.key, "number", num, "swapped", r.isSwapped(c.key), "type", c.type, "seed", c.seed,
+		P("NUMBERS", ctx.name, label, "char", id, c.name, c.state, "key", c.key, "number", num, "swapped", r.isSwapped(c.key), "type", c.type, "seed", c.seed,
 			"hash", c.hash, "index", c.index, "engine", countsText(c.items), "rehud", countsText(have))
 		if c.state ~= "gone" then
 			keys[c.key] = true

@@ -8,7 +8,7 @@ local rehud = include("scripts.rehud")
 local dbg, entries, keyOf, countEntries, leftEntries, ownerOf, storedSettling = rehud.dbg, rehud.entries, rehud.keyOf, rehud.countEntries,
 	rehud.leftEntries, rehud.ownerOf, rehud.storedSettling
 local wait = include("scripts.wait")
-local act, condition, resetStep = wait.act, wait.condition, wait.resetStep
+local act, condition = wait.act, wait.condition
 local console = include("scripts.console")
 local fresh, give, remove, stage, giveAnyone = console.fresh, console.give, console.remove, console.stage, console.giveAnyone
 local steps_ = include("scripts.steps")
@@ -20,18 +20,18 @@ local wisp, killWisp, engineWisps, zodiacOn, grant3DB, listed = copies.wisp, cop
 local manual = include("scripts.manual")
 local exitAndContinue, continued, dropByHand, pickByHand = manual.exitAndContinue, manual.continued, manual.dropByHand, manual.pickByHand
 local assertions = include("scripts.assert")
-local expect, expectN, expectOne, expectCount, own, c4c5, oneC4, twoC4, birthrightOwners, noneLeft = assertions.expect, assertions.expectN,
+local expect, expectN, expectOne, expectCount, own, c4c5, oneC4, twoC4, birthrightOwners, noneLeft, pre = assertions.expect, assertions.expectN,
 	assertions.expectOne, assertions.expectCount, assertions.own, assertions.c4c5, assertions.oneC4, assertions.twoC4,
-	assertions.birthrightOwners, assertions.noneLeft
+	assertions.birthrightOwners, assertions.noneLeft, assertions.pre
 local record = include("scripts.record")
-local verdict, ids, slotsNow, pocketHeld, typeNow, playerCount, storedSettlingNow, startRecord, startChecked, stepBegins, innerLine, innerOn,
-	innerInfo = record.verdict, record.ids, record.slotsNow, record.pocketHeld, record.typeNow, record.playerCount, record.storedSettlingNow,
-	record.start, record.startChecked, record.stepBegins, record.innerLine, record.innerOn, record.innerInfo
+local verdict, ids, slotsNow, pocketHeld, typeNow, playerCount, storedSettlingNow, startRecord, startChecked, innerLine, innerOn,
+	innerInfo, innerWatch = record.verdict, record.ids, record.slotsNow, record.pocketHeld, record.typeNow, record.playerCount, record.storedSettlingNow,
+	record.start, record.startChecked, record.innerLine, record.innerOn, record.innerInfo, record.innerWatch
 local settle = include("scripts.settle")
 local look, settled, idle, lookC = settle.look, settle.settled, settle.idle, settle.lookC
 local press = include("scripts.press")
-local endPress, flip, esauJr, soulJE, clicker, cancelledClicker, obsClicker, birthrightFlip, dropPress, toSlot, deadFirst, swapCopies =
-	press.endPress, press.flip, press.esauJr, press.soulJE, press.clicker, press.cancelledClicker, press.obsClicker, press.birthrightFlip,
+local flip, esauJr, soulJE, clicker, cancelledClicker, obsClicker, birthrightFlip, dropPress, toSlot, deadFirst, swapCopies =
+	press.flip, press.esauJr, press.soulJE, press.clicker, press.cancelledClicker, press.obsClicker, press.birthrightFlip,
 	press.dropPress, press.toSlot, press.deadFirst, press.swapCopies
 local jrSteps = include("scripts.esau_jr_steps")
 local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, rememberForm, controlPresses, loseEsauJr, replaceEsauJr,
@@ -41,12 +41,11 @@ local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, re
 local fixtures = include("scripts.fixtures")
 local jrSetup, tlazJr, tlazFlipped, tlazFlips = fixtures.jrSetup, fixtures.tlazJr, fixtures.tlazFlipped, fixtures.tlazFlips
 local characters = include("scripts.characters")
-local track, named, who, whoInfo = characters.track, characters.named, characters.who, characters.whoInfo
-local strictObs = include("scripts.runner").strictObs
+local track, named, who, whoInfo, merged = characters.track, characters.named, characters.who, characters.whoInfo, characters.merged
 local enums = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, YUM_HEART, SCHOOLBAG, STRAWMAN = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT,
 	enums.YUM_HEART, enums.SCHOOLBAG, enums.STRAWMAN
-local T_LAZ, DEAD_LAZ, JE, ISAAC, CAIN, T_FORGOTTEN, KEEPER, ESAU, PRIMARY, SECONDARY = enums.T_LAZ, enums.DEAD_LAZ, enums.JE, enums.ISAAC,
+local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, CAIN, T_FORGOTTEN, KEEPER, ESAU, PRIMARY, SECONDARY = enums.T_LAZ, enums.DEAD_T_LAZ, enums.JACOB, enums.ISAAC,
 	enums.CAIN, enums.T_FORGOTTEN, enums.KEEPER, enums.ESAU, enums.PRIMARY, enums.SECONDARY
 
 local game = Game()
@@ -84,7 +83,7 @@ local function clickerUntil(done, maxUses, lookStep, around)
 end
 
 -- P2: Clicker on Jacob until it is Jacob & Esau again, up to 20 uses; Esau's key kept before each press for clickerLook.
-local clickerLoop = clickerUntil(function() return Isaac.GetPlayer(0):GetPlayerType() == JE and ofType(ESAU) ~= nil end, 20, clickerLook,
+local clickerLoop = clickerUntil(function() return Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil end, 20, clickerLook,
 	function(ctx, when)
 		if when ~= "before" then return end
 		local esau = ofType(ESAU)
@@ -166,7 +165,7 @@ end
 local function afterTLazClicker(ctx, label)
 	local t = Isaac.GetPlayer(0):GetPlayerType()
 	P("INFO", ctx.name, "Clicker rolled type", t) -- Q7
-	local lazarus = t == T_LAZ or t == DEAD_LAZ
+	local lazarus = t == T_LAZ or t == DEAD_T_LAZ
 	for id, floor in pairs({ [4] = ctx.floors[1], [5] = ctx.floors[2] }) do
 		local sum = 0
 		for i = 0, game:GetNumPlayers() - 1 do
@@ -250,50 +249,38 @@ end
 -- with 56 scenarios: one more obsx scenario, or 15 more others, breaks it; the test asserts it); in runs 2-3 none came near.
 local OBSX_STEP_LIMIT, OBSX_SCENARIO_LIMIT = 120, 445
 
--- An obs step: tags later OBS lines with `tag` (unique within its scenario); a step that errors (its postcondition never came) is
--- logged as INFO and skipped, not failed; in an obsx or obsy scenario it also ends the scenario, so later presses cannot run on the
--- wrong setup. `limit` overrides the step ceiling (a Continue waits for the user).
-local function obs(tag, step, when, stopOnError, limit)
-	limit = limit or OBSX_STEP_LIMIT
-	return function(ctx)
-		if ctx.obsInterrupted or (not ctx.t and when and not when(ctx)) then return end
-		local H = HARNESS
-		stepBegins(tag)
-		local ok, res = pcall(step, ctx)
-		if ok and stopOnError and res == "again" and not ctx.held and ctx.t >= limit then
-			ok, res = false, "obsx ceiling " .. limit .. " updates" .. (ctx.why and (": " .. ctx.why) or "")
-		end
-		if ok then return res end
-		P("INFO", ctx.name, tag, "never happened:", res)
-		ctx.obsInterrupted = stopOnError
-		resetStep(ctx)
-		endPress(H)
-		H.cancelClicker, H.timing = nil, nil
-	end
+-- An obs step for the runner's soft-step policy: tags later TRACE lines with `label` (unique within its test); its error (its
+-- postcondition never came) is logged and skipped, and in a strict test also ends the test, so later presses cannot run on the wrong
+-- setup. A strict step has a limit, `limit` or OBSX_STEP_LIMIT (a Continue waits for the user). A manual step keeps its prompt.
+local function obs(label, step, when, strict, limit)
+	local manualStep = type(step) == "table" and step
+	return { label = label, run = manualStep and manualStep.run or step, manual = manualStep and manualStep.manual or nil, when = when,
+		limit = strict and (limit or OBSX_STEP_LIMIT) or nil }
 end
 
--- An obs scenario: `pre` unlogged (ending in a settle wait), then the logger, then `steps` as { tag, step } pairs, each soft and
--- numbered, then a last settle wait; a step may be a list of pairs, a pair may carry its step ceiling 4th. Markers: c4 before the
--- first swap, c5 right after it. `opts`: kind (default "small"), budget (the scenario ceiling, default OBSX_SCENARIO_LIMIT) and strict
--- (steps and ceilings as obsx whatever the name).
+-- An obs test (a snapshot test): `pre` unlogged (ending in a settle wait), then the trace, then `steps` as { tag, step } pairs, each
+-- soft and numbered, then a last settle wait; a step may be a list of pairs, a pair may carry its step limit 4th. Markers: c4 before
+-- the first swap, c5 right after it. `opts`: kind (default "small"), budget (the test limit, default OBSX_SCENARIO_LIMIT) and strict
+-- (steps and limits as obsx whatever the name).
 local function obsScenario(name, pre, steps, opts)
 	opts = opts or {}
 	local all, n = {}, 0
-	local stopOnError = opts.strict or strictObs(name)
+	local strict = opts.strict or name:sub(1, 5) == "obsx " or name:sub(1, 5) == "obsy "
 	for _, s in ipairs(pre) do
-		all[#all + 1] = stopOnError and obs("setup " .. (#all + 1), s, nil, true) or s
+		all[#all + 1] = strict and obs("setup " .. (#all + 1), s, nil, true) or s
 	end
-	all[#all + 1] = stopOnError and obs("setup settle", settled, nil, true) or settled
+	all[#all + 1] = strict and obs("setup settle", settled, nil, true) or settled
 	all[#all + 1] = startRecord
 	local list = { table.unpack(steps) } -- a copy: the caller's table may be shared
 	list[#list + 1] = { "settle", settled }
 	for _, s in ipairs(list) do
 		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
 			n = n + 1
-			all[#all + 1] = obs(n .. " " .. pair[1], pair[2], pair[3], stopOnError, pair[4])
+			all[#all + 1] = obs(n .. " " .. pair[1], pair[2], pair[3], strict, pair[4])
 		end
 	end
-	return { name = name, kind = opts.kind or "small", steps = all, obsBudget = stopOnError and (opts.budget or OBSX_SCENARIO_LIMIT) }
+	return { name = name, kind = opts.kind or "small", steps = all, snapshot = true, onStepError = strict and "end" or "skip",
+		limit = strict and (opts.budget or OBSX_SCENARIO_LIMIT) or nil }
 end
 
 -- obsy: INFO-only follow-ups to obsx runs 1-4, run as two modes ("only obsy a", "only obsy b"), each worst case under 5400 updates
@@ -319,8 +306,8 @@ local OBSY = {
 	obsScenario("obsy a Isaac Clicker effect", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), { "give c1", give(1) },
 		{ "use Clicker effect", useClickerEffect }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
 	-- Other characters.
-	obsScenario("obsy a J&E by Jacob", jrSetup(JE), charPresses()),
-	obsScenario("obsy a J&E by Esau", { fresh(JE), give(4), giveEsau(ESAU_JR) }, charPresses({ index = 1 }, nil, esauLoses)),
+	obsScenario("obsy a J&E by Jacob", jrSetup(JACOB), charPresses()),
+	obsScenario("obsy a J&E by Esau", { fresh(JACOB), give(4), giveEsau(ESAU_JR) }, charPresses({ index = 1 }, nil, esauLoses)),
 	obsScenario("obsy a Forgotten and Soul", jrSetup(PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
 		jrPair("Esau Jr. as Forgotten #1"), jrPair("Esau Jr. as Forgotten #2"),
 		{ "switch to the Soul", dropPress("switch to the Soul", function(p) return p:GetPlayerType() == PlayerType.PLAYER_THESOUL end,
@@ -344,12 +331,12 @@ local OBSY = {
 }
 
 local OBS = {
-	obsScenario("obs esaujr cross", tlazJr(), { jrFirst(), { "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
+	obsScenario("obs esaujr cross", tlazJr(), { jrFirst(), { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
 	obsScenario("obs esaujr out", tlazJr(), { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
 	obsScenario("obs esaujr flip", tlazJr(), { jrFirst(), { "pocket of the form", pocketHeld }, { "Flip of the form", flip("Flip of the form") },
 		{ "Flip back", flip("Flip back") }, jrAgain() }),
 	obsScenario("obs esaujr flipped cross", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain(),
+		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(),
 		{ "Flip A", flip("Flip A") }, { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") },
 		{ "Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form") } }),
 	obsScenario("obs esaujr birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "remove Birthright", remove(BIRTHRIGHT) },
@@ -360,7 +347,7 @@ local OBS = {
 		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") },
 		{ "re-give c703 #4", regiveEsauJr() }, { "Esau Jr. #4", esauJr("Esau Jr. #4") } }),
 	obsScenario("obs mirror", { fresh(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount },
+		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount },
 		{ "Flip again", flip("Flip again") }, { "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
 	obsScenario("obs esaujr birthright keep", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled }, jrAgain() }),
 	obsScenario("obs esaujr cross35", tlazJr(), { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) }, { "settle", settled }, jrAgain(),
@@ -379,8 +366,8 @@ local OBS = {
 	obsScenario("obsx Clicker with Birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
 		{ "select type-29 twin", birthrightFlip, deadFirst },
 		giveClicker(), { "Clicker by type 29", function(ctx)
-			if not ctx.t and (Isaac.GetPlayer(0):GetPlayerType() ~= T_LAZ or not ofType(DEAD_LAZ)) then
-				error("expected type 29 in player 0 with the type-38 Birthright twin present")
+			if not ctx.t then
+				pre(Isaac.GetPlayer(0):GetPlayerType() == T_LAZ and ofType(DEAD_T_LAZ), "type 29 in player 0 with the type-38 Birthright twin present")
 			end
 			return obsClicker(ctx)
 		end }, jrTwice() }),
@@ -392,7 +379,7 @@ local OBS = {
 		{ "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
 		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }),
 	obsScenario("obsx merge 29 to 38 then Esau Jr.", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, { "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") },
+		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") },
 		{ "stored settling", storedSettlingNow }, { "settle", settled }, jrAgain(), { "watch 60", idle(60) } }),
 	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
@@ -404,7 +391,7 @@ local OBS = {
 		{ "record A", rememberOriginal }, jrFirst(), { "record B", rememberForm },
 		{ "Esau Jr. back to A", esauJr("Esau Jr. back to A") },
 		{ "verify A returned", function(ctx)
-			if seedOf(Isaac.GetPlayer(0)) ~= ctx.originalSeed then error("expected original A in player 0") end
+			pre(seedOf(Isaac.GetPlayer(0)) == ctx.originalSeed, "original A in player 0")
 		end },
 		replaceEsauJr(), controlPresses() }),
 }
@@ -454,7 +441,7 @@ end
 -- each and INNER lines around each press.
 local jeClickerLoop = clickerUntil(function(ctx)
 	if game:GetNumPlayers() == 1 then ctx.wasMerged = true end
-	return ctx.wasMerged and Isaac.GetPlayer(0):GetPlayerType() == JE and ofType(ESAU) ~= nil
+	return ctx.wasMerged and Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil
 end, 12, lookC("after Clicker"), function(ctx, when) P("INFO", ctx.name, "INNER " .. when .. " Clicker " .. ctx.uses, innerLine()) end)
 
 -- F: what Clicker out of a Tainted Lazarus form gave the live character, and which stored Flip partners' items it got (marked gone: merged).
@@ -475,7 +462,7 @@ local function clickerMerges(ctx)
 			end
 			P("INFO", ctx.name, "Clicker: stored", c.name, "items", countsText(c.items), "found on the live one:", #hit > 0 and table.concat(hit, " ") or "none")
 			-- Only a Flip partner merges into the live form (roster.lua); an Esau Jr. character stays stored (user decision 2026-11-22).
-			if #hit > 0 and c.storedBy == FLIP then c.state = "gone"
+			if #hit > 0 and c.storedBy == FLIP then merged(c)
 			elseif #hit > 0 then table.insert(ctx.notes, "engine moved stored Esau Jr. character " .. c.name .. "'s items (unobserved)") end
 		end
 	end
@@ -534,8 +521,8 @@ local FINAL = {
 	} },
 	-- G (observation): Inner Eye on both twins (Jacob 1, Esau 2), Clicker merges them and, when it rolls J&E, splits them; INNER lines log
 	-- every player's c2 per update, so the log shows whether the engine drops a c2 (and whose) or ReHUD mislists it.
-	{ name = "final G Jacob and Esau Clicker split", kind = "small", budget = 750, onlyPicked = true, steps = {
-		fresh(JE), startChecked, innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
+	{ name = "final G Jacob and Esau Clicker split", kind = "small", budget = 750, onlyPicked = true, onUpdate = innerWatch, steps = {
+		fresh(JACOB), startChecked, innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
 		lookC("start", innerInfo("start")), jeClickerLoop, innerInfo("end"),
 	} },
 }
@@ -586,7 +573,7 @@ FINAL[#FINAL + 1] = obsScenario("final L flipped cross", tlazJr(), { { "Flip", v
 	{ "Flip back", verdict("Flip back", flip("Flip back")) }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) },
 	{ "Flip of the Esau Jr. form", verdict("Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form")) },
 	{ "Flip back to the form", verdict("Flip back to the form", flip("Flip back to the form")) }, { "ids of the form", ids("of the form") },
-	{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain(), { "ids after the original returned", ids("after the original returned") },
+	{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(), { "ids after the original returned", ids("after the original returned") },
 	{ "Flip A (type 38)", verdict("Flip A (type 38)", flip("Flip A (type 38)")) }, { "ids after Flip A", ids("after Flip A") } }, STRICT)
 FINAL[#FINAL + 1] = obsScenario("final M original loses Esau Jr.", tlazJr(), { jrFirst(), { "Esau Jr. back to A", verdict("Esau Jr. back to A", esauJr("Esau Jr. back to A")) },
 	replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },
@@ -631,7 +618,7 @@ local SCENARIOS = {
 		fresh(T_LAZ), give(4), stage(2), look("after c4", oneC4),
 		give(BIRTHRIGHT, 2), look("after Birthright", function(ctx, label)
 			oneC4(ctx, label)
-			ctx.dead = keyOf(ofType(DEAD_LAZ))
+			ctx.dead = keyOf(ofType(DEAD_T_LAZ))
 		end),
 		remove(BIRTHRIGHT, 1), look("after remove Birthright", function(ctx, label)
 			oneC4(ctx, label)
@@ -671,7 +658,7 @@ local SCENARIOS = {
 		look("after Flip of the form", function(ctx, label)
 			engineInfo(ctx, "after a Flip of the Esau Jr. form")
 			ctx.dead = keyOf(Isaac.GetPlayer(0))
-			expect(ctx, label .. ": a new Dead form", ctx.dead ~= ctx.orig and ctx.dead ~= ctx.form and Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ, true)
+			expect(ctx, label .. ": a new Dead form", ctx.dead ~= ctx.orig and ctx.dead ~= ctx.form and Isaac.GetPlayer(0):GetPlayerType() == DEAD_T_LAZ, true)
 			expect(ctx, label .. ": form stored", dbg().roster.isSwapped(ctx.form), true)
 			origStored(ctx, label)
 		end),
@@ -687,7 +674,7 @@ local SCENARIOS = {
 			ctx.dead = ownerOf(5)
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
 		end),
-		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), changeType(DEAD_LAZ),
+		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), changeType(DEAD_T_LAZ),
 		look("after the crossing on the form", function(ctx, label)
 			engineInfo(ctx, "after ChangePlayerType(38) on the Esau Jr. form")
 			expect(ctx, label .. ": player 0 is the form", keyOf(Isaac.GetPlayer(0)), ctx.form)
@@ -699,7 +686,7 @@ local SCENARIOS = {
 	} },
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. form 2 (run 7's P4b).
 	{ name = "S4", kind = "small", steps = {
-		fresh(JE), give(4), giveEsau(5), give(ESAU_JR), stage(2),
+		fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2),
 		look("start", function(ctx, label)
 			ctx.jacob, ctx.esau = keyOf(Isaac.GetPlayer(0)), keyOf(ofType(ESAU))
 			jeCopies(ctx, label)
@@ -729,7 +716,7 @@ local SCENARIOS = {
 		stage(3), look("on stage 3", twoC4),
 	} },
 	{ name = "P2", kind = "small", steps = {
-		fresh(JE), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
+		fresh(JACOB), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
 	} },
 	-- One entry per copy, by kind (clocked: wisps), floors kept; a lost copy takes the oldest entry of its kind.
 	{ name = "S1", kind = "small", steps = {
@@ -837,7 +824,7 @@ local SCENARIOS = {
 			expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.active)
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.stored)
 		end),
-		changeType(DEAD_LAZ), look("after ChangePlayerType", mirrorMerged),
+		changeType(DEAD_T_LAZ), look("after ChangePlayerType", mirrorMerged),
 	} },
 	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
 	{ name = "continue", kind = "large", new = true, steps = continueSteps() },
@@ -867,4 +854,25 @@ for i, s in ipairs(SCENARIOS) do
 	end
 end
 
-return SCENARIOS
+-- The old modes as tags: `all` was regression, rehud-2.8 was "only final,S3,r1,P4c", the other tags were "only <prefix>" picks.
+-- shortcut: obs, obsx, obsy-a, obsy-b and the two continue-* tags pick what the dry test's old modes did; S4 gives each spec its own.
+local PREFIX_TAGS = { { "obs", "obs" }, { "obsx ", "obsx" }, { "obsy a ", "obsy-a" }, { "obsy b ", "obsy-b" }, { "final", "rehud-2.8" },
+	{ "S3", "rehud-2.8" }, { "r1", "rehud-2.8" }, { "P4c", "rehud-2.8" },
+	{ "obsy b continue after B loses Esau Jr.", "continue-b-loses" }, { "obsy b continue with A stored", "continue-a-stored" } }
+local function tagsOf(s)
+	local tags = { "legacy", "rehud" }
+	for _, p in ipairs(PREFIX_TAGS) do
+		if s.name:sub(1, #p[1]) == p[1] then tags[#tags + 1] = p[2] end
+	end
+	if s.kind == "large" then tags[#tags + 1] = "exit-continue" end
+	if s.new then tags[#tags + 1] = "new" end
+	if s.onlyPicked then tags[#tags + 1] = "opt-in" end
+	if s.name == "final B Esau Jr. dropped and picked up" then tags[#tags + 1] = "walk" end
+	return tags
+end
+for _, s in ipairs(SCENARIOS) do
+	s.tags, s.limit = tagsOf(s), s.limit or s.budget
+	s.kind, s.new, s.onlyPicked, s.budget = nil, nil, nil, nil
+end
+
+return { name = "legacy", tests = SCENARIOS }

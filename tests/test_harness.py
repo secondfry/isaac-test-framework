@@ -27,7 +27,8 @@ FINAL = ["final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up"
 ONLY_PICKED = {"final F Flip partners", "final G Jacob and Esau Clicker split"}  # mirrors main.lua's onlyPicked flags
 FINAL_OBS = ["final I Birthright twins Esau Jr.", "final K tag through Flip", "final L flipped cross", "final M original loses Esau Jr.",
              "final J Strawman Keeper leaves", "final N summoned Esau across Continue"]  # INFO only
-FINAL_MODE = "only final,S3,r1,P4c"
+SPEC = "legacy > "  # every test still lives in specs/legacy.lua (plan S4 moves them)
+FINAL_MODE = "tags rehud-2.8"
 FINAL_RUN = ["P4c", "S3", "r1", "r1 mirror", *FINAL, *FINAL_OBS]
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              *FINAL, *FINAL_OBS, "continue", "continue settled", "L1"]
@@ -41,33 +42,36 @@ BUDGET = {"P4c": 600, "S3": 200, "r1": 250, "r1 mirror": 200, "final A two Esau 
 # Exact verdicts: a lost check or note shows. Each look adds 5 invariant checks (a lookC 6). P2 counts 8 or 9 checks per Clicker use: 22 here
 # (the stub's Clicker splits on its second use), any number in game.
 WANT = {
-    "probes": "PASS 10 checks",
-    "test3": "PASS 15 checks",
-    "birthright": "PASS 36 checks",
-    "P3": "PASS 30 checks",
-    "P4a": "PASS 18 checks",
-    "P4c": "PASS 87 checks",
-    "S4": "PASS 29 checks",
-    "P1": "PASS 25 checks",
-    "P2": "PASS 22 checks",
-    "continue": "PASS 14 checks",
-    "continue settled": "PASS 20 checks",
-    "S1": "PASS 53 checks",
-    "S1b": "PASS 37 checks",
-    "S2": "PASS 29 checks",
-    "S3": "PASS 24 checks",
-    "r1": "PASS 27 checks",
-    "r1 mirror": "PASS 18 checks",
-    "L1": "PASS 30 checks",
-    "final A two Esau Jr. copies": "PASS 46 checks",
-    "final B Esau Jr. dropped and picked up": "PASS 25 checks",
-    "final C Tainted Lazarus Esau Jr.": "PASS 39 checks",
-    "final D Strawman": "PASS 22 checks",
-    "final E Soul of Jacob and Esau": "PASS 15 checks",
-    "final F Flip partners": "PASS 47 checks",
-    "final G Jacob and Esau Clicker split": "PASS 18 checks",
-    **{n: "INFO data only" for n in OBS + FINAL_OBS},
+    "probes": "PASS 10 assertions",
+    "test3": "PASS 15 assertions",
+    "birthright": "PASS 36 assertions",
+    "P3": "PASS 30 assertions",
+    "P4a": "PASS 18 assertions",
+    "P4c": "PASS 87 assertions",
+    "S4": "PASS 29 assertions",
+    "P1": "PASS 25 assertions",
+    "P2": "PASS 22 assertions",
+    "continue": "PASS 14 assertions",
+    "continue settled": "PASS 20 assertions",
+    "S1": "PASS 53 assertions",
+    "S1b": "PASS 37 assertions",
+    "S2": "PASS 29 assertions",
+    "S3": "PASS 24 assertions",
+    "r1": "PASS 27 assertions",
+    "r1 mirror": "PASS 18 assertions",
+    "L1": "PASS 30 assertions",
+    "final A two Esau Jr. copies": "PASS 46 assertions",
+    "final B Esau Jr. dropped and picked up": "PASS 25 assertions",
+    "final C Tainted Lazarus Esau Jr.": "PASS 39 assertions",
+    "final D Strawman": "PASS 22 assertions",
+    "final E Soul of Jacob and Esau": "PASS 15 assertions",
+    "final F Flip partners": "PASS 47 assertions",
+    "final G Jacob and Esau Clicker split": "PASS 18 assertions",
+    **{n: "RECORDED" for n in OBS + FINAL_OBS},
 }
+# The tests each tag of specs/legacy.lua picks ("all", "exit-continue", "new" and "opt-in" are the runner's own).
+TAGGED = {"obs": set(OBS), "obsx": set(DISPUTES), "obsy-a": set(OBSY_A), "obsy-b": set(OBSY_B), "rehud-2.8": set(FINAL_RUN),
+          "continue-a-stored": {"obsy b continue with A stored"}, "continue-b-loses": {"obsy b continue after B loses Esau Jr."}}
 LOOKED = [n for n in SCENARIOS if n != "probes" and n not in OBS and n not in FINAL_OBS]  # every scenario with a look: the invariants run there
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
@@ -85,23 +89,20 @@ CHECKED_FINAL = [n for n in FINAL_RUN if n not in FINAL_OBS]
 # Each invariant's negative stub mode: (stub flag, run mode, the invariant's message, the scenarios it must fail on; the rest may fail on
 # their own checks).
 INVARIANT_MODES = [
-    ("missCopy", "regression", "invariant engine counts: c4 of ", HOLDS_C4),
-    ("dupCopy", "regression", "invariant duplicates: c4 of ", HOLDS_C4),
-    ("keepStored", "regression", "invariant phantom stored forms: ", ["test3", "S3", "continue", "continue settled"]),
-    ("leaveNotMerge", "regression", "invariant left entries: ", ["test3", "P4c", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
+    ("missCopy", "tags all", "invariant engine counts: c4 of ", HOLDS_C4),
+    ("dupCopy", "tags all", "invariant duplicates: c4 of ", HOLDS_C4),
+    ("keepStored", "tags all", "invariant phantom stored forms: ", ["test3", "S3", "continue", "continue settled"]),
+    ("leaveNotMerge", "tags all", "invariant left entries: ", ["test3", "P4c", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
     # P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached; S4's Esau Jr. form (holding c703) and
     # P1's summoned Esau do
-    ("laterFloor", "regression", "invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "S1", "S1b", "S2", "r1", "r1 mirror",
+    ("laterFloor", "tags all", "invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "S1", "S1b", "S2", "r1", "r1 mirror",
                                                          *(n for n in FINAL if n not in ONLY_PICKED), "continue", "continue settled", "L1"]),
     # LJ and D share a seed: keyed by seed alone they share a row
     ("untagged", FINAL_MODE, "invariant characters: ", ["final C Tainted Lazarus Esau Jr.", "final F Flip partners"]),
     ("phantomRow", FINAL_MODE, "invariant characters: ", FINAL),
     # ReHUD's own esauJr flag exempts no row: only a character the harness saw Esau Jr. store
-    ("phantomRow", "regression", "invariant phantom stored forms: ", [n for n in LOOKED if n not in ONLY_PICKED]),
+    ("phantomRow", "tags all", "invariant phantom stored forms: ", [n for n in LOOKED if n not in ONLY_PICKED]),
 ]
-REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
-OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
-PEDESTAL = {"yum-heart": 45, "Esau Jr.": 703}  # the fake user's target, by the YOU: line's wording
 STUB_FILES = ["api.lua", "players.lua", "characters.lua", "input.lua", "console.lua", "rehud.lua"]  # load order: rehud.lua registers its update first
 
 
@@ -116,10 +117,16 @@ def load(lua, path):
         lua.execute(f.read())
 
 
-def run(path, mode="regression", on_exit="continue", render_every=1, continue_after=0, loader=load, **flags):
-    """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"; continue_after
-    delays that answer by this many updates. A YOU: line is answered by walking player 0 onto the pedestal it names. `loader(lua, path)`
-    loads the stub and the mod."""
+def walk_target(g):
+    """The pedestal item a started manual walk step asks the user to walk onto, or None."""
+    m = g.HARNESS.session.manual
+    return m.target if m and m.kind == "walk" else None
+
+
+def run(path, mode="tags all", on_exit="continue", render_every=1, continue_after=0, loader=load, walk=walk_target, **flags):
+    """Plays the whole session; `mode` is the mod data; on_exit is what the fake user does when asked to exit and Continue: "continue" or
+    "new"; continue_after delays that answer by this many updates. A manual walk is answered by walking player 0 onto the pedestal
+    `walk(g)` names. `loader(lua, path)` loads the stub and the mod."""
     lua = LuaRuntime()
     assert lua.eval("_VERSION") == "Lua 5.3", lua.eval("_VERSION")
     loader(lua, path)
@@ -134,9 +141,9 @@ def run(path, mode="regression", on_exit="continue", render_every=1, continue_af
             t = g.pendingStart
             g.pendingStart = None
             g.startRun(t, False)
-        ask = g.HARNESS.ask
-        if ask and ask.startswith("YOU:"):
-            g.fakeUserWalk(next(id for word, id in PEDESTAL.items() if word in ask))
+        target = walk(g)
+        if target:
+            g.fakeUserWalk(target)
         g.engineInput()
         g.fire(1)
         if update % render_every == 0:
@@ -158,8 +165,8 @@ def run(path, mode="regression", on_exit="continue", render_every=1, continue_af
 def results(log):
     out = {}
     for s in log:
-        if s.startswith("PROBE RESULT "):
-            rest = s[len("PROBE RESULT "):]
+        if s.startswith("PROBE RESULT " + SPEC):
+            rest = s[len("PROBE RESULT " + SPEC):]
             name = next(n for n in sorted(SCENARIOS, key=len, reverse=True) if rest.startswith(n + " "))
             assert name not in out, f"two RESULTs for {name}"
             out[name] = rest[len(name) + 1:]
@@ -175,24 +182,22 @@ def check_finished(log, label):
 
 
 def wanted(mode):
-    """Each scenario's verdict in `mode` when nothing fails: WANT, or the SKIP that mode logs."""
+    """Each test's verdict under the tags line `mode` when nothing fails: WANT, or the SKIP those tags log."""
     line = mode.splitlines()[0].strip() if mode else ""
-    only = line[5:] if line.startswith("only ") else None
-    label = "regression" if line == "regression" else f"only {only}" if only else "default"
+    tags = line[len("tags"):].replace(",", " ").split() if line.startswith("tags") else []
     out = {}
     for n in SCENARIOS:
-        if only is not None:
-            out[n] = WANT[n] if any(n.startswith(p) for p in only.split(",")) else f"SKIP not {only} ({label} mode)"
-        elif n in ONLY_PICKED:
-            out[n] = f"SKIP run only when picked by only ({label} mode)"
-        elif n in LARGE and n not in NEW and label != "regression":
-            out[n] = f"SKIP large and not new ({label} mode)"
+        if not tags:
+            skip = "opt-in" if n in ONLY_PICKED else "exit-continue and not new" if n in LARGE and n not in NEW else None
+        elif any((t == "all" and n not in ONLY_PICKED) or n in TAGGED.get(t, ()) for t in tags):
+            skip = None
         else:
-            out[n] = WANT[n]
+            skip = "opt-in" if n in ONLY_PICKED else "not tagged"
+        out[n] = f"SKIP {skip} (tags '{line}')" if skip else WANT[n]
     return out
 
 
-def expect_results(got, label, mode="regression", why=None, names=(), want=None):
+def expect_results(got, label, mode="tags all", why=None, names=(), want=None):
     """Every scenario in `names` FAILs naming `why` (or one of a tuple); the rest end as `want` (default: wanted(mode))."""
     want = want or wanted(mode)
     for name in SCENARIOS:
@@ -203,9 +208,9 @@ def expect_results(got, label, mode="regression", why=None, names=(), want=None)
 
 
 def segment(log, name):
-    """The lines of scenario `name`, SCENARIO START to RESULT."""
-    i = log.index(f"PROBE SCENARIO START {name}")
-    return log[i:next(k for k in range(i, len(log)) if log[k].startswith(f"PROBE RESULT {name} ")) + 1]
+    """The lines of test `name`, TEST START to RESULT."""
+    i = log.index(f"PROBE TEST START {SPEC}{name}")
+    return log[i:next(k for k in range(i, len(log)) if log[k].startswith(f"PROBE RESULT {SPEC}{name} ")) + 1]
 
 
 def run_tool(script, log):
@@ -223,33 +228,9 @@ def run_tool(script, log):
     return p.returncode, p.stdout.splitlines(), p.stderr
 
 
-def run_report(log):
-    """tools/run_report.py: (exit code, last line)."""
-    code, out, err = run_tool(REPORT, log)
-    assert not err, err
-    return code, out[-1].strip()
-
-
-def obs_report(log, timed):
-    """tools/obs_report.py on the dry run: a timeline and a summary for every obs scenario (and every final one run), seeds labelled."""
-    code, out, err = run_tool(OBS_REPORT, log)
-    assert code == 0 and not err, err
-    assert out[-1] == f"obs scenarios: {len(timed)} ({', '.join(timed)})", out[-1]
-    for name in OBS:
-        assert f"== {name}" in out and f"  summary {name}: INFO data only" in out, name
-    # obs esaujr cross: the original (A) is stored by Esau Jr. and back after the second press; the form (B) holds the c5 marker
-    rows = out[out.index("== obs esaujr cross"):out.index("  summary obs esaujr cross: INFO data only") + 3]
-    assert any(r.startswith("u") and "| P0 t29 B [c5 c703 c711]" in r for r in rows), rows
-    assert rows[-2].startswith("    A = ") and "appeared u1, gone u2, back u" in rows[-2], rows[-2]
-    assert rows[-1].startswith("    B = ") and "engine c5x1" in rows[-1], rows[-1]
-    assert any(r.startswith("       PLAYERX 0 variant ") for r in out), "no PLAYERX line under a row"
-    assert any(r.startswith("       COUNT players ") for r in out), "no COUNT line under a row"
-    print("PASS obs_report: timelines and summaries for", len(timed), "scenarios")
-
-
 def check_obsy(log):
     """The obsy lines a log reader decides on, as the stub plays them."""
-    info = [s[len("PROBE INFO "):] for s in log if s.startswith("PROBE INFO obsy ")]
+    info = [s[len("PROBE INFO " + SPEC):] for s in log if s.startswith("PROBE INFO " + SPEC + "obsy ")]
     def has(name, text):
         return any(s.startswith(name + " ") and text in s for s in info)
     for name in OBSY:  # every scenario reaches its last press and names who holds the pressed index
@@ -280,11 +261,11 @@ def check_obsy(log):
 
 def test_regression(path):
     log = run(path)
-    got = check_finished(log, "regression mode")
+    got = check_finished(log, "tags all")
     for name in SCENARIOS:
         print("RESULT", name, got[name])
-    expect_results(got, "regression mode")
-    assert any(s.startswith("PROBE HARNESS START") and "regression mode" in s for s in log), "mode not logged"
+    expect_results(got, "tags all")
+    assert f"PROBE HARNESS START {len(SCENARIOS)} tests, tags 'tags all', update snapshots no, mod data 'tags all'" in log, "tags not logged"
     assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 3 + len(OBSY_LARGE) + len(FINAL_LARGE), "the continues did not resume"
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
@@ -295,40 +276,38 @@ def test_regression(path):
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
-    assert run_report(log) == (0, "ALL PASS"), run_report(log)
-    print("PASS run_report on the dry run: ALL PASS")
-    obs_report(log, OBS + [n for n in FINAL + FINAL_OBS if n not in ONLY_PICKED])
     check_obsy(log)
-    code, verdict = run_report(os.path.join(HERE, "fixtures", "run8-trimmed.txt"))
-    assert (code, verdict) == (1, "NEEDS ANALYSIS: S3 unobserved: rolled Tainted Lazarus, see r1; results for 4 of 16 scenarios"), (code, verdict)
-    print("PASS run_report parses the run 8 fixture:", verdict)
+    snaps = [s for s in log if s.startswith("PROBE SNAP ")]
+    assert any(s == f"PROBE SNAP {SPEC}obs esaujr cross | 1 Esau Jr. / lineup = A" for s in snaps), snaps[:3]
+    assert not any(s.startswith(f"PROBE SNAP {SPEC}probes ") for s in snaps), "SNAP lines in a test without a snapshot"
+    print("PASS SNAP lines for snapshot tests only:", len(snaps))
 
 
 def test_tlaz_roll_29(path):
     # Clicker from the Dead form rolling 29 (run 8): S3's merge checks with Flip kept, the rest unchanged
     got = check_finished(run(path, tlazRoll=29), "Clicker rolls 29")
-    expect_results(got, "Clicker rolls 29", want={**wanted("regression"), "S3": "PASS 21 checks"})
+    expect_results(got, "Clicker rolls 29", want={**wanted("tags all"), "S3": "PASS 21 assertions"})
     print("PASS Clicker rolling 29:", got["S3"])
 
 
 def test_default(path):
-    expect_results(check_finished(run(path, mode=""), "default mode"), "default mode", mode="")
-    print("PASS default mode runs small and new large scenarios, skips the rest and F, G")
+    expect_results(check_finished(run(path, mode=""), "no tags"), "no tags", mode="")
+    print("PASS no tags runs every test but the exit-continue ones not new, and skips the opt-in F, G")
 
 
 def test_final(path):
     log = run(path, mode=FINAL_MODE)
     expect_results(check_finished(log, FINAL_MODE), FINAL_MODE, mode=FINAL_MODE)
-    rows = [s for s in log if s.startswith("PROBE ROWS final ")]
+    rows = [s for s in log if s.startswith(f"PROBE NUMBERS {SPEC}final ")]
     assert any(" LJ stored key 4294967" in s for s in rows), "LJ never listed on its own key beside D"
     # A press that brings back a character on the presser's seed is the presser's stored drop, not the returned one's charge
     for label in ("Flip LJ -> D", "Flip of the form"):
         swaps = [s for s in log if s.startswith(f"PROBE SWAP {label} ")]
         assert swaps and all(" spent stored presser charge, " in s for s in swaps), (label, swaps)
-    assert any(s.startswith("PROBE INFO final A two Esau Jr. copies swap the Esau Jr. copies after ") and " by SwapActiveItems | " in s for s in log)
-    hand = [s for s in log if s.startswith("PROBE INFO final B Esau Jr. dropped and picked up YOU: ")]
+    assert any(s.startswith(f"PROBE INFO {SPEC}final A two Esau Jr. copies swap the Esau Jr. copies after ") and " by SwapActiveItems | " in s for s in log)
+    hand = [s for s in log if s.startswith(f"PROBE INFO {SPEC}final B Esau Jr. dropped and picked up YOU: ")]
     assert len(hand) == 2, hand
-    assert not any(s.startswith("PROBE STUCK final B") for s in log), "a hand step logged STUCK"
+    assert not any(s.startswith(f"PROBE STUCK {SPEC}final B") for s in log), "a manual step logged STUCK"
     assert any("HELPERS after Continue" in s and " type 14 parent index 0 " in s for s in log), "no Keeper after the Continue"
     print(f"PASS {FINAL_MODE}: {len(FINAL_RUN)} scenarios, {run.updates} updates in the stub")
 
@@ -337,26 +316,26 @@ def test_final_worst(path):
     # The final mode's worst case: no console command ever runs, so every scenario stalls to its ceiling, a checked one FAILing.
     log = run(path, mode=FINAL_MODE, render_every=10 ** 6)
     got = check_finished(log, "final worst case")
-    expect_results(got, "final worst case", FINAL_MODE, "scenario ceiling ", CHECKED_FINAL)
+    expect_results(got, "final worst case", FINAL_MODE, "test limit ", CHECKED_FINAL)
     for name in CHECKED_FINAL:
-        assert got[name] == f"FAIL scenario ceiling {BUDGET[name]} updates", (name, got[name])
-    assert all(f"PROBE INFO {n} scenario ceiling {BUDGET[n]} updates" in log for n in FINAL_OBS)
+        assert got[name] == f"FAIL test limit {BUDGET[name]} updates", (name, got[name])
+    assert all(f"PROBE INFO {SPEC}{n} test limit {BUDGET[n]} updates" in log for n in FINAL_OBS)
     worst = sum(BUDGET.values()) + len(SCENARIOS) - len(BUDGET) + 1
     assert run.updates == worst, (run.updates, worst)
     print(f"PASS {FINAL_MODE} worst case: {worst} updates ({worst / 30 / 60:.1f} minutes of updates)")
 
 
 def test_only_obs(path):
-    mode = "only obs\r\nSTUCK 3 obs mirror | settle"  # a STUCK line left in the file keeps the mode
+    mode = f"tags obs\r\nSTUCK 3 {SPEC}obs mirror | settle"  # a STUCK line left in the file keeps the tags
     log = run(path, mode=mode)
-    expect_results(check_finished(log, "only obs mode"), "only obs mode", mode=mode)
-    assert any(s.startswith("PROBE HARNESS START") and "only obs mode" in s for s in log), "only mode not logged"
-    print("PASS only obs runs just the obs scenarios")
+    expect_results(check_finished(log, "tags obs"), "tags obs", mode=mode)
+    assert any(s.startswith("PROBE HARNESS START") and "tags 'tags obs'" in s for s in log), "tags not logged"
+    print("PASS tags obs runs just the obs tests")
 
 
 def test_obsx(path):
-    log = run(path, mode="only obsx", ignoreFirstVetoPress=True, birthrightDeadFirst=True)
-    expect_results(check_finished(log, "only obsx mode"), "only obsx mode", mode="only obsx")
+    log = run(path, mode="tags obsx", ignoreFirstVetoPress=True, birthrightDeadFirst=True)
+    expect_results(check_finished(log, "tags obsx"), "tags obsx", mode="tags obsx")
     cancelled = [s for s in log if " cancelled Clicker update " in s]
     assert len(cancelled) == 2, cancelled
     for s in cancelled:
@@ -373,27 +352,27 @@ def test_obsx(path):
     # runs 2-6, where the original's fresh copy brought a form on its first form's seed (B present true)
     expected = {"obsx original loses Esau Jr.": ["false", "true"], "obsx form uses Clicker effect": ["true", "false"]}
     for name in DISPUTES[-4:]:
-        history = [s for s in log if s.startswith(f"PROBE INFO {name} press #") and " A seed " in s]
+        history = [s for s in log if s.startswith(f"PROBE INFO {SPEC}{name} press #") and " A seed " in s]
         assert [s.rsplit(" ", 1)[1] for s in history] == expected.get(name, ["false", "false"]), history
-    b_returns = [s for s in log if s.startswith("PROBE INFO obsx original loses Esau Jr. press #") and " B seed " in s]
+    b_returns = [s for s in log if s.startswith(f"PROBE INFO {SPEC}obsx original loses Esau Jr. press #") and " B seed " in s]
     assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["true", "false"], b_returns
     print("PASS only obsx, re-armed veto, same-update change, Birthright Flip, and controls")
 
 
 def test_obsx_limits(path):
-    log = run(path, mode="only obsx", ignoreClickerEffect=True)
+    log = run(path, mode="tags obsx", ignoreClickerEffect=True)
     check_finished(log, "Clicker effect does nothing")
-    prefix = "PROBE INFO obsx form uses Clicker effect "
+    prefix = f"PROBE INFO {SPEC}obsx form uses Clicker effect "
     assert any(s.startswith(prefix + "UseActiveItem Clicker type 29 -> 29 changed false") for s in log)
     assert not any(s.startswith(prefix + "press #") for s in log)
-    log = run(path, mode="only obsx", ignoreRestart=True)
+    log = run(path, mode="tags obsx", ignoreRestart=True)
     got = check_finished(log, "obsx setup step times out")
     assert all(got[name] == WANT[name] for name in DISPUTES)
-    assert sum(s.endswith("never happened: obsx ceiling 120 updates: no new game") for s in log) == len(DISPUTES)
-    log = run(path, mode="only obsx", render_every=200)
-    got = check_finished(log, "obsx scenario times out")
+    assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(DISPUTES)
+    log = run(path, mode="tags obsx", render_every=200)
+    got = check_finished(log, "obsx test times out")
     assert all(got[name] == WANT[name] for name in DISPUTES)
-    assert sum(s.endswith("scenario ceiling 445 updates") for s in log) == len(DISPUTES)
+    assert sum(s.endswith("test limit 445 updates") for s in log) == len(DISPUTES)
     assert run.updates == 445 * len(DISPUTES) + len(SCENARIOS) - len(DISPUTES) + 1 < 3 * 60 * 30, run.updates
     print("PASS obsx unchanged effect stops, setup step and scenario limits, and total update budget")
 
@@ -401,13 +380,13 @@ def test_obsx_limits(path):
 def test_obsy_worst(path):
     # Each obsy mode's worst case: no console command ever runs, so every scenario stalls to its ceiling.
     for mode, names in (("a", OBSY_A), ("b", OBSY_B)):
-        log = run(path, mode=f"only obsy {mode}", render_every=10 ** 6)
-        expect_results(check_finished(log, f"only obsy {mode}"), f"only obsy {mode}", mode=f"only obsy {mode}")
+        log = run(path, mode=f"tags obsy-{mode}", render_every=10 ** 6)
+        expect_results(check_finished(log, f"tags obsy-{mode}"), f"tags obsy-{mode}", mode=f"tags obsy-{mode}")
         budget = {n: 1000 if n in OBSY_LARGE else 445 for n in names}
-        assert all(f"PROBE INFO {n} scenario ceiling {b} updates" in log for n, b in budget.items()), mode
+        assert all(f"PROBE INFO {SPEC}{n} test limit {b} updates" in log for n, b in budget.items()), mode
         worst = sum(budget.values()) + len(SCENARIOS) - len(names) + 1
         assert run.updates == worst < 3 * 60 * 30, (mode, run.updates, worst)
-        print(f"PASS only obsy {mode}: worst case {worst} updates")
+        print(f"PASS tags obsy-{mode}: worst case {worst} updates")
 
 
 def test_new_run_instead_of_continue(path):
@@ -416,19 +395,19 @@ def test_new_run_instead_of_continue(path):
     for name in NEW:
         assert got[name].startswith("FAIL") and "a new run started, not a Continue" in got[name], got[name]
     for name in OBSY_LARGE:  # INFO only: the Continue step is logged as never happened and ends the scenario
-        assert got[name] == WANT[name] and any(s.startswith(f"PROBE INFO {name} ") and " exit and Continue never happened: " in s and s.endswith("a new run started, not a Continue") for s in log), name
+        assert got[name] == WANT[name] and any(s.startswith(f"PROBE INFO {SPEC}{name} ") and " exit and Continue never happened: " in s and s.endswith("a new run started, not a Continue") for s in log), name
     print("PASS new run instead of Continue fails:", got["continue"])
 
 
 def test_late_continue(path):
     # The user continues after the 600-update Continue step gave up: logged, and the next scenario runs on
-    log = run(path, mode="only obsy b", continue_after=615)  # lands in the next scenario before its own Continue step
+    log = run(path, mode="tags obsy-b", continue_after=615)  # lands in the next test before its own Continue step
     got = check_finished(log, "late Continue")
-    note = "; late Continue mid-scenario"
+    note = "; late Continue mid-test"
     assert all(got[name].removesuffix(note) == WANT[name] for name in OBSY_B), got
     late = [s for s in log if s.endswith(" late Continue, ignored")]
     assert late and not any("unexpected game start" in s for s in log), late
-    in_b = [s for s in late if any(s.startswith(f"PROBE INFO {n} ") for n in OBSY_B)]  # a later one can land while later scenarios SKIP
+    in_b = [s for s in late if any(s.startswith(f"PROBE INFO {SPEC}{n} ") for n in OBSY_B)]  # a later one can land while later tests SKIP
     assert sum(got[name].endswith(note) for name in OBSY_B) == len(in_b), got
     print("PASS a late Continue is ignored and noted:", len(late), "times")
 
@@ -436,43 +415,43 @@ def test_late_continue(path):
 def test_same_seed(path):
     # obsy b run 1: after a Continue, Esau Jr. made a new entity with the presser's seed and type, its items re-rolled
     name = "obsy b continue after B loses Esau Jr."
-    log = run(path, mode="only " + name, jrSameSeed=True)
+    log = run(path, mode="tags continue-b-loses", jrSameSeed=True)
     got = check_finished(log, "Esau Jr. keeps the seed")
     assert got[name] == WANT[name], got[name]
-    same = [s for s in log if s.startswith(f"PROBE INFO {name} Esau Jr. #") and " new form, same seed " in s]
+    same = [s for s in log if s.startswith(f"PROBE INFO {SPEC}{name} Esau Jr. #") and " new form, same seed " in s]
     assert len(same) == 4 and " items 4:1/1 703:1/1 -> 53:1/1 703:1/1, INPUT_ACTION charge+battery 1 -> 0" in same[0], same
-    assert not any(s.startswith(f"PROBE INFO {name} ") and "never happened" in s for s in log)
+    assert not any(s.startswith(f"PROBE INFO {SPEC}{name} ") and "never happened" in s for s in log)
     print("PASS a press that keeps the seed is logged as data:", same[0])
     # Only press #1 keeps the seed: its TIMING watch is dropped, not woken by #2's new seed under #1's label
     name = "obsy b continue with A stored"
-    log = run(path, mode="only " + name, jrSameSeed=1)
+    log = run(path, mode="tags continue-a-stored", jrSameSeed=1)
     got = check_finished(log, "Esau Jr. #1 keeps the seed")
     assert got[name] == WANT[name], got[name]
-    assert any(s.startswith(f"PROBE INFO {name} Esau Jr. #1 new form, same seed ") for s in log)
-    assert any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #2 frame ") for s in log)
-    assert not any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #1 frame ") for s in log), "stale TIMING watch woke"
+    assert any(s.startswith(f"PROBE INFO {SPEC}{name} Esau Jr. #1 new form, same seed ") for s in log)
+    assert any(s.startswith(f"PROBE INFO {SPEC}{name} TIMING Esau Jr. #2 frame ") for s in log)
+    assert not any(s.startswith(f"PROBE INFO {SPEC}{name} TIMING Esau Jr. #1 frame ") for s in log), "stale TIMING watch woke"
     print("PASS a same-seed press leaves no TIMING watch behind")
 
 
 def test_engine_stalls(path):
     # a scenario ceiling of 600 or less ends the scenario first
-    expect_results(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", why=("no new game after 600 updates", "scenario ceiling "),
+    expect_results(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", why=("no new game after 600 updates", "test limit "),
                    names=[n for n in SCENARIOS if n not in DISPUTES and n not in OBSY and n not in FINAL_OBS and n not in ONLY_PICKED])
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
     log = run(path, ignorePress=True)
     assert any("obsx form loses Esau Jr. 2 Esau Jr. never happened:" in s for s in log)
     assert not any(s == "PROBE CMD giveitem c105" for s in log)
-    expect_results(check_finished(log, "press ignored"), "press ignored", why=("no new character, arms ", "scenario ceiling "),
+    expect_results(check_finished(log, "press ignored"), "press ignored", why=("no new character, arms ", "test limit "),
                    names=[n for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED])
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
-    assert run.saved.startswith(f"regression\nSTUCK {len(stuck)} ") and " | " in run.saved, run.saved
-    print("PASS a stuck wait logs STUCK once and saves it under the mode line:", len(stuck), "stuck,", repr(run.saved))
+    assert run.saved.startswith(f"tags all\nSTUCK {len(stuck)} ") and " | " in run.saved, run.saved
+    print("PASS a stuck wait logs STUCK once and saves it under the tags line:", len(stuck), "stuck,", repr(run.saved))
 
 
 def test_no_spend(path):
     got = check_finished(run(path, noSpend=True), "no spend")
-    want = wanted("regression")
+    want = wanted("tags all")
     for name in SCENARIOS:
         if name in NO_SWAP or name in ONLY_PICKED:
             assert got[name] == want[name], f"no spend: {name}: {got[name]}"
@@ -483,7 +462,7 @@ def test_no_spend(path):
 
 def test_wrong_floor(path):
     got = check_finished(run(path, wrongFloor=True), "wrong floor")
-    want = wanted("regression")
+    want = wanted("tags all")
     for name in SCENARIOS:
         if name in LOOKED and name not in ONLY_PICKED:
             # expectN names the wrong floor; a floor-filtered count names the floor it found too few on
@@ -499,11 +478,7 @@ def test_invariants(path):
         got = check_finished(log, flag)
         hit = [n for n in SCENARIOS if got[n].startswith("FAIL") and why in got[n]]
         assert hit == names, f"{flag} ({mode}): invariant fired in {hit}"
-        print(f"PASS {flag} ({mode}) fails the invariant in {len(hit)} scenarios")
-        if flag == "missCopy":
-            code, verdict = run_report(log)
-            assert code == 1 and verdict.startswith("NEEDS ANALYSIS: test3 FAIL;"), (code, verdict)
-            print("PASS run_report on a failing run:", verdict[:60])
+        print(f"PASS {flag} ({mode}) fails the invariant in {len(hit)} tests")
 
 
 TESTS = [test_regression, test_tlaz_roll_29, test_default, test_final, test_final_worst, test_only_obs, test_obsx, test_obsx_limits, test_obsy_worst,

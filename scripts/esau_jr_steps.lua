@@ -8,6 +8,7 @@ local presses = include("scripts.press")
 local press, flip, esauJr = presses.press, presses.flip, presses.esauJr
 local giveEsau = include("scripts.steps").giveEsau
 local verdict = include("scripts.record").verdict
+local pre = include("scripts.assert").pre
 local ids = include("scripts.ids")
 local ESAU_JR, CLICKER, D6, PRIMARY = ids.ESAU_JR, ids.CLICKER, ids.D6, ids.PRIMARY
 
@@ -59,7 +60,7 @@ end
 local function loseEsauJr()
 	return {
 		{ "check Esau Jr. in primary", function()
-			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. before giving D6") end
+			pre(Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESAU_JR, "Esau Jr. before giving D6")
 		end },
 		{ "give D6", give(D6) },
 		{ "check D6 in primary", function(ctx)
@@ -80,7 +81,7 @@ end
 
 local useClickerEffect = act("UseActiveItem Clicker", function()
 	local p = Isaac.GetPlayer(0)
-	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. in primary before UseActiveItem") end
+	pre(p:GetActiveItem(PRIMARY) == ESAU_JR, "Esau Jr. in primary before UseActiveItem")
 	local before = { seed = seedOf(p), who = p:GetPlayerType() }
 	p:UseActiveItem(CLICKER, 0)
 	return before

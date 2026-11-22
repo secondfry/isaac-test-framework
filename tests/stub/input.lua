@@ -13,7 +13,8 @@ local function use(p, button, swaps)
   local slot = button == 10 and 2 or 0
   local id = p:GetActiveItem(slot)
   if id == 0 or p:NeedsCharge(slot) then return end
-  if id == 482 and ignoreFirstVetoPress and HARNESS.cancelClicker and HARNESS.cancelClicker.arms == 1 then return end
+  local veto = HARNESS.press.cancelClicker
+  if id == 482 and ignoreFirstVetoPress and veto and veto.arms == 1 then return end
   local cancelled = fire(23, id, nil, p, 0, slot, 0)
   if not cancelled then fire(3, id, nil, p, 0, slot, 0) end
   if not noSpend then p.charge[slot] = 0 end

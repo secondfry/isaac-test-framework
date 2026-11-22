@@ -1,7 +1,7 @@
 -- Waits for ReHUD to settle: a look (state, assertions, invariants), a bare settle wait and a timed watch.
 local P = include("scripts.log").P
-local wait = include("scripts.wait")
-local stuckAt, TIMEOUT = wait.stuckAt, wait.TIMEOUT
+local TIMEOUT = include("scripts.wait").TIMEOUT
+local stuck = include("scripts.runner").stuck
 local rehud = include("scripts.rehud")
 local settling, storedSettling = rehud.settling, rehud.storedSettling
 local fail = include("scripts.assert").fail
@@ -14,7 +14,7 @@ local function look(label, verify)
 	return function(ctx)
 		ctx.t = (ctx.t or 0) + 1
 		local busy = settling()
-		if busy and ctx.t < TIMEOUT then stuckAt(ctx, ctx.t, label) return "again" end
+		if busy and ctx.t < TIMEOUT then stuck(ctx, ctx.t, label) return "again" end
 		if busy then fail(ctx, label .. ": ReHUD still settling " .. busy .. " after " .. ctx.t .. " updates") end
 		P("SETTLED", label, "after", ctx.t, "updates", "stored settling", storedSettling())
 		ctx.t = nil
@@ -29,7 +29,8 @@ end
 local function settled(ctx)
 	ctx.t = (ctx.t or 0) + 1
 	local busy = settling()
-	if busy and ctx.t < 120 then stuckAt(ctx, ctx.t, HARNESS.obs and HARNESS.obs.step or "settle") return "again" end
+	local trace = HARNESS.record.trace
+	if busy and ctx.t < 120 then stuck(ctx, ctx.t, trace and trace.step or "settle") return "again" end
 	P("INFO", ctx.name, "settle wait ended after", ctx.t, "updates", busy and ("still settling " .. busy) or "settled")
 	ctx.t = nil
 end

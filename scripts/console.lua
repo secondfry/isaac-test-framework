@@ -1,15 +1,23 @@
--- Console commands: queued as steps, run from MC_POST_RENDER by flush.
+-- Console commands: queued as steps in HARNESS.console, run from MC_POST_RENDER by flush.
 local P = include("scripts.log").P
 local act = include("scripts.wait").act
+local expectStart = include("scripts.runner").expectStart
 local engine = include("scripts.game")
 local floorName, owned = engine.floorName, engine.owned
 
 local game = Game()
+HARNESS.console = HARNESS.console or {}
+
+local function queue(c) HARNESS.console.pending = c end
+-- True while a queued command has not run: the runner waits for it.
+local function busy() return HARNESS.console.pending ~= nil end
+-- A finished test's command never runs in the next one.
+local function reset() HARNESS.console.pending = nil end
 
 -- giveitem/remove by console on player 0: one copy more or less, and `players` players when given (Birthright on Tainted Lazarus: 2, removed: 1).
 local function changeOwned(verb, id, delta, players)
 	return act(verb .. " c" .. id, function()
-		HARNESS.pending = verb .. " c" .. id
+		queue(verb .. " c" .. id)
 		return owned(Isaac.GetPlayer(0), id)
 	end, function(_, n)
 		if owned(Isaac.GetPlayer(0), id) ~= n + delta then return false, "owned copies did not change by " .. delta end
@@ -23,7 +31,7 @@ local function remove(id, players) return changeOwned("remove", id, -1, players)
 -- Records the new floor as ctx.floors[n]; an unchanged name would make every floor check meaningless.
 local function stage(n)
 	return act("stage " .. n, function()
-		HARNESS.pending = "stage " .. n
+		queue("stage " .. n)
 		return floorName()
 	end, function(ctx, old)
 		if game:GetLevel():GetStage() ~= n then return false, "stage is " .. game:GetLevel():GetStage() end
@@ -37,13 +45,13 @@ end
 -- A new (not continued) game with player 0 of type `t`; records floor 1.
 local function fresh(t)
 	return act("restart " .. t, function()
-		local H = HARNESS
-		H.pending, H.expectStart = "restart " .. t, true
-		return H.gen
+		queue("restart " .. t)
+		expectStart("new")
+		return HARNESS.session.gen
 	end, function(ctx, gen)
-		local H = HARNESS
-		if H.gen == gen or game:GetNumPlayers() == 0 then return false, "no new game" end
-		if H.continued then error("restart " .. t .. " continued a run") end
+		local S = HARNESS.session
+		if S.gen == gen or game:GetNumPlayers() == 0 then return false, "no new game" end
+		if S.continued then error("restart " .. t .. " continued a run") end
 		local got = Isaac.GetPlayer(0):GetPlayerType()
 		if got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
 		ctx.floors[1] = floorName()
@@ -60,7 +68,7 @@ local function giveAnyone(id)
 		return t
 	end
 	return act("giveitem c" .. id .. " (anyone)", function()
-		HARNESS.pending = "giveitem c" .. id
+		queue("giveitem c" .. id)
 		return counts()
 	end, function(ctx, b)
 		for i, n in pairs(counts()) do
@@ -75,13 +83,11 @@ end
 
 -- Console commands are queued for MC_POST_RENDER, not run in the middle of other mods' MC_POST_UPDATE.
 local function flush()
-	local H = HARNESS
-	if H.pending then
-		local c = H.pending
-		H.pending = nil
-		P("CMD", c)
-		Isaac.ExecuteCommand(c)
-	end
+	local c = HARNESS.console.pending
+	if not c then return end
+	reset()
+	P("CMD", c)
+	Isaac.ExecuteCommand(c)
 end
 
-return { give = give, remove = remove, stage = stage, fresh = fresh, giveAnyone = giveAnyone, flush = flush }
+return { give = give, remove = remove, stage = stage, fresh = fresh, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }

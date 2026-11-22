@@ -1,4 +1,5 @@
--- What the logs record about the engine and ReHUD: the state after a step, the per-update OBS trace, press verdicts and timing, ids and Inner Eye lines.
+-- What the logs record about the engine and ReHUD: the state after a step, the per-update TRACE, snapshot SNAP lines, press verdicts
+-- and timing, ids and Inner Eye lines. HARNESS.record holds the trace and the timing watches.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots = engine.ITEM_IDS, engine.floorName, engine.seedOf, engine.owned,
@@ -11,6 +12,13 @@ local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums
 	enums.SECONDARY
 
 local game = Game()
+HARNESS.record = HARNESS.record or {}
+
+-- A read that may throw (a method the engine lacks, a removed twin): its value, or the error, as text.
+local function try(f)
+	local ok, v = pcall(f)
+	return ok and tostring(v) or ("error " .. tostring(v))
+end
 
 -- The whole state after a step: the floor, each player and its items, each ReHUD entry.
 local function logState(ctx, label)
@@ -33,8 +41,8 @@ local function logState(ctx, label)
 	end
 end
 
--- obs esaujr: no checks, only what the engine and ReHUD do and in what order. While HARNESS.obs is set, tick logs the whole state on
--- every update where it changed: one OBS line per player, roster row and tracker entry.
+-- The trace: what the engine and ReHUD do and in what order. While a trace runs, update logs the whole state on every update where it
+-- changed: one TRACE line per player, roster row and tracker entry.
 local OBS_IDS = { 2, 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
 local function obsLines()
 	local t = {}
@@ -59,26 +67,33 @@ local function obsLines()
 end
 
 local function update()
-	local o = HARNESS.obs
+	local o = HARNESS.record.trace
 	if not o then return end
 	o.u = o.u + 1
 	local lines = obsLines()
 	local s = table.concat(lines, "\n")
 	if s == o.last then return end
 	o.last = s
-	for _, l in ipairs(lines) do P("OBS u" .. o.u, "after " .. o.step .. ":", l) end
+	for _, l in ipairs(lines) do P("TRACE u" .. o.u, "after " .. o.step .. ":", l) end
 end
 
-local function start() HARNESS.obs = { u = 0, step = "start" } end
--- OBS lines in a checked scenario: its presses keep the checked swap rule.
-local function startChecked() HARNESS.obs = { u = 0, step = "start", checked = true } end
--- Later OBS lines say they follow step `tag`.
-local function stepBegins(tag)
-	local o = HARNESS.obs
-	if o and o.step ~= tag then o.step = tag; P("OBS u" .. o.u, "step " .. tag .. " begins") end
+local function start() HARNESS.record.trace = { u = 0, step = "start" } end
+-- A trace in a test with assertions: its presses keep the checked swap rule.
+local function startChecked() HARNESS.record.trace = { u = 0, step = "start", checked = true } end
+-- A fixture test's trace starts once its fixture is done.
+local function onFixtureDone(test)
+	if not test.traceUpdates then return end
+	if test.snapshot then start() else startChecked() end
 end
--- A finished scenario's trace and timing watches.
-local function stop(H) H.obs, H.timing = nil, nil end
+-- Later TRACE lines say they follow step `tag`.
+local function stepBegins(tag)
+	local o = HARNESS.record.trace
+	if o and o.step ~= tag then o.step = tag; P("TRACE u" .. o.u, "step " .. tag .. " begins") end
+end
+-- A given-up step's timing watches.
+local function stopTiming() HARNESS.record.timing = nil end
+-- A finished test's trace and timing watches.
+local function stop() HARNESS.record.trace, HARNESS.record.timing = nil, nil end
 
 local pocketHeld = info("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
 local typeNow = info("player 0 type", function(p) return p:GetPlayerType() end)
@@ -106,10 +121,10 @@ local function lineup(ctx)
 end
 
 -- The occupant of the pressed index once per game frame for 5 frames from its first sight with a seed other than the
--- presser's: does a new Esau Jr. form hold c703 on its very first update? HARNESS.timing lists one watch per press, as the next
+-- presser's: does a new Esau Jr. form hold c703 on its very first update? The timing list holds one watch per press, as the next
 -- press may come within those 5 frames; each watch ends early once its index holds a seed other than that first new one.
 local function timingSee(p)
-	local list = HARNESS.timing
+	local list = HARNESS.record.timing
 	if not list then return end
 	for i = #list, 1, -1 do
 		local t = list[i]
@@ -120,7 +135,7 @@ local function timingSee(p)
 			if frame - t.first >= 5 or seed ~= t.firstSeed then table.remove(list, i)
 			elseif frame ~= t.logged then -- MC_POST_PLAYER_UPDATE runs twice per game frame
 				t.logged = frame
-				P("INFO", HARNESS.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
+				P("INFO", HARNESS.session.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
 					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
 			end
 		end
@@ -137,12 +152,18 @@ local function verdict(label, step, index, timed)
 			ctx.vBefore, ctx.vSeed, ctx.vType, ctx.vSeeds = lineup(ctx), seedOf(Isaac.GetPlayer(index)), Isaac.GetPlayer(index):GetPlayerType(), {}
 			for i = 0, game:GetNumPlayers() - 1 do ctx.vSeeds[seedOf(Isaac.GetPlayer(i))] = i end
 			if timed then
-				HARNESS.timing = HARNESS.timing or {}
-				table.insert(HARNESS.timing, { index = index, seed = ctx.vSeed, label = label })
+				local R = HARNESS.record
+				R.timing = R.timing or {}
+				table.insert(R.timing, { index = index, seed = ctx.vSeed, label = label })
 				P("INFO", ctx.name, "TIMING", label, "pressed at frame", game:GetFrameCount())
 			end
 		end
 		local r = step(ctx)
+		if ctx.sameSeed then -- press.sameSeedForm: the seed never changes, so this watch would wake on a later press
+			local list = HARNESS.record.timing or {}
+			for i = #list, 1, -1 do if list[i].label == ctx.sameSeed then table.remove(list, i) end end
+			ctx.sameSeed = nil
+		end
 		if r == "again" then return r end
 		local p = Isaac.GetPlayer(index)
 		local s = p and seedOf(p)
@@ -167,10 +188,6 @@ local function ids(label)
 	return function(ctx)
 		local index = {}
 		for i = 0, game:GetNumPlayers() - 1 do index[GetPtrHash(Isaac.GetPlayer(i))] = i end
-		local function try(f)
-			local ok, v = pcall(f)
-			return ok and tostring(v) or ("error " .. tostring(v))
-		end
 		for i = 0, game:GetNumPlayers() - 1 do
 			local p = Isaac.GetPlayer(i)
 			local function twin(m)
@@ -189,7 +206,7 @@ local function ids(label)
 	end
 end
 
--- G: every player's Inner Eye (c2) owned/total and item count, logged on each update it changed (H.ctx.innerWatch).
+-- G: every player's Inner Eye (c2) owned/total and item count, logged on each update it changed (ctx.innerWatch).
 local function innerLine()
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
@@ -198,8 +215,7 @@ local function innerLine()
 	end
 	return table.concat(t, " | ")
 end
-local function innerWatch()
-	local ctx = HARNESS.ctx
+local function innerWatch(ctx)
 	if not ctx.innerWatch or game:GetNumPlayers() == 0 then return end
 	local s = innerLine()
 	if s == ctx.innerLast then return end
@@ -209,8 +225,68 @@ end
 local function innerOn(ctx) ctx.innerWatch = true end
 local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER " .. what, innerLine()) end end
 
+-- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions. `kind`'s values get labels in
+-- first-seen order within the test: entities (by GetPtrHash) A, B..., other kinds kind1, kind2...
+local function labelOf(ctx, kind, value)
+	if value == nil then return "none" end
+	ctx.snapLabels = ctx.snapLabels or {}
+	local t = ctx.snapLabels[kind] or { n = 0 }
+	ctx.snapLabels[kind] = t
+	if not t[value] then
+		t.n = t.n + 1
+		t[value] = kind ~= "entity" and (kind .. t.n) or t.n <= 26 and string.char(64 + t.n) or ("E" .. t.n)
+	end
+	return t[value]
+end
+-- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (lua-api-notes.md).
+local function label(ctx, e) return e and labelOf(ctx, "entity", GetPtrHash(e)) or "none" end
+
+local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
+
+-- Player `p` after step `step`: the harness tags it (GetData) with its label once, and reads the tag back each time.
+local function describe(ctx, step, p)
+	local L = label(ctx, p)
+	local d = p:GetData()
+	if type(d) == "table" and d.harness == nil then d.harness = L end
+	local function put(name, f) snap(ctx, step .. " / " .. L .. " " .. name, try(f)) end
+	local function slotsOf(read, n)
+		return function()
+			local t = {}
+			for i = 0, n do t[#t + 1] = read(i) end
+			return table.concat(t, " ")
+		end
+	end
+	put("type", function() return p:GetPlayerType() end)
+	put("name", function() return p:GetName() end)
+	put("seed", function() return labelOf(ctx, "s", seedOf(p)) end)
+	put("InitSeed", function() return labelOf(ctx, "i", p.InitSeed) end)
+	put("Index", function() return labelOf(ctx, "x", p.Index) end)
+	put("items", function() return heldItems(p) end)
+	put("actives", slotsOf(function(s) return p:GetActiveItem(s) .. ":" .. p:GetActiveCharge(s) .. "+" .. p:GetBatteryCharge(s) end, 3))
+	put("trinkets", slotsOf(function(s) return p:GetTrinket(s) end, 1))
+	put("cards", slotsOf(function(s) return p:GetCard(s) end, 3))
+	put("pills", slotsOf(function(s) return p:GetPill(s) end, 3))
+	put("twin", function() return label(ctx, p:GetOtherTwin()) end)
+	put("main twin", function() return label(ctx, p:GetMainTwin()) end)
+	put("parent", function() return label(ctx, p.Parent) end)
+	put("sub player", function() return label(ctx, p:GetSubPlayer()) end)
+	put("tag", function() return type(d) == "table" and d.harness or "none" end)
+end
+
+-- The runner's snap event: a snapshot test's state after step `step`, or that it never happened.
+local function snapStep(ctx, step, reached)
+	if not reached then return snap(ctx, step, "never happened") end
+	local lineup, found = {}, {}
+	for i = 0, game:GetNumPlayers() - 1 do lineup[#lineup + 1] = label(ctx, Isaac.GetPlayer(i)) end
+	for _, e in ipairs(Isaac.FindByType(EntityType.ENTITY_PLAYER)) do found[#found + 1] = label(ctx, e) end
+	snap(ctx, step .. " / lineup", table.concat(lineup, " "))
+	snap(ctx, step .. " / players", table.concat(found, " "))
+	for i = 0, game:GetNumPlayers() - 1 do describe(ctx, step, Isaac.GetPlayer(i)) end
+end
+
 return {
-	logState = logState, update = update, start = start, startChecked = startChecked, stepBegins = stepBegins, stop = stop, pocketHeld = pocketHeld,
-	typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow, onPlayerUpdate = onPlayerUpdate, verdict = verdict,
-	slotsNow = slotsNow, ids = ids, innerLine = innerLine, innerWatch = innerWatch, innerOn = innerOn, innerInfo = innerInfo,
+	logState = logState, update = update, start = start, startChecked = startChecked, onFixtureDone = onFixtureDone, stepBegins = stepBegins,
+	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
+	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
+	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep,
 }

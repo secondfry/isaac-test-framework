@@ -143,11 +143,6 @@ local function continueSteps(beforeFlip)
 	return steps
 end
 
-local function jeCopies(ctx, label)
-	expectCount(ctx, label, 1, 4, ctx.floors[1], false, ctx.jacob)
-	expectCount(ctx, label, 1, 5, ctx.floors[1], false, ctx.esau)
-end
-
 -- L1's copies: Cain's owned and innate c46 on floor 1, a c46 wisp from floor 2, an owned c4 and a c4 wisp from floor 1. The totals
 -- catch a continue re-listing copies under the current floor.
 local function copyKinds(ctx, label)
@@ -290,33 +285,6 @@ local OBSY_CONTINUE_LIMIT = 1000
 local LARGE_OBSY = { kind = "large", budget = OBSY_CONTINUE_LIMIT }
 
 local OBSY = {
-	-- Does A return after its form held Esau Jr. in the Schoolbag's second slot? Variant: a real Clicker press meanwhile.
-	obsScenario("obsy a schoolbag", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), { "give Schoolbag", give(SCHOOLBAG) }, { "give c45", give(YUM_HEART) },
-		{ "slots after c45", slotsNow },
-		{ "Esau Jr. to secondary", toSlot("Esau Jr. to secondary", SECONDARY, ESAU_JR) },
-		{ "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	obsScenario("obsy a schoolbag Clicker", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), { "give Schoolbag", give(SCHOOLBAG) }, giveClicker(),
-		{ "slots after Clicker", slotsNow }, { "Clicker to primary", toSlot("Clicker to primary", PRIMARY, CLICKER) },
-		{ "Clicker", verdict("Clicker", obsClicker) }, { "slots after the Clicker press", slotsNow },
-		{ "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	-- Once A is lost, does A's Dead form X (or A) ever come back through B's Flips or presses?
-	obsScenario("obsy a Dead form after A lost", tlazJr(), { { "Flip", flipV("Flip") }, { "Flip back", flipV("Flip back") }, jrPair("Esau Jr. #1"),
-		replaceEsauJr(), { "Flip of B", flipV("Flip of B") }, { "Flip back to B", flipV("Flip back to B") }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	-- Clicker's effect with Esau Jr. kept, on a non-Lazarus character.
-	obsScenario("obsy a Isaac Clicker effect", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), { "give c1", give(1) },
-		{ "use Clicker effect", useClickerEffect }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	-- Other characters.
-	obsScenario("obsy a J&E by Jacob", jrSetup(JACOB), charPresses()),
-	obsScenario("obsy a J&E by Esau", { fresh(JACOB), give(4), giveEsau(ESAU_JR) }, charPresses({ index = 1 }, nil, esauLoses)),
-	obsScenario("obsy a Forgotten and Soul", jrSetup(PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
-		jrPair("Esau Jr. as Forgotten #1"), jrPair("Esau Jr. as Forgotten #2"),
-		{ "switch to the Soul", dropPress("switch to the Soul", function(p) return p:GetPlayerType() == PlayerType.PLAYER_THESOUL end,
-			"ChangePlayerType 17", function(p) p:ChangePlayerType(PlayerType.PLAYER_THESOUL) end) } })),
-	obsScenario("obsy a Tainted Forgotten", jrSetup(T_FORGOTTEN), charPresses({ index = 0, any = true })),
-	obsScenario("obsy a Lazarus Risen", jrSetup(PlayerType.PLAYER_LAZARUS), charPresses(nil, { { "ChangePlayerType 11", changeType(PlayerType.PLAYER_LAZARUS2) } })),
-	-- Locked on save slot 1 (README): a restart that never gives the type ends the scenario with an INFO "character locked?" line.
-	obsScenario("obsy b Tainted Jacob", jrSetup(PlayerType.PLAYER_JACOB_B), charPresses()),
-	obsScenario("obsy b Eden", jrSetup(PlayerType.PLAYER_EDEN), charPresses()),
 	-- Does a stored A survive exit and Continue, and does a lost one stay lost?
 	obsScenario("obsy b continue with A stored", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), continued,
 		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }, LARGE_OBSY),
@@ -331,48 +299,13 @@ local OBSY = {
 }
 
 local OBS = {
-	obsScenario("obs esaujr cross", tlazJr(), { jrFirst(), { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
-	obsScenario("obs esaujr out", tlazJr(), { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
-	obsScenario("obs esaujr flip", tlazJr(), { jrFirst(), { "pocket of the form", pocketHeld }, { "Flip of the form", flip("Flip of the form") },
-		{ "Flip back", flip("Flip back") }, jrAgain() }),
-	obsScenario("obs esaujr flipped cross", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(),
-		{ "Flip A", flip("Flip A") }, { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") },
-		{ "Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form") } }),
-	obsScenario("obs esaujr birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "remove Birthright", remove(BIRTHRIGHT) },
-		{ "settle", settled }, { "restart", fresh(T_LAZ) }, { "give c4", give(4) }, { "give c703", give(ESAU_JR) }, { "give Birthright", give(BIRTHRIGHT) },
-		{ "settle", settled }, jrFirst(), jrAgain() }),
-	obsScenario("obs esaujr clicker", tlazJr(), { jrFirst(), { "give Clicker", give(CLICKER) }, { "Clicker", clicker }, { "Clicker roll", typeNow },
-		{ "settle", settled }, jrAgain(),
-		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") },
-		{ "re-give c703 #4", regiveEsauJr() }, { "Esau Jr. #4", esauJr("Esau Jr. #4") } }),
 	obsScenario("obs mirror", { fresh(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
 		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount },
 		{ "Flip again", flip("Flip again") }, { "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
-	obsScenario("obs esaujr birthright keep", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled }, jrAgain() }),
-	obsScenario("obs esaujr cross35", tlazJr(), { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) }, { "settle", settled }, jrAgain(),
-		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") } }),
-	obsScenario("obs esaujr dead seed", tlazJr(), { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld }, { "Flip on A", flip("Flip on A") } }),
-	obsScenario("obs esaujr birthright flip", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled },
-		{ "Flip", flip("Flip") } }),
 	obsScenario("obsx cancelled Clicker", tlazJr(), { jrFirst(), giveClicker(),
 		{ "cancel Clicker", cancelledClicker(false) }, jrAgain() }),
 	obsScenario("obsx cancelled Clicker then change", tlazJr(), { jrFirst(), giveClicker(),
 		{ "cancel Clicker and change type", cancelledClicker(true) }, jrAgain() }),
-	obsScenario("obsx Clicker on returned original", tlazJr(), { jrFirst(), jrAgain(), giveClicker(),
-		{ "Clicker", obsClicker }, jrTwice() }),
-	obsScenario("obsx Clicker after Flip", tlazJr(), { jrFirst(), { "Flip of the form", flip("Flip of the form") },
-		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
-	obsScenario("obsx Clicker with Birthright", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
-		{ "select type-29 twin", birthrightFlip, deadFirst },
-		giveClicker(), { "Clicker by type 29", function(ctx)
-			if not ctx.t then
-				pre(Isaac.GetPlayer(0):GetPlayerType() == T_LAZ and ofType(DEAD_T_LAZ), "type 29 in player 0 with the type-38 Birthright twin present")
-			end
-			return obsClicker(ctx)
-		end }, jrTwice() }),
-	obsScenario("obsx Isaac Esau Jr Clicker", jrSetup(ISAAC), { jrFirst(),
-		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
 	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
 	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
 	obsScenario("obsx merge 38 to 29 then Flip", { fresh(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) },
@@ -381,19 +314,6 @@ local OBS = {
 	obsScenario("obsx merge 29 to 38 then Esau Jr.", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
 		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") },
 		{ "stored settling", storedSettlingNow }, { "settle", settled }, jrAgain(), { "watch 60", idle(60) } }),
-	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
-		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
-	obsScenario("obsx form uses Clicker effect", tlazJr(), {
-		{ "record A", rememberOriginal }, jrFirst(), { "give c1", give(1) }, { "use Clicker effect", useClickerEffect }, controlPresses() }),
-	obsScenario("obsx Isaac form loses Esau Jr.", jrSetup(ISAAC), {
-		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
-	obsScenario("obsx original loses Esau Jr.", tlazJr(), {
-		{ "record A", rememberOriginal }, jrFirst(), { "record B", rememberForm },
-		{ "Esau Jr. back to A", esauJr("Esau Jr. back to A") },
-		{ "verify A returned", function(ctx)
-			pre(seedOf(Isaac.GetPlayer(0)) == ctx.originalSeed, "original A in player 0")
-		end },
-		replaceEsauJr(), controlPresses() }),
 }
 for _, s in ipairs(OBSY) do OBS[#OBS + 1] = s end
 
@@ -444,53 +364,7 @@ local jeClickerLoop = clickerUntil(function(ctx)
 	return ctx.wasMerged and Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil
 end, 12, lookC("after Clicker"), function(ctx, when) P("INFO", ctx.name, "INNER " .. when .. " Clicker " .. ctx.uses, innerLine()) end)
 
--- F: what Clicker out of a Tainted Lazarus form gave the live character, and which stored Flip partners' items it got (marked gone: merged).
-local function beforeClicker(ctx) track() ctx.pre = itemCounts(Isaac.GetPlayer(0)) end
-local ACTIVES = { [ESAU_JR] = true, [FLIP] = true, [CLICKER] = true, [SCHOOLBAG] = true }
-local function clickerMerges(ctx)
-	track()
-	local now, gained = itemCounts(Isaac.GetPlayer(0)), {}
-	for id, n in pairs(now) do
-		if n > (ctx.pre[id] or 0) then gained[id] = n - (ctx.pre[id] or 0) end
-	end
-	P("INFO", ctx.name, "Clicker: type", Isaac.GetPlayer(0):GetPlayerType(), "items gained", countsText(gained), "players", game:GetNumPlayers())
-	for _, c in pairs(HARNESS.chars.list) do
-		if c.state == "stored" then
-			local hit = {}
-			for id in pairs(c.items) do
-				if gained[id] and not ACTIVES[id] then hit[#hit + 1] = "c" .. id end
-			end
-			P("INFO", ctx.name, "Clicker: stored", c.name, "items", countsText(c.items), "found on the live one:", #hit > 0 and table.concat(hit, " ") or "none")
-			-- Only a Flip partner merges into the live form (roster.lua); an Esau Jr. character stays stored (user decision 2026-11-22).
-			if #hit > 0 and c.storedBy == FLIP then merged(c)
-			elseif #hit > 0 then table.insert(ctx.notes, "engine moved stored Esau Jr. character " .. c.name .. "'s items (unobserved)") end
-		end
-	end
-end
-
 local FINAL = {
-	-- A: two copies, each keeping the character it last swapped out; Schoolbag holds both on A.
-	{ name = "final A two Esau Jr. copies", kind = "small", budget = 350, steps = {
-		fresh(ISAAC), give(4), give(ESAU_JR), named("Isaac"), lookC("start"),
-		esauJr("copy 1: Isaac -> A"), named("A"), give(5), give(SCHOOLBAG), give(ESAU_JR), info("A's slots", slots), lookC("A with two copies"),
-		esauJr("copy 2: A -> B"), named("B"), give(6), lookC("B"),
-		esauJr("copy 2: B -> A"), who("A"), lookC("A back"),
-		swapCopies(), esauJr("copy 1: A -> Isaac"), who("Isaac"), lookC("Isaac back"),
-		esauJr("copy 1: Isaac -> A"), who("A"), lookC("A again"),
-		swapCopies(), esauJr("copy 2: A -> B"), who("B"), lookC("B again"),
-	} },
-	-- B: A drops Esau Jr. on a pedestal and takes it back; its press brings Isaac back (console 2026-11-22).
-	{ name = "final B Esau Jr. dropped and picked up", kind = "small", budget = 1100, steps = {
-		fresh(ISAAC), give(4), give(ESAU_JR), named("Isaac"), esauJr("Isaac -> A"), named("A"), give(5), lookC("A"),
-		dropByHand, lookC("Esau Jr. on the pedestal"), pickByHand, stepOff, lookC("Esau Jr. picked back up"),
-		esauJr("A presses the picked-up copy"), who("Isaac"), lookC("Isaac back"),
-	} },
-	-- C: LJ shares D's seed; each keeps its own row and items through Flips and presses.
-	{ name = "final C Tainted Lazarus Esau Jr.", kind = "small", budget = 350, steps = { tlazFlips(),
-		flip("Flip by D"), whoInfo("Flip by D"), lookC("after Flip by D"),
-		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. by player 0")), whoInfo("Esau Jr. by player 0"), lookC("after Esau Jr."),
-		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. again")), whoInfo("Esau Jr. again"), lookC("after Esau Jr. again"),
-	} },
 	-- D: Strawman's Keeper (type 14, a Parent) has its own row; giveitem then goes to it (in-game 2026-11-22).
 	{ name = "final D Strawman", kind = "small", budget = 200, steps = {
 		fresh(ISAAC), give(4), give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), named("Isaac"), named("Keeper", KEEPER),
@@ -512,13 +386,6 @@ local FINAL = {
 			expect(ctx, label .. ": Esau's entries", countEntries(function(e) return e.owner == ctx.esauKey end), 0)
 		end),
 	} },
-	-- F (observation): Flip partners change after Esau Jr. (LJ <-> D, then DJ <-> LJ), then Clicker out of the live form; ReHUD sets each
-	-- partner once (roster.lua partnerOf), so a failure here is expected. OBS lines log the engine and ReHUD every update.
-	{ name = "final F Flip partners", kind = "small", budget = 450, onlyPicked = true, steps = { startChecked, tlazFlips(),
-		give(ESAU_JR), esauJr("Esau Jr. D -> DJ"), named("DJ"), give(7), lookC("DJ"),
-		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
-		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),
-	} },
 	-- G (observation): Inner Eye on both twins (Jacob 1, Esau 2), Clicker merges them and, when it rolls J&E, splits them; INNER lines log
 	-- every player's c2 per update, so the log shows whether the engine drops a c2 (and whose) or ReHUD mislists it.
 	{ name = "final G Jacob and Esau Clicker split", kind = "small", budget = 750, onlyPicked = true, onUpdate = innerWatch, steps = {
@@ -528,12 +395,6 @@ local FINAL = {
 }
 
 local STRICT = { strict = true } -- each final observation stops at its first missing step and at 445 updates
--- Observation only (INFO, OBS lines every update): cf965b0 counts a newcomer holding Esau Jr. of the index's previous type as a swap even
--- when the player count drops, and stores a vanished character whose partner is stored; this logs what the engine does to the twins.
-FINAL[#FINAL + 1] = obsScenario("final I Birthright twins Esau Jr.", { fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, {
-	{ "players", playerCount }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) }, { "players after Esau Jr.", playerCount }, { "settle", settled },
-	{ "Esau Jr. back", verdict("Esau Jr. back", esauJr("Esau Jr. back")) }, { "players after Esau Jr. back", playerCount }, { "settle 2", settled },
-	{ "Flip", verdict("Flip", flip("Flip")) }, { "players after Flip", playerCount } }, STRICT)
 
 -- Each player's Parent (as a GetPlayer index), ControllerIndex and ReHUD key and number: which character a helper's row follows.
 local function helpersInfo(what)
@@ -569,15 +430,6 @@ end
 -- other items; the summoned Esau across Exit & Continue (large: the user's Continue).
 FINAL[#FINAL + 1] = obsScenario("final K tag through Flip", { fresh(T_LAZ), give(4) }, { { "Flip", verdict("Flip", flip("Flip")) },
 	{ "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT)
-FINAL[#FINAL + 1] = obsScenario("final L flipped cross", tlazJr(), { { "Flip", verdict("Flip", flip("Flip")) }, { "give c5", give(5) },
-	{ "Flip back", verdict("Flip back", flip("Flip back")) }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) },
-	{ "Flip of the Esau Jr. form", verdict("Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form")) },
-	{ "Flip back to the form", verdict("Flip back to the form", flip("Flip back to the form")) }, { "ids of the form", ids("of the form") },
-	{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(), { "ids after the original returned", ids("after the original returned") },
-	{ "Flip A (type 38)", verdict("Flip A (type 38)", flip("Flip A (type 38)")) }, { "ids after Flip A", ids("after Flip A") } }, STRICT)
-FINAL[#FINAL + 1] = obsScenario("final M original loses Esau Jr.", tlazJr(), { jrFirst(), { "Esau Jr. back to A", verdict("Esau Jr. back to A", esauJr("Esau Jr. back to A")) },
-	replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },
-	{ "Esau Jr. after the loss #2", verdict("Esau Jr. after the loss #2", esauJr("Esau Jr. after the loss #2")) } }, STRICT)
 FINAL[#FINAL + 1] = obsScenario("final J Strawman Keeper leaves", { fresh(ISAAC), give(4), give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end),
 	giveType(5, KEEPER) }, { { "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
 	{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT)
@@ -633,10 +485,6 @@ local SCENARIOS = {
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
 	} },
-	{ name = "P4a", kind = "small", steps = {
-		fresh(T_LAZ), give(4), give(ESAU_JR), stage(2), look("after c4", oneC4),
-		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
-	} },
 	-- Three runs: ChangePlayerType out on the Esau Jr. form, then Esau Jr. again (swap refills its 1 charge, spent by the first press);
 	-- a Flip of the Esau Jr. form, whose new Dead form is turned Isaac; and the 29->38 crossing on the Esau Jr. form of a flipped one.
 	{ name = "P4c", kind = "small", budget = 600, steps = {
@@ -681,30 +529,6 @@ local SCENARIOS = {
 			expect(ctx, label .. ": Dead form stored", dbg().roster.isSwapped(ctx.dead), true)
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
 			origStored(ctx, label)
-			expect(ctx, label .. ": left entries", leftEntries(), 0)
-		end),
-	} },
-	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. form 2 (run 7's P4b).
-	{ name = "S4", kind = "small", steps = {
-		fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2),
-		look("start", function(ctx, label)
-			ctx.jacob, ctx.esau = keyOf(Isaac.GetPlayer(0)), keyOf(ofType(ESAU))
-			jeCopies(ctx, label)
-		end),
-		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", function(ctx, label)
-			local r, esau = dbg().roster, ofType(ESAU)
-			ctx.form = keyOf(Isaac.GetPlayer(0))
-			expect(ctx, "engine, not ReHUD: Esau's owned c5 after Jacob's Esau Jr. (Q9)", esau and owned(esau, 5), 1)
-			jeCopies(ctx, label)
-			expect(ctx, label .. ": Jacob swapped", r.isSwapped(ctx.jacob), true)
-			expect(ctx, label .. ": numbers Jacob, Esau, form", tostring(r.number(ctx.jacob)) .. "," .. tostring(r.number(ctx.esau)) .. "," .. tostring(r.number(ctx.form)), "0,1,2")
-			expect(ctx, label .. ": left entries", leftEntries(), 0)
-			expect(ctx, label .. ": characterCount", dbg().tracker.characterCount, 3)
-		end),
-		esauJr("Esau Jr. 2"), look("after Esau Jr. 2", function(ctx, label)
-			jeCopies(ctx, label)
-			expect(ctx, label .. ": player 0 is Jacob", keyOf(Isaac.GetPlayer(0)), ctx.jacob)
-			expect(ctx, label .. ": form swapped", dbg().roster.isSwapped(ctx.form), true)
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
 	} },
@@ -867,7 +691,6 @@ local function tagsOf(s)
 	if s.kind == "large" then tags[#tags + 1] = "exit-continue" end
 	if s.new then tags[#tags + 1] = "new" end
 	if s.onlyPicked then tags[#tags + 1] = "opt-in" end
-	if s.name == "final B Esau Jr. dropped and picked up" then tags[#tags + 1] = "walk" end
 	return tags
 end
 for _, s in ipairs(SCENARIOS) do

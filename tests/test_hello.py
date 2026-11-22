@@ -25,6 +25,7 @@ def test_hello_vanilla(path):
     restarts = [s for s in log if s.startswith("PROBE INFO ") and " frame " in s and " start seed " in s]
     assert restarts and all(" start seed 9SZM 3P3S type " in s for s in restarts), restarts
     assert sum(s == "PROBE CMD seed 9SZM 3P3S" for s in log) == 1 + 2, "the first fixture's seed command, then only the recon test's two"
+    assert f"PROBE SNAP {SPEC} > fresh run on a fixed seed | setup 1 / A tag = none" in recon, "the first describe wrote the tag before reading it"
     trace = [s for s in recon if s.startswith("PROBE TRACE ")]
     assert trace and not any(": ROSTER " in s or ": ENTRY " in s for s in trace), "the trace read ReHUD"
     print(f"PASS {MODE} without ReHUD: Clicker roll snapshot, seed command logged twice")
@@ -42,4 +43,13 @@ def test_hello_off_seed(path):
     print(f"PASS {mode} with restarts off the fixed seed: {len(played)} tests FAIL")
 
 
-TESTS = [test_hello_vanilla, test_hello_off_seed]
+def test_hello_extra_player(path):
+    # a player entity FindByType lists and GetPlayer misses is snapped as its own character
+    log = dry.run(path, mode=MODE, ReHUD=None, extraPlayer=True)
+    dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
+    key = f"PROBE SNAP {SPEC} > fresh Isaac on a fixed seed | 1 settle /"
+    assert f"{key} lineup = A" in log and f"{key} players = A B" in log and f"{key} B type = 0" in log, [s for s in log if s.startswith(key)]
+    print(f"PASS {MODE} with a player GetPlayer misses: snapped as B")
+
+
+TESTS = [test_hello_vanilla, test_hello_off_seed, test_hello_extra_player]

@@ -28,7 +28,7 @@ local function drop(p)
   -- both charges, check that in game before an assertion needs it.
   if p.secondary then p:SwapActiveItems()
   elseif p.t == 16 then p.t = 17
-  elseif p.t == 17 then p.t = 16 -- shortcut: the switch back is unobserved; the recon switch test records it
+  elseif p.t == 17 then p.t = 16 -- the switch back: 16 <-> 17 both ways in place (console 2026-11-22)
   end -- shortcut: any other drop press (Tainted Forgotten's, plan open point 5) does nothing here; model it from that recon
 end
 

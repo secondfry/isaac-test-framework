@@ -3,7 +3,7 @@ a use that spends nothing."""
 import dry
 
 WANT = {}  # no spec of its own: it plays every spec
-# The checked tests (not opt-in) that never swap; every other one swaps, and each swap must FAIL without a spend: a stored presser
+# The asserting tests (not opt-in) that never swap; every other one swaps, and each swap must FAIL without a spend: a stored presser
 # (Esau Jr., Flip without Birthright) on its watched drop, a staying one (Clicker) on its charge, a card on its count.
 NO_SWAP = {"engine > MaxCharges reads pre-REP+ charges", "engine > a card beside Flip sits in pocket slot 1",
            "characters > Strawman's Keeper is a character with his own items", "continue > item copies survive Exit & Continue"}
@@ -14,7 +14,7 @@ VETOED = ["base_change > a cancelled Clicker on the Esau Jr. character", "base_c
 
 
 def swapping(path):
-    """The checked tests a press swaps in, every one but the opt-in ones, NO_SWAP and item_copies (no press there)."""
+    """The asserting tests a press swaps in, every one but the opt-in ones, NO_SWAP and item_copies (no press there)."""
     return [t.name for t in dry.plan(path) if not t.snapshot and "opt-in" not in t.tags and t.name not in NO_SWAP
             and not t.name.startswith("item_copies > ")]
 

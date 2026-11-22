@@ -24,8 +24,8 @@ local jrPair, loseEsauJr = jrSteps.jrPair, jrSteps.loseEsauJr
 local fixtures = include("scripts.fixtures")
 local snapshot = include("scripts.snapshot")
 local snapshotTest, perCharacter, continued = snapshot.test, snapshot.perCharacter, snapshot.continued
-local enums = include("scripts.ids")
-local ISAAC, CAIN, FLIP, ESAU_JR, STRAWMAN = enums.ISAAC, enums.CAIN, enums.FLIP, enums.ESAU_JR, enums.STRAWMAN
+local ids = include("scripts.ids")
+local ISAAC, CAIN, FLIP, ESAU_JR, STRAWMAN = ids.ISAAC, ids.CAIN, ids.FLIP, ids.ESAU_JR, ids.STRAWMAN
 
 local SNAPSHOT = { strict = true, limit = 1000 } -- 600 of a test's updates are the user's Exit & Continue
 local isaacJr = fixtures.holdingJr("Isaac", ISAAC)

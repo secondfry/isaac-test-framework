@@ -4,7 +4,11 @@ pickups = {} -- spawned pedestals: {Type, Variant, SubType, Position}
 function Isaac.FindByType(t, v, s)
   if t == 3 then return {table.unpack(wisps)} end
   -- live players only, as observed with three stored characters (console 2026-11-22); other player entities GetPlayer misses: session 2's SNAP players
-  if t == 1 then return {table.unpack(players)} end
+  if t == 1 then
+    local all = {table.unpack(players)}
+    if extraPlayer then extra = extra or newPlayer(0); all[#all+1] = extra end
+    return all
+  end
   local r = {}
   for _, e in ipairs(pickups) do if e.Type == t and ((v or -1) < 0 or e.Variant == v) and ((s or -1) < 0 or e.SubType == s) then r[#r+1] = e end end
   return r
@@ -41,6 +45,7 @@ function PM:ChangePlayerType(t)
   local from = stored[711]
   if from and from.partner ~= self then from = nil end -- the stub's guess (P4c): only the presser's own Flip partner merges, not an Esau Jr. original's
   if keepStored and not tlaz(t) then from = nil end
+  -- shortcut: a stored Esau Jr. form's c703 merges in like any owned item (unobserved), so a re-give adds no owned copy; model it from a stored-character session
   if from then merge(self, from); stored[711] = nil end
   self.t = t
   if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 5)

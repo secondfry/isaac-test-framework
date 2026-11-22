@@ -16,10 +16,12 @@ Never `tests\`, `tools\` or `*.snap.txt`. Delete a file there that the repo no l
 
 ## A session
 
-1. Game closed: write the tags line (below) and install.
+1. Game closed: write the tags line (below), install, then `pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`.
 2. Launch, load save slot 1, start a new run: the session starts there (a Continue first only logs `HARNESS idle`).
 3. Hands off, except the manual steps the screen asks for.
-4. At `HARNESS: DONE`, exit to the menu (that flushes `log.txt`), copy `log.txt` and read it with `tools\report.py`.
+4. At `HARNESS: DONE` (or a game over), exit to the menu (that flushes `log.txt`) and copy `log.txt`.
+5. Game closed: `vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and the user's play mod set.
+6. Read each copy with `tools\report.py` (Results), the vanilla one first.
 
 A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; session 2); Eden is thought locked (unverified). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
 
@@ -77,7 +79,7 @@ Copy `log.txt` right after the session, then from the workspace root:
 
     .venv\Scripts\python -B -I isaac-test-harness\tools\report.py "<log copy>" [--out DIR] [--specs DIR] [--timeline TEST]
 
-Each test ends with one `RESULT <spec> > <test>`: `PASS <n> assertions`; `FAIL <why>` (each failed assertion also logs `ASSERT FAIL`; `FAIL precondition: <why>` when its fixture never got ready); `RECORDED` (a snapshot test without assertions); or `SKIP`. `; unreached: <steps>` lists steps that never happened; `; late Continue mid-test` a late Continue.
+Each test ends with one `RESULT <spec> > <test>`: `PASS <n> assertions`; `FAIL <why>` (each failed assertion also logs `ASSERT FAIL`; `FAIL precondition: <why>` when its fixture never got ready); `RECORDED` (a snapshot test without assertions); or `SKIP`. `; unreached: <notes>` lists what did not run: a step that never happened, a test limit (`test limit <n> updates in <step>`), the steps skipped after either (`steps <step> to <step> skipped`), a step skipped by its guard (`skipped: <why>`) and a spec's own notes; `; late Continue mid-test` a late Continue.
 
 `report.py` prints each test with its `INFO` lines, every failed assertion with the lines before it, snapshot differences, the Continues, errors outside its noise list and log guard hits (a mod update or Lua reset mid-session marks every later test `environment changed`), then one verdict line: `ALL PASS`, or `NEEDS ANALYSIS: <reasons>` (a FAIL, an unreached step that chance does not explain, a late Continue, a failed teardown, other errors, missing results or `HARNESS DONE`, Continues asked and resumed differing). Only `NEEDS ANALYSIS` needs an analysis; the exit code is 0 only on `ALL PASS`. It writes `report.json` and, for each failed, new or changed test, its trace `traces\<spec> - <test>.txt` (its lines, `TEST START` to `RESULT`) into `--out` (default: the log's folder). `--timeline <test>` also prints that test's `TRACE` lines as a timeline, characters labelled A, B, C... by GetPtrHash, with a summary per character.
 
@@ -90,6 +92,8 @@ A snapshot test logs `SNAP <spec> > <test> | <n> <step> / <key> = <value>` after
 - No section yet (a recon test): the first played session in which the test passes writes it.
 - A section: compared key by key; a difference FAILs the test (`snapshot differs in <n> keys`) showing both values, and only a session whose tags line had `--update-snapshots` replaces it.
 - Never written for a failed test, nor for a test with an unreached step, nor from a log without the engine's version line (a dry log).
+
+Report the vanilla log first: the first log reported writes a missing section; the play-set log then compares, and a difference points at a mod.
 
 Commit the `.snap.txt` files `report.py` writes; never deploy them.
 
@@ -109,7 +113,7 @@ The dry run (about 8 minutes; name test functions to run a few) plays `main.lua`
 ## Writing tests
 
 - A spec: `specs\<name>.lua` returns `{ name = "<name>", tests = { ... } }`; add the name to `SPECS` in `main.lua` (play order; `exit-continue` tests move to the end).
-- A test: `name`, `tags`, `fixture`, `steps`; optional `limit` (updates: a test with assertions FAILs there, a snapshot test ends recorded), `snapshot = true`, `onStepError = "skip"` or `"end"` (a step that errors or passes its own `limit` is logged as never happened, then skipped, or the test ends), `onUpdate`, `traceUpdates`. Steps may nest lists; a step is `function(ctx)` returning `"again"` to run again next update, or `{ label, run, limit, when, manual }`.
+- A test: `name`, `tags`, `fixture`, `steps`; optional `limit` (updates: a test with assertions FAILs there; a snapshot test at its limit ends RECORDED with a `test limit` note, writes no snapshot, and the report says NEEDS ANALYSIS), `snapshot = true`, `onStepError = "skip"` or `"end"` (a step that errors or passes its own `limit` is logged as never happened, then skipped, or the test ends), `onUpdate`, `traceUpdates`. Steps may nest lists; a step is `function(ctx)` returning `"again"` to run again next update, or `{ label, run, limit, when, manual }`.
 - A fixture: `{ name, setup = { steps }, done = function(ctx) return ok, why end, teardown }`. The setup runs, `done` is polled for up to 120 updates (still false: `FAIL precondition: <why>`), then the steps; `teardown` runs exactly once however the test ends. Shared ones in `scripts\fixtures.lua`: `fixture`, `owns`, `freshRun` (a restart on the fixed seed `9SZM 3P3S`, after one `seed` command when the run is on another; a restart off the fixed seed fails the test; `newGame` logs each restart's start seed, type and frame, and every fixture logs `start seed` when done), `holdingJr`, `jacobAndEsau`, `character` with `RECON_CHARACTERS`, and the `TLAZ_*` setups.
 - Shared steps: `scripts\snapshot.lua` `test(name, tags, fixture, steps, opts)` builds a snapshot test from labelled steps (`opts.strict`: 120-update steps, a 445-update test) and `perCharacter` one recon test per recon character; `wait.act` and `wait.condition` wait for an effect; `press.lua` makes real presses (`flip`, `esauJr`, `clicker`, ...): a button press through `MC_INPUT_ACTION` that passes only with a new character and the spent charge or card, a stored presser's spend (Esau Jr., Flip without Birthright) read on its own entity before the engine stores it (`..\lua-api-notes.md`); `manual.lua` holds the manual steps; `settle.look` and `lookC` wait for ReHUD to settle, then assert, each look also the invariants (ReHUD's entries against the engine's counts, no duplicates, no phantom stored forms, no `left` entries, no floor later than the current one; `lookC` one row per character too); `assert.lua` has the assertions (`expect`, `expectCount`, ..., `pre` for a precondition).
 - Tag it with its spec, `rehud` or `vanilla`, `exit-continue` if it asks for an Exit & Continue (and `new` until it has passed in game), `walk` if it asks for a walk.

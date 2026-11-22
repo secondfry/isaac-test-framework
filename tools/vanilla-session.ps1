@@ -12,7 +12,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ($Start -eq $End) { throw 'pass -Start or -End' }
-# a -Mods folder other than the game's is not read by it
+# any -Mods (the tests' temp folder) skips the check: the game reads only its own mods folder
 if (-not $PSBoundParameters.ContainsKey('Mods') -and (Get-Process isaac-ng -ErrorAction SilentlyContinue)) { throw 'close the game first: it reads the mods folder only at launch' }
 
 if ($End) {

@@ -28,8 +28,8 @@ RECORDED = [  # the other snapshot tests
 ]
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
 RECON = "Esau Jr. press, press, Exit & Continue, press"
-# The stub's Clicker merges the stored form's c703 into the Dead form beside Clicker, so the re-give adds no owned copy (stub only).
-CUT = {"Clicker on the Esau Jr. character after its Flip": "RECORDED; unreached: 7 re-give c703 never happened, steps 13-16 skipped"}
+# The re-give adds no owned copy in the stub (tests/stub/characters.lua ChangePlayerType shortcut), so this test is cut there.
+CUT = {"Clicker on the Esau Jr. character after its Flip": "RECORDED; unreached: 7 re-give c703 never happened, steps 8 Esau Jr. again to 11 settle skipped"}
 WANT = {**{f"esau_jr > {n}": f"PASS {c} assertions" for n, c in ASSERTING.items()}, **{f"esau_jr > {n}": "RECORDED" for n in RECORDED},
         **{f"esau_jr > {n}": v for n, v in CUT.items()}, **dry.recon("esau_jr", RECON)}
 MODE = "tags esau_jr"  # every test here, final F (opt-in) included

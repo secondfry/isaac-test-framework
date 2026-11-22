@@ -8,9 +8,9 @@ local rehud = include("scripts.rehud")
 local present, entries, tagText, storedSettling, keyOf, number, rosterRows = rehud.present, rehud.entries, rehud.tagText, rehud.storedSettling,
 	rehud.keyOf, rehud.number, rehud.rows
 local info = include("scripts.steps").info
-local enums = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY, POCKET = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
-	enums.SECONDARY, enums.POCKET
+local ids = include("scripts.ids")
+local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY, POCKET = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.BIRTHRIGHT, ids.PRIMARY,
+	ids.SECONDARY, ids.POCKET
 
 local game = Game()
 HARNESS.record = HARNESS.record or {}
@@ -146,13 +146,13 @@ local function timingSee(p)
 			if frame - t.first >= 5 or seed ~= t.firstSeed then table.remove(list, i)
 			elseif frame ~= t.logged then -- MC_POST_PLAYER_UPDATE runs twice per game frame
 				t.logged = frame
+				local actives = "primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY) .. " pocket " .. p:GetActiveItem(POCKET)
 				P("INFO", HARNESS.session.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
-					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(POCKET))
+					"c703 owned", owned(p, ESAU_JR), actives)
 				local trace = HARNESS.record.trace
 				if trace and not trace.asserting then -- relative frames only: a snapshot compares across sessions
-					snap(HARNESS.session.ctx, trace.step .. " / TIMING " .. t.label .. " +" .. (frame - t.first), "index " .. t.index .. " type " .. p:GetPlayerType()
-						.. " c703 " .. owned(p, ESAU_JR) .. " primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY)
-						.. " pocket " .. p:GetActiveItem(POCKET))
+					snap(HARNESS.session.ctx, trace.step .. " / TIMING " .. t.label .. " +" .. (frame - t.first),
+						"index " .. t.index .. " type " .. p:GetPlayerType() .. " c703 " .. owned(p, ESAU_JR) .. " " .. actives)
 				end
 			end
 		end

@@ -101,6 +101,12 @@ local function finish(err)
 	S.ctx = newCtx()
 end
 
+-- Step `i` of `test` as a RESULT note names it: its label; an unlabelled one is a fixture's setup or done check.
+local function stepName(test, i)
+	local s = test.steps[i]
+	return type(s) == "table" and s.label or "fixture check"
+end
+
 -- Counts the test's updates against its limit, true once it is over: a snapshot test ends as recorded, any other FAILs.
 local function overLimit(S, test)
 	if not test.limit then return end
@@ -108,7 +114,7 @@ local function overLimit(S, test)
 	if S.ctx.updates < test.limit then return end
 	if not test.snapshot then finish("test limit " .. test.limit .. " updates") return true end
 	P("INFO", test.name, "test limit", test.limit, "updates")
-	table.insert(S.ctx.notes, "test limit " .. test.limit .. " updates at step " .. S.stepIndex .. "/" .. #test.steps)
+	table.insert(S.ctx.notes, "test limit " .. test.limit .. " updates in " .. stepName(test, S.stepIndex))
 	finish()
 	return true
 end
@@ -187,7 +193,9 @@ local function tick(...)
 	for _, f in ipairs({ ... }) do f() end
 	if test.onUpdate then test.onUpdate(ctx) end
 	if test.onStepError == "end" and ctx.interrupted then
-		if S.stepIndex <= #test.steps then table.insert(ctx.notes, "steps " .. S.stepIndex .. "-" .. #test.steps .. " skipped") end
+		local n = #test.steps
+		if S.stepIndex < n then table.insert(ctx.notes, "steps " .. stepName(test, S.stepIndex) .. " to " .. stepName(test, n) .. " skipped")
+		elseif S.stepIndex == n then table.insert(ctx.notes, "step " .. stepName(test, n) .. " skipped") end
 		return finish()
 	end
 	if overLimit(S, test) then return end
@@ -223,7 +231,7 @@ local function readTags(S, raw)
 	for tag in (text:match("^tags%s+(.*)$") or ""):gmatch("[^,%s]+") do S.tags[#S.tags + 1] = tag end
 end
 
--- At 60 updates a wait is stuck: log it once and append a STUCK line under line 1 for tools\stuck-shots.ps1 to screenshot. A manual
+-- At 60 updates a wait is stuck: log it once and rewrite the line under line 1 as a STUCK line for tools\stuck-shots.ps1 to screenshot. A manual
 -- step waits for the user, so it is never stuck.
 -- shortcut: each wait passes its own count, as nested waits (a look inside a Clicker loop) have their own labels; count in tick if none nests.
 local function stuck(ctx, t, label)

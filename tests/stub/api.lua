@@ -47,6 +47,7 @@ ignoreDrop = false -- set by the test: the engine ignores a forced drop press, s
 lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
 -- shortcut: a locked type's restart starts Isaac (unobserved: the recon characters are all unlocked, session 2); model it if a test needs a locked character
 restartRolls = false -- set by the test: a restart rolls a new seed even after a seed command
+extraPlayer = false -- set by the test: FindByType(1) also lists one player entity per run that GetPlayer misses (`extra`)
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do
@@ -82,7 +83,7 @@ function startRun(t, cont)
     -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it from the next session's restart INFO frame
     resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
-    stageN = 1; stored, wisps, pickups = {}, {}, {}; resetFakeReHUD()
+    stageN = 1; stored, wisps, pickups, extra = {}, {}, {}, nil; resetFakeReHUD()
   end
   fire(15, cont)
 end

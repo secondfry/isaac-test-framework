@@ -17,7 +17,7 @@ NO_C4 = {"item_copies > Zodiac copy is clocked", "item_copies > 3 Dollar Bill co
 
 
 def looked(path):
-    """Every checked ReHUD test but the opt-in ones and engine's (they read the engine only): each settled look runs the invariants."""
+    """Every asserting ReHUD test but the opt-in ones and engine's (they read the engine only): each settled look runs the invariants."""
     return {t.name for t in dry.plan(path) if not t.snapshot and "rehud" in t.tags and "opt-in" not in t.tags and not t.name.startswith("engine > ")}
 
 

@@ -121,8 +121,8 @@ def test_tags(path):
 
 
 def limited(got, t):
-    """Snapshot test `t` ended at its limit, and its RESULT says at which step."""
-    return got[t.name].startswith(f"RECORDED; unreached: test limit {t.limit} updates at step ")
+    """Snapshot test `t` ended at its limit, and its RESULT names the step it was in."""
+    return got[t.name].startswith(f"RECORDED; unreached: test limit {t.limit} updates in ")
 
 
 def worst_case(tests):
@@ -132,13 +132,13 @@ def worst_case(tests):
 
 
 def test_final_worst(path):
-    # rehud-2.8's worst case: no console command ever runs, so every test stalls to its limit, a checked one FAILing.
+    # rehud-2.8's worst case: no console command ever runs, so every test stalls to its limit, an asserting one FAILing.
     log = dry.run(path, mode=FINAL_MODE, render_every=10 ** 6)
     got = dry.finished(log, "final worst case", path)
     final = tagged(path, "rehud-2.8")
-    checked = [t for t in final if not t.snapshot]
-    dry.expect_results(got, "final worst case", dry.expected(path, FINAL_MODE), "test limit ", [t.name for t in checked], cut=True)
-    for t in checked:
+    asserting = [t for t in final if not t.snapshot]
+    dry.expect_results(got, "final worst case", dry.expected(path, FINAL_MODE), "test limit ", [t.name for t in asserting], cut=True)
+    for t in asserting:
         assert got[t.name] == f"FAIL test limit {t.limit} updates", (t.name, got[t.name])
     assert all(limited(got, t) for t in final if t.snapshot), got
     worst = worst_case(final)
@@ -151,7 +151,7 @@ def test_strict_limits(path):
     mode = "tags stored-character"
     log = dry.run(path, mode=mode, ignoreRestart=True)
     got = dry.finished(log, "strict setup step times out", path)
-    assert all(got[t.name].startswith("RECORDED; unreached: setup 1 never happened, steps 2-") for t in strict), got
+    assert all(got[t.name].startswith("RECORDED; unreached: setup 1 never happened, steps setup 2 to ") for t in strict), got
     assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(strict)
     log = dry.run(path, mode=mode, render_every=200)
     got = dry.finished(log, "strict test times out", path)

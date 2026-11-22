@@ -27,9 +27,9 @@ local fixture = fixtures.fixture
 local snapshot = include("scripts.snapshot")
 local snapshotTest, perCharacter, continued = snapshot.test, snapshot.perCharacter, snapshot.continued
 local named = include("scripts.characters").named
-local enums = include("scripts.ids")
-local FLIP, BIRTHRIGHT, STRAWMAN = enums.FLIP, enums.BIRTHRIGHT, enums.STRAWMAN
-local ISAAC, DEAD_T_LAZ, KEEPER, ESAU = enums.ISAAC, enums.DEAD_T_LAZ, enums.KEEPER, enums.ESAU
+local ids = include("scripts.ids")
+local FLIP, BIRTHRIGHT, STRAWMAN = ids.FLIP, ids.BIRTHRIGHT, ids.STRAWMAN
+local ISAAC, DEAD_T_LAZ, KEEPER, ESAU = ids.ISAAC, ids.DEAD_T_LAZ, ids.KEEPER, ids.ESAU
 
 local game = Game()
 
@@ -185,14 +185,14 @@ local function only(...)
 end
 perCharacter(tests, "characters", "Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue", RECON, fixtures.character,
 	function()
-		return { { "give Strawman", give(STRAWMAN) }, { "Soul of Jacob and Esau", useCard(enums.SOUL_JACOB) },
-			{ "Soul of the Forgotten", useCard(enums.SOUL_FORGOTTEN) }, { "ids before the exit", idsInfo("before the exit") }, continued,
+		return { { "give Strawman", give(STRAWMAN) }, { "Soul of Jacob and Esau", useCard(ids.SOUL_JACOB) },
+			{ "Soul of the Forgotten", useCard(ids.SOUL_FORGOTTEN) }, { "ids before the exit", idsInfo("before the exit") }, continued,
 			{ "ids after Continue", idsInfo("after Continue") } }
 	end, true)
-perCharacter(tests, "characters", "switch between body and soul", only(enums.FORGOTTEN, enums.T_FORGOTTEN), fixtures.character, function(c)
+perCharacter(tests, "characters", "switch between body and soul", only(ids.FORGOTTEN, ids.T_FORGOTTEN), fixtures.character, function(c)
 	return { { "switch", dropOnce("switch", c.who) }, { "switch back", dropOnce("switch back", c.who) } }
 end)
-perCharacter(tests, "characters", "Birthright and Flip", only(enums.T_LAZ), fixtures.character, function()
+perCharacter(tests, "characters", "Birthright and Flip", only(ids.T_LAZ), fixtures.character, function()
 	return { { "give Birthright", give(BIRTHRIGHT, 2) }, { "ids after Birthright", idsInfo("after Birthright") }, { "Flip", flipV("Flip") },
 		{ "ids after Flip", idsInfo("after Flip") }, { "Flip back", flipV("Flip back") } }
 end)

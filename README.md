@@ -21,7 +21,7 @@ Never `tests\`, `tools\` or `*.snap.txt`. Delete a file there that the repo no l
 3. Hands off, except the manual steps the screen asks for.
 4. At `HARNESS: DONE`, exit to the menu (that flushes `log.txt`), copy `log.txt` and read it with `tools\report.py`.
 
-A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, The Forgotten, Jacob and Esau, Tainted Lazarus, Tainted Forgotten; Eden and Tainted Jacob are locked. A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
+A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, The Forgotten, Jacob and Esau, Tainted Lazarus, Tainted Forgotten; Eden and Tainted Jacob are locked; Tainted Isaac: not yet known. A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
 
 ## Picking tests: tags
 
@@ -69,7 +69,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 - Exit & Continue: the screen shows `exit to the menu and Continue now` on its own line; exit to the menu and pick Continue. A snapshot test gives up after 600 updates of play, a test with assertions after 9000. A new run instead fails a test with assertions (`a new run started, not a Continue`) and ends a snapshot test. A Continue after its step gave up lands in the next test: logged `late Continue, ignored` and noted `; late Continue mid-test` on that test's `RESULT`.
 - Pedestal walks (`walk`): `YOU: walk onto the yum-heart pedestal`, then `YOU: step off, then walk back onto the Esau Jr. pedestal`; 450 updates each.
 
-A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and appends `STUCK <n> <test> | <step>` to the tags file; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
+A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and rewrites the line under line 1 of the tags file as `STUCK <n> <test> | <step>`, the latest only, which `stuck-shots.ps1` reads as the file's last line; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
 
 ## Results
 
@@ -85,7 +85,7 @@ Other lines worth knowing, all `INFO` unless named: `VERDICT <press> index <i> <
 
 ## Snapshots and recon tests
 
-A snapshot test logs `SNAP <spec> > <test> | <n> <step> / <key> = <value>` after each step: game state only (lineup and twins as GetPtrHash labels, types, seed labels, items, charges, trinkets, cards), never ReHUD's. `report.py` keeps them in `specs\<spec>.snap.txt`, one `## <test>` section each:
+A snapshot test logs `SNAP <spec> > <test> | <n> <step> / <key> = <value>` after each step: game state only (lineup and twins as GetPtrHash labels, types, seed labels, items, charges, trinkets, cards, and Esau Jr. TIMING frames relative to their first), never ReHUD's. A stored character is invisible to Lua, so snapshots show only the characters in play. `report.py` keeps them in `specs\<spec>.snap.txt`, one `## <test>` section each:
 
 - No section yet (a recon test): the first played session in which the test passes writes it.
 - A section: compared key by key; a difference FAILs the test (`snapshot differs in <n> keys`) showing both values, and only a session whose tags line had `--update-snapshots` replaces it.
@@ -95,14 +95,14 @@ Commit the `.snap.txt` files `report.py` writes; never deploy them.
 
 ## Vanilla sessions
 
-`pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`, with the game closed, writes `disable.it` into every other mod folder that has none (listed in the gitignored `.vanilla-session.txt`); `-End` after the session deletes just those. Play `tags vanilla` or `tags seed` in between.
+`pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`, with the game closed, writes `disable.it` into every other mod folder that has none (listed in the gitignored `.vanilla-session.txt`); `-End` after the session deletes just those. Every session runs twice with the same tags line: vanilla (this script) and with the user's play mod set.
 
 ## Offline tests
 
 From the workspace root, one suite at a time:
 
     .venv\Scripts\python -B -I isaac-test-harness\tests\test_harness.py isaac-test-harness\main.lua [test function ...]
-    .venv\Scripts\python -B isaac-test-harness\tests\test_report.py
+    .venv\Scripts\python -B -I isaac-test-harness\tests\test_report.py
 
 The dry run (about 8 minutes; name test functions to run a few) plays `main.lua` under lupa (Lua 5.3) against `tests\stub\`, a fake engine, input and ReHUD whose `shortcut:` comments say what it does not model, with a fake user who continues and walks. It checks every test's verdict under each tags line it plays (`WANT` in `tests\test_<spec>.py`, plus each module's checks of its own lines), the runner (`test_runner.py`: tags, limits and worst cases, a late Continue or a new run instead, STUCK, fixture teardown and preconditions, which steps prompt), the presses' spends (`test_presses.py`), each invariant against its negative stub flag (`test_invariants.py`) and `report.py` on dry logs. `test_report.py` checks `report.py`'s verdicts, snapshots, log guard and JSON.
 

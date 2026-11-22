@@ -23,9 +23,7 @@ local function flatten(list, out)
 	return out
 end
 
--- Polls the fixture's done(ctx) every update; still false at the limit, the test FAILs as a precondition. Once done, the next step
--- runs in the same update ("now"), so a fixture adds no update of its own; a traceUpdates test's trace starts instead, and its first
--- step comes next update, as after the recording step a trace started with before fixtures.
+-- Polls done(ctx) up to FIXTURE_LIMIT (then a precondition FAIL); once done the next step runs this update, so a fixture costs no update, except a traceUpdates test, whose trace starts first.
 local function fixtureReady(fixture, test)
 	return function(ctx)
 		ctx.t = (ctx.t or 0) + 1
@@ -47,9 +45,7 @@ local function tagged(test, tag)
 	end
 end
 
--- Each test of `spec` as its own copy, named "<spec> > <test>", its fixture's setup and done poll ahead of its steps (traceUpdates
--- needs a fixture). Exit & Continue tests play last (plan D7), in the order added: the user's exits come back to back at the end of
--- the session.
+-- Each test of `spec` as its own copy, "<spec> > <test>", fixture first; Exit & Continue tests play last, in order, so the user's exits come back to back (plan D7).
 local lastCount = 0
 local function add(spec)
 	for _, t in ipairs(spec.tests) do

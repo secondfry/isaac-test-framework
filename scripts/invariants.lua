@@ -10,10 +10,7 @@ local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_T_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.
 
 local game = Game()
 
--- A stored form can come back only through the engine's two swap items (lua-api-notes.md): Flip, by a present Tainted Lazarus of its
--- group without Birthright (with it both forms play), or Esau Jr., held by a present member. Stricter than ReHUD's own rule (roster.lua
--- keeps a form swapped while any member of its group plays, merging it only into its Flip partner turned another type), so a form ReHUD forgot to
--- merge or drop shows here.
+-- A stored form comes back only by Flip (a present Tainted Lazarus of its group without Birthright) or a held Esau Jr. (lua-api-notes.md): stricter than roster.lua's rule, so a form ReHUD forgot to merge or drop shows.
 local function revivable(key, present)
 	for k, p in pairs(present) do
 		if p and group(k) == group(key) then
@@ -122,13 +119,8 @@ local function floors(ctx)
 	return out
 end
 
--- Invariants every settled look asserts, whatever the test: (1) for each present character and item, ReHUD's entries match the
--- engine's GetCollectibleNum(id, false) (ReHUD lists every copy: owned and innate without a clock, each wisp and the Zodiac copy with
--- one), at least the wisps and Zodiac copy clocked, and no entry of an owner gone without being stored or left; (2) no duplicates past
--- that count; (3) every stored form revivable; (4) no left entries unless the test sets `leftOk`; (5) no entry on a floor later
--- than the current one. A ghost's list is frozen, so ghosts are left out of (1) and (2).
--- shortcut: a 3 Dollar Bill grant shows only on ReHUD's 30-update scan, so a look within 30 updates of a re-grant would fail (1); every
--- look after a grant follows `listed`, far inside the ~170-update interval. Wait for that scan in look if a test looks later.
+-- Every settled look: (1) entries match the engine's counts, copies with a clock clocked, (2) no duplicates, (3) stored forms revivable, (4) no left entries unless leftOk, (5) no later floor; ghosts' frozen lists skip (1)-(2).
+-- shortcut: a 3 Dollar Bill grant shows only on ReHUD's 30-update scan, so a look within 30 updates of a re-grant would fail (1); wait for that scan in look if a test looks that soon.
 local function check(ctx, label)
 	local present, have = presentCharacters(), entriesByOwner()
 	holds(ctx, label, "engine counts", engineCounts(present, have))

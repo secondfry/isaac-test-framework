@@ -37,11 +37,7 @@ local function onUse(_, item, _, p)
 end
 local function onPlayerUpdate(_, p) watchSee("POST_PLAYER_UPDATE", p) end
 
--- A real press, by player 0, of two kinds. oneShot: true once, on the first triggered poll of that button (cards and ACTION_ITEM;
--- one-shot, so a card press cannot also use the next pocket item). full: true to every triggered and pressed poll of that button
--- from its first poll (fullPolled) to the next MC_POST_UPDATE after it. With Flip in the pocket an update polls PILLCARD
--- triggered, pressed, triggered, and Flip reads the second triggered (the user's console probe), which the one-shot never answers; with
--- only cards held it polls triggered twice and never pressed (runs 4-5).
+-- A real press: oneShot answers one triggered poll (a card cannot also use the pocket item); full answers every poll for an update, as Flip reads PILLCARD's second triggered poll (console probe, runs 4-5).
 local function onInput(_, e, hook, button)
 	local H = HARNESS.press
 	watchSee("INPUT_ACTION", e)
@@ -120,10 +116,7 @@ local function prime(p, id, slot, b, H, label)
 	return " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
 end
 
--- Recon data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1). True, logged
--- as INFO, when a snapshot test's press (b.items set) spent and left the pressed index on its seed and type with a new entity or other items.
--- `c`: the presser's charge now; a gone presser's spend is the drop its watch saw before the engine stored it.
--- ctx.sameSeed tells record.verdict to drop this press's TIMING watch: the seed never changes, so it would wake on a later press.
+-- A snapshot test's spent press that left its seed and type but a new entity or items counts as done, as obsy b run 1 saw after a Continue; ctx.sameSeed drops its TIMING watch, which would wake on a later press.
 local function sameSeedForm(ctx, label, b, presser, c, index)
 	local H, p = HARNESS.press, Isaac.GetPlayer(index)
 	local spent = (c and c < b.charge and ("charge " .. b.charge .. " -> " .. c)) or (not presser and H.watch and H.watch.seen)
@@ -135,11 +128,7 @@ local function sameSeedForm(ctx, label, b, presser, c, index)
 	return true
 end
 
--- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
--- character appears (`count` players after, when given) and the use spent the charge or the card.
--- A pocket active takes the full press; cards and ACTION_ITEM the one-shot (one-shot: run 2; full press: runs 4-5).
--- `who` (obsy): { index = GetPlayer index of the presser, any = answer every entity's polls }; its press is a full one of ACTION_ITEM
--- and ACTION_PILLCARD both, as which button and entity use a second player's or Tainted Forgotten's active is unknown.
+-- A swap press of `id` in `slot` ("card" for a card), done only on a new character and a spent charge or card (one-shot: run 2, full: runs 4-5); `who` presses ITEM and PILLCARD fully, as which button and entity use another player's active is unknown (obsy).
 local function press(label, id, slot, count, ceiling, who)
 	local index = who and who.index or 0
 	local button = slot == PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD

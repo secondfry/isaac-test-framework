@@ -133,9 +133,7 @@ end
 
 local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
 
--- The occupant of the pressed index once per game frame for 5 frames from its first sight with a seed other than the
--- presser's: does a new Esau Jr. form hold c703 on its very first update? The timing list holds one watch per press, as the next
--- press may come within those 5 frames; each watch ends early once its index holds a seed other than that first new one.
+-- Does a new Esau Jr. form hold c703 on its first update? The pressed index's occupant per frame for 5 frames, one watch per press as the next may come sooner.
 local function timingSee(p)
 	local list = HARNESS.record.timing
 	if not list then return end

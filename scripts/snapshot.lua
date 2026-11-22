@@ -19,9 +19,7 @@ local function always() return true end
 -- A snapshot test's Exit & Continue step: any players after it are data, and it gives up after 600 updates of play.
 local continued = { "exit and Continue", exitAndContinue(true), nil, 600 }
 
--- A snapshot test from `fixture` ({ name, setup, done }, setup a flat step list, done optional), then `steps` as { label, step, when,
--- limit } pairs (or lists of them), numbered, then a last settle wait. A missed step is logged and skipped; `opts.strict`: it ends the
--- test, so later presses cannot run on the wrong setup, and the test stops at `opts.limit` or TEST_LIMIT updates.
+-- A snapshot test: `fixture`, then numbered { label, step, when, limit } steps and a settle; a missed step is skipped, or with opts.strict ends the test so later presses never run on the wrong setup.
 local function test(name, tags, fixture, steps, opts)
 	local strict = opts and opts.strict
 	local setup, all = {}, {}
@@ -38,9 +36,7 @@ local function test(name, tags, fixture, steps, opts)
 		snapshot = true, traceUpdates = true, onStepError = strict and "end" or "skip", limit = strict and (opts.limit or TEST_LIMIT) or nil }
 end
 
--- Appends to `tests` one strict recon test per character of `characters` (fixtures.RECON_CHARACTERS), "<character>: <name>", from
--- `fixture(c)` with `steps(c)`, tagged recon, vanilla (they read no ReHUD) and `spec`; `continues`: it asks for an Exit & Continue
--- (1000 updates, 600 of them for the user's).
+-- One strict recon test per character, "<character>: <name>", tagged vanilla too as it reads no ReHUD; `continues`: 1000 updates, 600 of them the user's Exit & Continue.
 local function perCharacter(tests, spec, name, characters, fixture, steps, continues)
 	local tags = { "recon", "vanilla", spec, continues and "exit-continue" or nil }
 	for _, c in ipairs(characters) do

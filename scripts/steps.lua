@@ -44,6 +44,12 @@ local function addCard(card)
 	end, function(_, n) return cards(Isaac.GetPlayer(0), card) == n + 1, "card count did not rise by 1 (locked card?)" end)
 end
 
+local function holdsTrinket(p, id) return p:GetTrinket(0) == id or p:GetTrinket(1) == id end
+local function addTrinket(id)
+	return act("AddTrinket " .. id, function() Isaac.GetPlayer(0):AddTrinket(id) end,
+		function() return holdsTrinket(Isaac.GetPlayer(0), id), "trinket " .. id .. " not held (locked trinket?)" end)
+end
+
 -- An INFO line of `what`: f(player 0).
 local function info(what, f) return function(ctx) P("INFO", ctx.name, what, f(Isaac.GetPlayer(0))) end end
 
@@ -65,6 +71,6 @@ end
 local function holdsJr() return Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESAU_JR end
 
 return {
-	addTo = addTo, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, info = info, stepOff = stepOff,
+	addTo = addTo, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, addTrinket = addTrinket, holdsTrinket = holdsTrinket, info = info, stepOff = stepOff,
 	onlyIf = onlyIf, holdsJr = holdsJr,
 }

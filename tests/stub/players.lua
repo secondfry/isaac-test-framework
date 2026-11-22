@@ -16,7 +16,7 @@ function tlaz(t) return t == 29 or t == 38 end
 local INNATE = {[2]={[46]=1}} -- innate copies by player type: Cain's Lucky Foot
 function newPlayer(t, parent)
   seedN = seedN + 1
-  return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent,
+  return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, trinkets={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent,
     Position=Vector(0, 0), Velocity=Vector(0, 0), data={}, Index=seedN, hash=1000000 + seedN}, PM) -- hash: each entity its own, as seeds can be shared
 end
 -- Copies `p` holds by id, as {without a clock (owned, innate), with one (wisps, Zodiac, 3 Dollar Bill)}.
@@ -32,7 +32,7 @@ function kinds(p)
 end
 function PM:ToPlayer() return self end
 function PM:GetData() return self.data end
--- shortcut: Kill = leaves GetPlayer, unobserved; final E logs it.
+-- shortcut: Kill = leaves GetPlayer, no revive, unobserved; the Keeper kill and the revive recon log what the engine does, model it from them.
 function PM:Kill() for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
@@ -57,4 +57,6 @@ function PM:FullCharge(s) self.charge[s or 0], self.battery[s or 0] = full(self,
 function PM:NeedsCharge(s) return self:GetActiveCharge(s) < full(self, s) end
 function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
+function PM:AddTrinket(id) table.insert(self.trinkets, 1, id) end
+function PM:GetTrinket(i) return self.trinkets[i + 1] or 0 end
 function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip scenario

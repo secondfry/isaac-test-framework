@@ -17,7 +17,8 @@ local function act(label, start, done, ceiling)
 	return function(ctx)
 		if not ctx.t then
 			ctx.t, ctx.label = 0, label
-			P("ACTION", label, "by type", Isaac.GetPlayer(0):GetPlayerType())
+			local p = Isaac.GetPlayer(0) -- none after a death without a revive (the stub's Kill)
+			P("ACTION", label, "by type", p and p:GetPlayerType())
 			ctx.before = start(ctx)
 			return "again"
 		end

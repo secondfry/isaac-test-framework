@@ -24,6 +24,7 @@ ReHUD = {dbg={tracker=tracker, roster={isSettling=function(key) return (settle[k
     return rows
   end}}}
 function fakeTrack()
+  if #players == 0 then return end -- after a Kill() with no revive (players.lua): nobody to merge into
   local all, held = {}, {}
   for _, p in ipairs(players) do
     if p.t ~= 40 then

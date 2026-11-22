@@ -296,5 +296,5 @@ return {
 	logState = logState, update = update, startChecked = startChecked, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
 	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
 	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, helpersInfo = helpersInfo, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
-	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep,
+	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep, try = try,
 }

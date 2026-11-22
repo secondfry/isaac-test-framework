@@ -7,7 +7,9 @@ import sys
 from concurrent.futures import ProcessPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import test_harness as dry  # noqa: E402
+import dry  # noqa: E402
+import test_legacy as legacy  # noqa: E402
+from test_invariants import INVARIANT_MODES  # noqa: E402
 
 BASE = "df8ba84"
 WORKERS = 3  # a few cores only: all of them starve the machine (user, 2026-11-22)
@@ -17,9 +19,9 @@ CONFIGS = [
     ("all", {}),
     ("tlazRoll 29", {"tlazRoll": 29}),
     ("no tags", {"mode": ""}),
-    ("final", {"mode": dry.FINAL_MODE}),
-    ("final worst", {"mode": dry.FINAL_MODE, "render_every": 10 ** 6}),
-    ("obs", {"mode": f"tags obs\r\nSTUCK 3 {dry.SPEC}obs mirror | settle"}),
+    ("final", {"mode": legacy.FINAL_MODE}),
+    ("final worst", {"mode": legacy.FINAL_MODE, "render_every": 10 ** 6}),
+    ("obs", {"mode": f"tags obs\r\nSTUCK 3 {legacy.SPEC}obs mirror | settle"}),
     ("obsx veto", {"mode": "tags obsx", "ignoreFirstVetoPress": True, "birthrightDeadFirst": True}),
     ("obsx no effect", {"mode": "tags obsx", "ignoreClickerEffect": True}),
     ("obsx no restart", {"mode": "tags obsx", "ignoreRestart": True}),
@@ -34,14 +36,14 @@ CONFIGS = [
     ("press ignored", {"ignorePress": True}),
     ("no spend", {"noSpend": True}),
     ("wrong floor", {"wrongFloor": True}),
-    *((f"{flag} ({mode})", {"mode": mode, flag: True}) for flag, mode, _, _ in dry.INVARIANT_MODES),
+    *((f"{flag} ({mode})", {"mode": mode, flag: True}) for flag, mode, _, _ in INVARIANT_MODES),
 ]
 # HEAD's mode for each tags line (D3: tags replace modes).
-MODES = {"tags all": "regression", "": "", dry.FINAL_MODE: "only final,S3,r1,P4c", "tags obs": "only obs", "tags obsx": "only obsx",
+MODES = {"tags all": "regression", "": "", legacy.FINAL_MODE: "only final,S3,r1,P4c", "tags obs": "only obs", "tags obsx": "only obsx",
          "tags obsy-a": "only obsy a", "tags obsy-b": "only obsy b", "tags continue-b-loses": "only obsy b continue after B loses Esau Jr.",
          "tags continue-a-stored": "only obsy b continue with A stored"}
 # Each old scenario's new tests, "<spec> > <test>"; a scenario split in S4 lists every part.
-NAMES = {n: [dry.SPEC + n] for n in dry.SCENARIOS}
+NAMES = {n: [legacy.SPEC + n] for n in legacy.SCENARIOS}
 NEW_TO_OLD = {new: old for old, news in NAMES.items() for new in news}
 NAME = re.compile("|".join(re.escape(n) for n in sorted(NEW_TO_OLD, key=len, reverse=True)))
 # Each allowed difference, tagged with its bug or decision id (plan.md). VOCABULARY maps HEAD's lines onto the new ones; BOTH rewrites
@@ -77,7 +79,7 @@ ENTRY = re.compile(r"^(PROBE (?:TRACE u\d+ after .*?: )?ENTRY )\d+ ")
 PASSED = re.compile(r"^PROBE RESULT (.*) PASS (\d+) assertions")
 # Runs whose HEAD logs differ between runs of HEAD itself beyond ENTRY order: only their RESULT lines are compared. Untagged keys share a
 # seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs).
-VOLATILE = {f"untagged ({dry.FINAL_MODE})"}
+VOLATILE = {f"untagged ({legacy.FINAL_MODE})"}
 
 
 def show(path):
@@ -97,7 +99,7 @@ def walk_base(g):
 
 def base_mode(mode):
     first, sep, rest = mode.partition("\r\n")
-    return MODES[first] + sep + rest.replace(dry.SPEC, "")
+    return MODES[first] + sep + rest.replace(legacy.SPEC, "")
 
 
 def normalise(log, side):

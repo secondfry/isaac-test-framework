@@ -131,6 +131,8 @@ local function lineup(ctx)
 	return table.concat(t, " ")
 end
 
+local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
+
 -- The occupant of the pressed index once per game frame for 5 frames from its first sight with a seed other than the
 -- presser's: does a new Esau Jr. form hold c703 on its very first update? The timing list holds one watch per press, as the next
 -- press may come within those 5 frames; each watch ends early once its index holds a seed other than that first new one.
@@ -148,6 +150,12 @@ local function timingSee(p)
 				t.logged = frame
 				P("INFO", HARNESS.session.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
 					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
+				local trace = HARNESS.record.trace
+				if trace and not trace.checked then -- relative frames only: a snapshot compares across sessions
+					snap(HARNESS.session.ctx, trace.step .. " / TIMING " .. t.label .. " +" .. (frame - t.first), "index " .. t.index .. " type " .. p:GetPlayerType()
+						.. " c703 " .. owned(p, ESAU_JR) .. " primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY)
+						.. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET))
+				end
 			end
 		end
 	end
@@ -248,8 +256,6 @@ local function innerWatch(ctx)
 end
 local function innerOn(ctx) ctx.innerWatch = true end
 local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER " .. what, innerLine()) end end
-
-local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
 
 -- Player `p` after step `step`: the tag (GetData) as read before any write, so a wipe shows as none; untagged, it is tagged with its label.
 local function describe(ctx, step, p)

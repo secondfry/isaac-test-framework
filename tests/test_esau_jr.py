@@ -53,6 +53,8 @@ def test_esau_jr(path):
     print("PASS esau_jr obsy and recon verdicts, timing, Schoolbag, Soul switch and Esau's presses")
 
     assert f"PROBE SNAP esau_jr > {CROSS} | 1 Esau Jr. / lineup = A" in log, "no SNAP line after the first step"
+    recon = f"PROBE SNAP esau_jr > Isaac: {RECON} | 1 Esau Jr. #1 / TIMING Esau Jr. #1 +0 = index 0 type 0 c703 "
+    assert any(s.startswith(recon) for s in log), "a recon test's TIMING frames are not in its snapshot"
     assert any(s.startswith("PROBE NUMBERS esau_jr > ") and " LJ stored key 4294967" in s for s in log), "LJ never listed on its own key beside D"
     # A press that brings back a character on the presser's seed is the presser's stored drop, not the returned one's charge
     swaps = [s for s in log if s.startswith("PROBE SWAP Flip LJ -> D ")]

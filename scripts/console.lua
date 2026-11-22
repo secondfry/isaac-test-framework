@@ -42,8 +42,8 @@ local function stage(n)
 	end)
 end
 
--- A new (not continued) game with player 0 of type `t`; records floor 1.
-local function fresh(t)
+-- A new (not continued) game by `restart t`, with player 0 of type `t` when `typed`; records floor 1.
+local function newGame(t, typed)
 	return act("restart " .. t, function()
 		queue("restart " .. t)
 		expectStart("new")
@@ -53,12 +53,15 @@ local function fresh(t)
 		if S.gen == gen or game:GetNumPlayers() == 0 then return false, "no new game" end
 		if S.continued then error("restart " .. t .. " continued a run") end
 		local got = Isaac.GetPlayer(0):GetPlayerType()
-		if got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
+		if typed and got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
 		ctx.floors[1] = floorName()
 		P("FLOOR", 1, ctx.floors[1])
 		return true
 	end)
 end
+local function fresh(t) return newGame(t, true) end
+-- Any character: a fixture's done check then reports a locked one (fixtures.character).
+local function restart(t) return newGame(t, false) end
 
 -- Recon (plan open point 1): the `seed` command with the run's own start seed, then up to 50 updates (under the STUCK mark) for a game
 -- start, logging whether one came. Whether the command starts a run, and from MC_POST_RENDER, is unobserved.
@@ -112,4 +115,4 @@ local function flush()
 	Isaac.ExecuteCommand(c)
 end
 
-return { give = give, remove = remove, stage = stage, fresh = fresh, seed = seed, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }
+return { give = give, remove = remove, stage = stage, fresh = fresh, restart = restart, seed = seed, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }

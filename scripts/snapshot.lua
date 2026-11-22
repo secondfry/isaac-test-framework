@@ -34,4 +34,14 @@ local function test(name, tags, fixture, steps, opts)
 		snapshot = true, traceUpdates = true, onStepError = strict and "end" or "skip", limit = strict and (opts.limit or TEST_LIMIT) or nil }
 end
 
-return { test = test }
+-- Appends to `tests` one strict recon test per character of `characters` (fixtures.RECON_CHARACTERS), "<character>: <name>", from
+-- `fixture(c)` with `steps(c)`, tagged recon, `spec` and characters-recon; `continues`: it asks for an Exit & Continue (1000 updates,
+-- 600 of them for the user's).
+local function perCharacter(tests, spec, name, characters, fixture, steps, continues)
+	local tags = { "recon", spec, "characters-recon", continues and "exit-continue" or nil }
+	for _, c in ipairs(characters) do
+		tests[#tests + 1] = test(c.name .. ": " .. name, tags, fixture(c), steps(c), { strict = true, limit = continues and 1000 or nil })
+	end
+end
+
+return { test = test, perCharacter = perCharacter }

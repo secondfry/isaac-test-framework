@@ -50,9 +50,15 @@ def test_clicker_effect_ignored(path):
     print("PASS an unchanged Clicker effect stops its test")
 
 
+CLICKER_ON_ISAAC = "hello > Clicker on Isaac"  # a checked press in no legacy scenario
+
+
 def unswapped(path):
-    """The verdicts when no swap completes: a snapshot test whose assertion follows its first press only records."""
-    return {**dry.expected(path), **{full(n): "RECORDED" for n in ("obsx cancelled Clicker", "obsx cancelled Clicker then change")}}
+    """The verdicts when no swap completes: a snapshot test whose assertion follows its first press only records; Clicker on Isaac
+    (checked on its own) left out."""
+    want = {**dry.expected(path), **{full(n): "RECORDED" for n in ("obsx cancelled Clicker", "obsx cancelled Clicker then change")}}
+    del want[CLICKER_ON_ISAAC]
+    return want
 
 
 def test_press_ignored(path):
@@ -60,8 +66,10 @@ def test_press_ignored(path):
     log = dry.run(path, ignorePress=True)
     assert any(f"{full('obsx form loses Esau Jr.')} 2 Esau Jr. never happened:" in s for s in log)
     assert not any(s == "PROBE CMD giveitem c105" for s in log)
-    expect_parts(dry.finished(log, "press ignored", path), "press ignored", unswapped(path),
+    got = dry.finished(log, "press ignored", path)
+    expect_parts(got, "press ignored", unswapped(path),
                  {n: ("no new character, arms ", "test limit ") for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
+    assert dry.fails(got[CLICKER_ON_ISAAC], "Clicker: no new character, arms "), got[CLICKER_ON_ISAAC]
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
     assert dry.run.saved.startswith(f"tags all\nSTUCK {len(stuck)} ") and " | " in dry.run.saved, dry.run.saved
@@ -71,6 +79,7 @@ def test_press_ignored(path):
 def test_no_spend(path):
     got = dry.finished(dry.run(path, noSpend=True), "no spend", path)
     expect_parts(got, "no spend", unswapped(path), {n: SPEND_SEEN[n] for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
+    assert dry.fails(got[CLICKER_ON_ISAAC], "spent nothing: charge"), got[CLICKER_ON_ISAAC]
     print("PASS no spend fails every swap:", got[full("test3")][:110])
 
 

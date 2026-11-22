@@ -291,6 +291,35 @@ local function swapActives(p) p:SwapActiveItems() end
 -- Item `id` into `slot` by a drop press, SwapActiveItems as the fallback.
 local function toSlot(label, slot, id) return dropPress(label, function(p) return p:GetActiveItem(slot) == id end, "SwapActiveItems", swapActives) end
 
+-- Every GetPlayer index's type and entity, for a press whose effect is unobserved.
+local function lineupText()
+	local t = {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		t[#t + 1] = i .. ":t" .. p:GetPlayerType() .. "/" .. GetPtrHash(p)
+	end
+	return table.concat(t, " ")
+end
+
+-- Recon: one real drop press, by player 0 or with who.any by any entity, then up to 30 updates for a type or entity to change; logs what
+-- changed, or that nothing did. No fallback: what the press does is the question (Tainted Forgotten's: plan open point 5).
+local function dropOnce(label, who)
+	return act(label, function()
+		local H = HARNESS.press
+		H.oneShot, H.pressHash = ButtonAction.ACTION_DROP, nil
+		if who and who.any then H.pressHash = false end
+		return lineupText()
+	end, function(ctx, before)
+		local now = lineupText()
+		if now == before and ctx.t < 30 then return false, "nothing changed" end
+		local polled = HARNESS.press.oneShot == nil -- the one-shot clears on the first triggered poll it answers
+		endPress()
+		P("INFO", ctx.name, label, "drop press:", now == before and "nothing changed in 30 updates" or ("changed after " .. ctx.t .. " updates"), "|",
+			before, "->", now, "| polled", polled)
+		return true
+	end)
+end
+
 local function deadFirst() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_T_LAZ end
 
 -- Player 0 swaps its two Esau Jr. copies (primary and Schoolbag) by a real drop press, SwapActiveItems as the fallback. Both slots hold
@@ -313,5 +342,5 @@ return {
 	onUse = onUse, onPlayerUpdate = onPlayerUpdate, onInput = onInput, onVetoPre = onVetoPre, onClickerUse = onClickerUse,
 	onVetoUpdate = onVetoUpdate, endPress = endPress, teardown = teardown, press = press, flip = flip, esauJr = esauJr, soulJE = soulJE,
 	clicker = clicker, cancelledClicker = cancelledClicker, obsClicker = obsClicker, birthrightFlip = birthrightFlip, dropPress = dropPress,
-	toSlot = toSlot, deadFirst = deadFirst, swapCopies = swapCopies,
+	toSlot = toSlot, dropOnce = dropOnce, deadFirst = deadFirst, swapCopies = swapCopies,
 }

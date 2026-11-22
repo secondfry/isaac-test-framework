@@ -6,12 +6,12 @@ EntityType = {ENTITY_FAMILIAR=3, ENTITY_PICKUP=5}; FamiliarVariant = {ITEM_WISP=
 CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105, COLLECTIBLE_YUM_HEART=45, COLLECTIBLE_SCHOOLBAG=534, COLLECTIBLE_STRAW_MAN=667,
   COLLECTIBLE_ANKH=161, COLLECTIBLE_JUDAS_SHADOW=311, COLLECTIBLE_LAZARUS_RAGS=332}
 TrinketType = {TRINKET_MISSING_POSTER=23}
-PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_KEEPER=14, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
+PlayerType = {PLAYER_ISAAC=0, PLAYER_ISAAC_B=21, PLAYER_CAIN=2, PLAYER_KEEPER=14, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
   PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_JACOB_B=37, PLAYER_THESOUL_B=40}
 ActiveSlot = {SLOT_PRIMARY=0, SLOT_SECONDARY=1, SLOT_POCKET=2}
-Card = {CARD_SOUL_LAZARUS=89, CARD_SOUL_JACOB=97}
+Card = {CARD_SOUL_LAZARUS=89, CARD_SOUL_FORGOTTEN=95, CARD_SOUL_JACOB=97}
 InputHook = {IS_ACTION_PRESSED=0, IS_ACTION_TRIGGERED=1, GET_ACTION_VALUE=2}
-ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10, ACTION_DROP=11} -- the stub never polls ACTION_DROP: drop presses take their fallback
+ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10, ACTION_DROP=11}
 local VM = {}; VM.__index = VM
 function Vector(x, y) return setmetatable({X=x, Y=y}, VM) end
 VM.__add = function(a, b) return Vector(a.X + b.X, a.Y + b.Y) end
@@ -43,6 +43,8 @@ function Isaac.GetItemConfig() return {GetCollectibles=function() return {Size=7
 
 ignoreRestart = false -- set by the test: `restart` does nothing
 ignorePress = false -- set by the test: the engine polls input but ignores a forced press
+ignoreDrop = false -- set by the test: the engine ignores a forced drop press, so drop presses take their fallback
+lockedType = nil -- set by the test: `restart` of this type starts Isaac instead, as a locked character might (unobserved)
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do

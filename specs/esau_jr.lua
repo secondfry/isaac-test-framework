@@ -12,7 +12,7 @@ local steps_ = include("scripts.steps")
 local giveEsau, changeType, info, stepOff, onlyIf, holdsJr = steps_.giveEsau, steps_.changeType, steps_.info, steps_.stepOff, steps_.onlyIf,
 	steps_.holdsJr
 local manual = include("scripts.manual")
-local dropByHand, pickByHand = manual.dropByHand, manual.pickByHand
+local dropByHand, pickByHand, continued = manual.dropByHand, manual.pickByHand, manual.continued
 local assertions = include("scripts.assert")
 local expect, expectCount, oneC4, pre = assertions.expect, assertions.expectCount, assertions.oneC4, assertions.pre
 local record = include("scripts.record")
@@ -30,7 +30,8 @@ local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, re
 	jrSteps.flipV, jrSteps.charPresses, jrSteps.esauLoses
 local fixtures = include("scripts.fixtures")
 local fixture, holding, TLAZ_JR, TLAZ_FLIPS = fixtures.fixture, fixtures.holdingJr, fixtures.TLAZ_JR, fixtures.TLAZ_FLIPS
-local test = include("scripts.snapshot").test
+local snapshot = include("scripts.snapshot")
+local test, perCharacter = snapshot.test, snapshot.perCharacter
 local characters = include("scripts.characters")
 local track, named, who, whoInfo, merged = characters.track, characters.named, characters.who, characters.whoInfo, characters.merged
 local enums = include("scripts.ids")
@@ -245,5 +246,9 @@ local tests = {
 		replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },
 		{ "Esau Jr. after the loss #2", verdict("Esau Jr. after the loss #2", esauJr("Esau Jr. after the loss #2")) } }),
 }
+-- Recon: each character's Esau Jr. character, its return, and both across Exit & Continue.
+perCharacter(tests, "esau_jr", "Esau Jr. press, press, Exit & Continue, press", fixtures.RECON_CHARACTERS,
+	function(c) return fixtures.character(c, { give(ESAU_JR) }, fixtures.owns(ESAU_JR)) end,
+	function(c) return { jrPair("Esau Jr. #1", c.who), jrPair("Esau Jr. #2", c.who), continued, jrPair("Esau Jr. #3", c.who) } end, true)
 
 return { name = "esau_jr", tests = tests }

@@ -4,7 +4,7 @@ function Isaac.ExecuteCommand(c)
   if c:match("^seed ") then return end
   local a, b = c:match("^(%S+) c?(%d+)$")
   b = tonumber(b)
-  if a == "restart" then if not ignoreRestart then pendingStart = b end
+  if a == "restart" then if not ignoreRestart then pendingStart = b == lockedType and 0 or b end
   elseif a == "giveitem" then
     local to = players[1]
     for _, p in ipairs(players) do if p.t == 14 and p.Parent then to = p end end -- to the Keeper once one exists (in-game 2026-11-22)

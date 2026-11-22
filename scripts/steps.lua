@@ -6,6 +6,8 @@ local owned, cards, ofType = engine.owned, engine.cards, engine.ofType
 local ids = include("scripts.ids")
 local ESAU_JR, ESAU, PRIMARY = ids.ESAU_JR, ids.ESAU, ids.PRIMARY
 
+local game = Game()
+
 -- AddCollectible c`id` on the player `find()` returns; `missing` is the error when it returns none.
 local function addTo(label, find, id, missing)
 	return act(label, function()
@@ -44,6 +46,22 @@ local function addCard(card)
 	end, function(_, n) return cards(Isaac.GetPlayer(0), card) == n + 1, "card count did not rise by 1 (locked card?)" end)
 end
 
+-- UseCard on player 0, the card not held (works for Soul of Jacob and Esau, lua-api-notes.md), then up to 30 updates for the player
+-- count to change; logs the count either way, as what other cards add is unobserved.
+local function useCard(card)
+	return act("UseCard " .. card, function(ctx)
+		local n = game:GetNumPlayers()
+		Isaac.GetPlayer(0):UseCard(card, 0)
+		P("INFO", ctx.name, "UseCard", card, "players", n, "->", game:GetNumPlayers(), "in the call")
+		return n
+	end, function(ctx, n)
+		local now = game:GetNumPlayers()
+		if now == n and ctx.t < 30 then return false, "players still " .. n end
+		P("INFO", ctx.name, "UseCard", card, "players", n, "->", now, "after", ctx.t, "updates")
+		return true
+	end)
+end
+
 local function holdsTrinket(p, id) return p:GetTrinket(0) == id or p:GetTrinket(1) == id end
 local function addTrinket(id)
 	return act("AddTrinket " .. id, function() Isaac.GetPlayer(0):AddTrinket(id) end,
@@ -71,6 +89,6 @@ end
 local function holdsJr() return Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESAU_JR end
 
 return {
-	addTo = addTo, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, addTrinket = addTrinket, holdsTrinket = holdsTrinket, info = info, stepOff = stepOff,
+	addTo = addTo, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, useCard = useCard, addTrinket = addTrinket, holdsTrinket = holdsTrinket, info = info, stepOff = stepOff,
 	onlyIf = onlyIf, holdsJr = holdsJr,
 }

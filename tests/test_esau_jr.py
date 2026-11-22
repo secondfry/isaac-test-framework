@@ -47,12 +47,16 @@ CHECKED = {  # the tests with assertions, by old name: their PASS counts (every 
     "final F Flip partners": 47,
 }
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
-WANT = {f"esau_jr > {new}": f"PASS {CHECKED[old]} assertions" if old in CHECKED else "RECORDED" for old, news in NAMES.items() for new in news}
+RECON = "Esau Jr. press, press, Exit & Continue, press"
+WANT = {**{f"esau_jr > {new}": f"PASS {CHECKED[old]} assertions" if old in CHECKED else "RECORDED" for old, news in NAMES.items() for new in news},
+        **dry.recon("esau_jr", RECON)}
 # Bug 7: VERDICT lines label characters by entity (GetPtrHash), not seed. D2: the fixture's done poll is a step, so a failed step's index
 # is one higher (press ignored, no spend). D2 isolation: final F's trace starts after its restart, not before it in the previous
-# test's run, so its TRACE lines start later than HEAD's: compared by its assertion count alone.
+# test's run, so its TRACE lines start later than HEAD's: compared by its assertion count alone. Bug 8: the stub now takes a drop press
+# (obsya1), so these tests' drops land in 1 update, not by their fallback at 61, and every later line moves: compared by assertion count.
 ALLOW = [
     ("D2", "final F Flip partners", None),
+    *(("bug 8", old, None) for old in ("obsy a schoolbag", "obsy a schoolbag Clicker", "obsy a Forgotten and Soul", "final A two Esau Jr. copies")),
     *(("bug 7", old, r"(?<= VERDICT ).*$") for old in ("obsy a Dead form after A lost", "final I Birthright twins Esau Jr.", "final L flipped cross",
                                                        "final M original loses Esau Jr.")),
     *(("D2", old, r"(?<=error in step )\d+") for old in ("P4a", "S4", "final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up")),
@@ -65,17 +69,18 @@ def test_esau_jr(path):
     log = dry.run(path, mode=MODE)
     dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
 
-    info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in OBSY])
+    info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in OBSY] + [f"esau_jr > {c}: {RECON}" for c in dry.RECON])
 
     def has(test, text):
         return any(text in s for s in info[f"esau_jr > {test}"])
     by_esau = "Esau Jr. presses by Esau"
     assert has(by_esau, "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
     assert has(by_esau, "index 1 type ") and has(by_esau, " primary 105 c703 owned 0")
-    assert has("Esau Jr. through the Schoolbag's second slot", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45")
-    assert has("Esau Jr. presses by The Forgotten and The Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")
+    # bug 8: the drop press, as obsya1 saw it, swaps the Schoolbag's slots and turns The Forgotten into The Soul in 1 update
+    assert has("Esau Jr. through the Schoolbag's second slot", "Esau Jr. to primary after 1 updates by drop press | primary 703 secondary 45")
+    assert has("Esau Jr. presses by The Forgotten and The Soul", "switch to the Soul after 1 updates by drop press")
     assert has("Esau Jr. through the Schoolbag with a Clicker press", "VERDICT Clicker index 0 B -> unchanged")
-    print("PASS esau_jr obsy verdicts, timing, Schoolbag, Soul switch and Esau's presses")
+    print("PASS esau_jr obsy and recon verdicts, timing, Schoolbag, Soul switch and Esau's presses")
 
     cross = NAMES["obs esaujr cross"][0]
     assert f"PROBE SNAP esau_jr > {cross} | 1 Esau Jr. / lineup = A" in log, "no SNAP line after the first step"
@@ -84,7 +89,7 @@ def test_esau_jr(path):
     swaps = [s for s in log if s.startswith("PROBE SWAP Flip LJ -> D ")]
     assert swaps and all(" spent stored presser charge, " in s for s in swaps), swaps
     copies, walked = (f"esau_jr > {NAMES[old][0]}" for old in ("final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up"))
-    assert any(s.startswith(f"PROBE INFO {copies} swap the Esau Jr. copies after ") and " by SwapActiveItems | " in s for s in log)
+    assert any(s.startswith(f"PROBE INFO {copies} swap the Esau Jr. copies after 1 updates by drop press | ") for s in log)
     hand = [s for s in log if s.startswith(f"PROBE INFO {walked} YOU: ")]
     assert len(hand) == 2, hand
     assert not any(s.startswith(f"PROBE STUCK {walked} ") for s in log), "a manual step logged STUCK"
@@ -94,4 +99,15 @@ def test_esau_jr(path):
     print(f"PASS {MODE}: SNAP, LJ's own number, stored presser spends, the copies' swap and the walks")
 
 
-TESTS = [test_esau_jr]
+def test_drop_fallback(path):
+    # a drop press the engine ignores: each drop step takes its fallback at 60 updates
+    mode = "tags obsy-a"
+    log = dry.run(path, mode=mode, ignoreDrop=True)
+    dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
+    for test, line in (("Esau Jr. through the Schoolbag's second slot", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45"),
+                       ("Esau Jr. presses by The Forgotten and The Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")):
+        assert any(s.startswith(line) for s in dry.infos(log, f"esau_jr > {test}")), line
+    print(f"PASS {mode} with the drop press ignored: SwapActiveItems and ChangePlayerType fallbacks")
+
+
+TESTS = [test_esau_jr, test_drop_fallback]

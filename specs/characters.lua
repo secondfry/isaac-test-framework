@@ -9,7 +9,7 @@ local act, condition = wait.act, wait.condition
 local console = include("scripts.console")
 local fresh, give, remove, stage, giveAnyone = console.fresh, console.give, console.remove, console.stage, console.giveAnyone
 local steps = include("scripts.steps")
-local giveEsau, addCard, giveType = steps.giveEsau, steps.addCard, steps.giveType
+local giveEsau, addCard, giveType, useCard = steps.giveEsau, steps.addCard, steps.giveType, steps.useCard
 local continued = include("scripts.manual").continued
 local assertions = include("scripts.assert")
 local expect, expectN, expectCount, oneC4, twoC4, birthrightOwners = assertions.expect, assertions.expectN, assertions.expectCount,
@@ -19,12 +19,13 @@ local verdict, ids, helpersInfo = record.verdict, record.ids, record.helpersInfo
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
 local press = include("scripts.press")
-local flip, soulJE, birthrightFlip, deadFirst = press.flip, press.soulJE, press.birthrightFlip, press.deadFirst
+local flip, soulJE, birthrightFlip, deadFirst, dropOnce = press.flip, press.soulJE, press.birthrightFlip, press.deadFirst, press.dropOnce
 local jrSteps = include("scripts.esau_jr_steps")
 local jrPair, flipV = jrSteps.jrPair, jrSteps.flipV
 local fixtures = include("scripts.fixtures")
 local fixture = fixtures.fixture
-local snapshotTest = include("scripts.snapshot").test
+local snapshot = include("scripts.snapshot")
+local snapshotTest, perCharacter = snapshot.test, snapshot.perCharacter
 local named = include("scripts.characters").named
 local enums = include("scripts.ids")
 local FLIP, BIRTHRIGHT, STRAWMAN = enums.FLIP, enums.BIRTHRIGHT, enums.STRAWMAN
@@ -95,7 +96,7 @@ end
 local CHECKED = { "characters", "rehud" }
 local REHUD_2_8 = { "characters", "rehud", "rehud-2.8" }
 
-return { name = "characters", tests = {
+local tests = {
 	{ name = "Birthright twins keep their items through two Flips and a new floor", tags = CHECKED,
 		fixture = fixtures.FLIPPED, steps = {
 			give(BIRTHRIGHT, 2), look("after Birthright", birthrightOwners),
@@ -170,4 +171,30 @@ return { name = "characters", tests = {
 		{ "select type-29 twin", birthrightFlip, deadFirst }, jrPair("Esau Jr. #1"), { "ids after Esau Jr. #1", ids("after Esau Jr. #1") },
 		jrPair("Esau Jr. #2"), { "ids after Esau Jr. #2", ids("after Esau Jr. #2") }, continued, { "ids after Continue", ids("after Continue") },
 		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", ids("after Flip after Continue") } }, STRICT_CONTINUE),
-} }
+}
+
+-- Recon (plan S5c): the characters items add, by UseCard (whether Soul of the Forgotten brings a Forgotten is plan open point 4), across
+-- Exit & Continue; the body and soul switch by a real drop press; Birthright and Flip on Tainted Lazarus.
+local RECON = fixtures.RECON_CHARACTERS
+local function only(...)
+	local want, out = { ... }, {}
+	for _, c in ipairs(RECON) do
+		for _, t in ipairs(want) do if c.type == t then out[#out + 1] = c end end
+	end
+	return out
+end
+perCharacter(tests, "characters", "Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue", RECON, fixtures.character,
+	function()
+		return { { "give Strawman", give(STRAWMAN) }, { "Soul of Jacob and Esau", useCard(enums.SOUL_JACOB) },
+			{ "Soul of the Forgotten", useCard(enums.SOUL_FORGOTTEN) }, { "ids before the exit", ids("before the exit") }, continued,
+			{ "ids after Continue", ids("after Continue") } }
+	end, true)
+perCharacter(tests, "characters", "switch between body and soul", only(enums.FORGOTTEN, enums.T_FORGOTTEN), fixtures.character, function(c)
+	return { { "switch", dropOnce("switch", c.who) }, { "switch back", dropOnce("switch back", c.who) } }
+end)
+perCharacter(tests, "characters", "Birthright and Flip", only(enums.T_LAZ), fixtures.character, function()
+	return { { "give Birthright", give(BIRTHRIGHT, 2) }, { "ids after Birthright", ids("after Birthright") }, { "Flip", flipV("Flip") },
+		{ "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") } }
+end)
+
+return { name = "characters", tests = tests }

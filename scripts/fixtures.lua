@@ -1,6 +1,6 @@
 -- Shared fixtures: each a starting setup from a fresh run, with the done check the runner polls before the test's steps.
 local console = include("scripts.console")
-local fresh, give, stage = console.fresh, console.give, console.stage
+local fresh, restart, give, stage = console.fresh, console.restart, console.give, console.stage
 local press = include("scripts.press")
 local flip, esauJr = press.flip, press.esauJr
 local engine = include("scripts.game")
@@ -33,6 +33,25 @@ local function jacobAndEsau(setup)
 	return fixture("Jacob and Esau", setup, JACOB, function() return ofType(ESAU) ~= nil, "no Esau beside Jacob" end)
 end
 
+-- The characters the characters-recon tests start as (plan S5c). Tainted Isaac and Tainted Jacob may be locked on the save (README),
+-- which their fixture reports. `who`: the press for Tainted Forgotten, as which button and entity use his active is unknown.
+local RECON_CHARACTERS = {
+	{ type = ids.ISAAC, name = "Isaac" }, { type = ids.T_ISAAC, name = "Tainted Isaac" }, { type = JACOB, name = "Jacob and Esau" },
+	{ type = ids.FORGOTTEN, name = "The Forgotten" }, { type = ids.T_FORGOTTEN, name = "Tainted Forgotten", who = { index = 0, any = true } },
+	{ type = T_LAZ, name = "Tainted Lazarus" }, { type = ids.T_JACOB, name = "Tainted Jacob" },
+}
+-- Recon character `c` started by restart, then `setup` (a flat step list); a restart that brings another character fails the test as a
+-- precondition naming `c`, as a locked one may (unobserved).
+local function character(c, setup, extra)
+	local f = fixture(c.name .. " started", { restart(c.type), table.unpack(setup or {}) }, c.type, extra)
+	local done = f.done
+	f.done = function(ctx)
+		local ok, why = done(ctx)
+		return ok, not ok and (c.name .. " (type " .. c.type .. ") cannot be started, locked on this save? " .. tostring(why)) or nil
+	end
+	return f
+end
+
 -- Tainted Lazarus L, Flip to a new Dead form D, back, Esau Jr. to L's form LJ (on D's seed), and LJ's Flip to D (in-game 2026-11-22).
 local TLAZ_FLIPS = fixture("Tainted Lazarus's Flip and Esau Jr. characters", { fresh(T_LAZ), give(4), give(ESAU_JR), named("L"),
 	flip("Flip L -> D"), named("D"), give(5), flip("Flip D -> L"), who("L"), lookC("L and D"), esauJr("Esau Jr. L -> LJ"), named("LJ"), give(6),
@@ -41,6 +60,7 @@ local TLAZ_FLIPS = fixture("Tainted Lazarus's Flip and Esau Jr. characters", { f
 
 return {
 	fixture = fixture, owns = owns, fresh = freshRun, holdingJr = holdingJr, jacobAndEsau = jacobAndEsau, TLAZ_FLIPS = TLAZ_FLIPS,
+	RECON_CHARACTERS = RECON_CHARACTERS, character = character,
 	TLAZ_JR = holdingJr("Tainted Lazarus", T_LAZ),
 	TLAZ_JR_FLOOR_2 = fixture("Tainted Lazarus holding Esau Jr. on floor 2", { fresh(T_LAZ), give(4), give(ESAU_JR), stage(2) }, T_LAZ, ownsJr),
 	-- Tainted Lazarus with c4 from floor 1, flipped on floor 2 to its Dead form, which takes c5.

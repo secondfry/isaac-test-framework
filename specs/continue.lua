@@ -16,7 +16,7 @@ local assertions = include("scripts.assert")
 local expect, expectN, expectOne, expectCount, own, oneC4 = assertions.expect, assertions.expectN, assertions.expectOne,
 	assertions.expectCount, assertions.own, assertions.oneC4
 local record = include("scripts.record")
-local playerCount, helpersInfo = record.playerCount, record.helpersInfo
+local playerCount, helpersInfo, ids = record.playerCount, record.helpersInfo, record.ids
 local settle = include("scripts.settle")
 local look, settled = settle.look, settle.settled
 local press = include("scripts.press")
@@ -24,9 +24,10 @@ local flip, soulJE = press.flip, press.soulJE
 local jrSteps = include("scripts.esau_jr_steps")
 local jrPair, loseEsauJr = jrSteps.jrPair, jrSteps.loseEsauJr
 local fixtures = include("scripts.fixtures")
-local snapshotTest = include("scripts.snapshot").test
-local ids = include("scripts.ids")
-local ISAAC, CAIN, FLIP, ESAU_JR, KEEPER, STRAWMAN = ids.ISAAC, ids.CAIN, ids.FLIP, ids.ESAU_JR, ids.KEEPER, ids.STRAWMAN
+local snapshot = include("scripts.snapshot")
+local snapshotTest, perCharacter = snapshot.test, snapshot.perCharacter
+local enums = include("scripts.ids")
+local ISAAC, CAIN, FLIP, ESAU_JR, KEEPER, STRAWMAN = enums.ISAAC, enums.CAIN, enums.FLIP, enums.ESAU_JR, enums.KEEPER, enums.STRAWMAN
 
 local SNAPSHOT = { strict = true, limit = 1000 } -- 600 of a test's updates are the user's Exit & Continue
 local isaacJr = fixtures.holdingJr("Isaac", ISAAC)
@@ -58,7 +59,7 @@ local function copyKinds(ctx, label)
 	expectCount(ctx, label, 2, 4)
 end
 
-return { name = "continue", tests = {
+local tests = {
 	-- Does a stored character survive Exit & Continue?
 	snapshotTest("Esau Jr. character stored across Exit & Continue", { "continue", "rehud", "obs", "obsy-b", "continue-a-stored", "exit-continue" },
 		isaacJr, { jrPair("Esau Jr. #1"), continued, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }, SNAPSHOT),
@@ -84,4 +85,10 @@ return { name = "continue", tests = {
 		steps = { look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
 			function(ctx) expect(ctx, "no re-settle after continue", dbg().roster.isSettling(keyOf(Isaac.GetPlayer(0))), false) end,
 			engineWisps("after continue", 4, 1), engineWisps("after continue", 46, 1), look("after continue", copyKinds) } },
-} }
+}
+-- Recon: what Exit & Continue keeps of each character's ids (record.ids) and state.
+perCharacter(tests, "continue", "start, then Exit & Continue", fixtures.RECON_CHARACTERS, fixtures.character, function()
+	return { { "ids before the exit", ids("before the exit") }, continued, { "ids after Continue", ids("after Continue") } }
+end, true)
+
+return { name = "continue", tests = tests }

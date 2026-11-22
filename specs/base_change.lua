@@ -12,8 +12,8 @@ local assertions = include("scripts.assert")
 local expect, expectN, expectOne, c4c5, noneLeft, fired = assertions.expect, assertions.expectN, assertions.expectOne, assertions.c4c5,
 	assertions.noneLeft, assertions.fired
 local record = include("scripts.record")
-local pocketHeld, playerCount, storedSettlingNow, innerLine, innerOn, innerInfo, innerWatch = record.pocketHeld, record.playerCount,
-	record.storedSettlingNow, record.innerLine, record.innerOn, record.innerInfo, record.innerWatch
+local pocketHeld, playerCount, storedSettlingNow, innerLine, innerOn, innerInfo, innerWatch, typeNow, verdict = record.pocketHeld,
+	record.playerCount, record.storedSettlingNow, record.innerLine, record.innerOn, record.innerInfo, record.innerWatch, record.typeNow, record.verdict
 local settle = include("scripts.settle")
 local look, lookC, settled, idle = settle.look, settle.lookC, settle.settled, settle.idle
 local press = include("scripts.press")
@@ -22,10 +22,13 @@ local jrSteps = include("scripts.esau_jr_steps")
 local jrFirst, jrAgain, giveClicker = jrSteps.jrFirst, jrSteps.jrAgain, jrSteps.giveClicker
 local fixtures = include("scripts.fixtures")
 local FLIPPED, TLAZ_JR, TLAZ_C4, jacobAndEsau = fixtures.FLIPPED, fixtures.TLAZ_JR, fixtures.TLAZ_C4, fixtures.jacobAndEsau
-local snapshotTest = include("scripts.snapshot").test
+local snapshot = include("scripts.snapshot")
+local snapshotTest, perCharacter = snapshot.test, snapshot.perCharacter
+local continued = include("scripts.manual").continued
 local named = include("scripts.characters").named
 local ids = include("scripts.ids")
-local FLIP, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ, JACOB, ESAU = ids.FLIP, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.DEAD_T_LAZ, ids.JACOB, ids.ESAU
+local FLIP, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ, JACOB, ESAU, PRIMARY = ids.FLIP, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.DEAD_T_LAZ, ids.JACOB,
+	ids.ESAU, ids.PRIMARY
 
 local game = Game()
 local TAGS, SNAPSHOT_TAGS, DISPUTE_TAGS = { "base_change", "rehud" }, { "base_change", "rehud", "obs" }, { "base_change", "rehud", "obs", "obsx" }
@@ -126,5 +129,10 @@ local tests = {
 		{ "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") }, { "stored settling", storedSettlingNow }, { "settle", settled },
 		jrAgain(), { "watch 60", idle(60) } }, STRICT),
 }
+-- Recon: each character's Clicker roll (a press by `who` for Tainted Forgotten) and what Exit & Continue keeps of it.
+perCharacter(tests, "base_change", "Clicker, then Exit & Continue", fixtures.RECON_CHARACTERS, fixtures.character, function(c)
+	return { { "give Clicker", give(CLICKER) }, { "Clicker", verdict("Clicker", press.press("Clicker", CLICKER, PRIMARY, nil, 60, c.who)) },
+		{ "type after Clicker", typeNow }, continued, { "type after Continue", typeNow } }
+end, true)
 
 return { name = "base_change", tests = tests }

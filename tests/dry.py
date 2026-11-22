@@ -17,6 +17,13 @@ RESULT = re.compile(r"^PROBE RESULT (.+?) (PASS \d+ assertions|FAIL |RECORDED|SK
 NOT_MODULES = {"test_harness", "test_report"}  # the entry, and report.py's own tests (run on their own)
 # A planned test as the runner holds it: its full name, tags, limit in updates (None: none), snapshot test or not, onStepError (None).
 Planned = collections.namedtuple("Planned", "name tags limit snapshot soft")
+# The characters-recon tests' characters, as scripts/fixtures.lua RECON_CHARACTERS names them.
+RECON = ("Isaac", "Tainted Isaac", "Jacob and Esau", "The Forgotten", "Tainted Forgotten", "Tainted Lazarus", "Tainted Jacob")
+
+
+def recon(spec, name, characters=RECON):
+    """The WANT of a spec's characters-recon test `name`, one per character: each only records."""
+    return {f"{spec} > {c}: {name}": "RECORDED" for c in characters}
 
 
 @functools.lru_cache(maxsize=None)

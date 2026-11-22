@@ -26,6 +26,7 @@ WANT = {
     f"{SPEC} > {VETOED[1]}": "PASS 1 assertions",
     f"{SPEC} > {NAMES['obsx merge 38 to 29 then Flip'][0]}": "RECORDED",
     f"{SPEC} > {NAMES['obsx merge 29 to 38 then Esau Jr.'][0]}": "RECORDED",
+    **dry.recon(SPEC, "Clicker, then Exit & Continue"),
 }
 # The plan's first fired assertion, "a vetoed Clicker fires no MC_USE_ITEM", adds an INFO line and turns RECORDED into PASS. D2: the
 # fixture's done poll is a step, so a failed step's index is one higher (press ignored, no spend).
@@ -42,6 +43,10 @@ def test_base_change_lines(path):
         line = f"PROBE INFO {SPEC} > {name} vetoed Clicker: callback 3 with 482 fired 0"
         assert line in dry.segment(log, f"{SPEC} > {name}"), name
     print("PASS base_change: P2 reaches the split, a vetoed Clicker fires no MC_USE_ITEM")
+    for c in dry.RECON:
+        info = dry.infos(log, f"{SPEC} > {c}: Clicker, then Exit & Continue")
+        assert any(s.startswith("VERDICT Clicker index 0 ") for s in info) and not any("never happened" in s for s in info), (c, info)
+    print("PASS base_change recon: every character's Clicker press reaches its verdict")
 
 
 TESTS = [test_base_change_lines]

@@ -4,6 +4,8 @@ import dry
 MODE = "tags characters"
 BIRTHRIGHT_IDS = "ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue"
 TEMPORARY_ESAU = "temporary Esau has a number until he leaves"
+CARDS = "Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue"
+SWITCH = "switch between body and soul"
 NAMES = {  # each legacy scenario moved here, by its old name: [the names of its tests in this spec]
     "birthright": ["Birthright twins keep their items through two Flips and a new floor"],
     "P3": ["removing Birthright stores Dead Tainted Lazarus, and Flip brings him back"],
@@ -25,6 +27,9 @@ WANT = {
     "characters > harness tag on Tainted Lazarus through Flip": "RECORDED",
     "characters > Strawman's Keeper killed": "RECORDED",
     f"characters > {BIRTHRIGHT_IDS}": "RECORDED",
+    **dry.recon("characters", CARDS),
+    **dry.recon("characters", SWITCH, ("The Forgotten", "Tainted Forgotten")),
+    **dry.recon("characters", "Birthright and Flip", ("Tainted Lazarus",)),
 }
 # Decided behaviour changes (same_behaviour.py). Bug 3: final E no longer kills the summoned Esau at 60 updates (a wiki claim); it
 # records the room change and whether he leaves, so its lines and its assertion count (masked on its RESULT) differ from HEAD's.
@@ -54,6 +59,18 @@ def test_characters(path):
     assert " players 2 -> 1 " in swaps[0] and " players 1 -> 2 " in swaps[1], swaps
     assert all(" spent stored presser charge, " in s for s in swaps), swaps
     print(f"PASS {MODE}: verdicts, the temporary Esau's room change, the Birthright twins' ids and Esau Jr. spends")
+    recon = [f"characters > {c}: {CARDS}" for c in dry.RECON] + [f"characters > {c}: {SWITCH}" for c in ("The Forgotten", "Tainted Forgotten")]
+    assert not any("never happened" in s for n in recon + ["characters > Tainted Lazarus: Birthright and Flip"] for s in dry.segment(log, n))
+    def esau_added(s):  # "UseCard 97 players <n> -> <m> in the call"
+        w = s.split()
+        return s.startswith("UseCard 97 players ") and s.endswith(" in the call") and int(w[5]) == int(w[3]) + 1
+    assert all(any(esau_added(s) for s in dry.infos(log, n)) for n in recon[:len(dry.RECON)]), "Soul of Jacob and Esau added no Esau"
+    # bug 8: The Forgotten's drop press switches him to The Soul and back (stub: obsya1, the way back a shortcut); Tainted Forgotten's does
+    # nothing in the stub (unobserved), logged as such
+    forgotten, tainted = (dry.infos(log, f"characters > {c}: {SWITCH}") for c in ("The Forgotten", "Tainted Forgotten"))
+    assert [s.split(" | ")[0] for s in forgotten if " drop press: " in s] == [f"{w} drop press: changed after 1 updates" for w in ("switch", "switch back")]
+    assert sum(" drop press: nothing changed in 30 updates " in s and s.endswith("| polled true") for s in tainted) == 2, tainted
+    print(f"PASS {MODE} recon: cards used, the body and soul switch by a real drop press, Birthright and Flip")
 
 
 TESTS = [test_characters]

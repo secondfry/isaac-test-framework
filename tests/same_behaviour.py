@@ -83,7 +83,7 @@ MASKS = [
 UNCOMPARED = {a[1] for a in MODULE_ALLOW if a[2] is None}
 # D7 moves tests: FIRST rewrites a test's first ACTION line in both (its restart names the type the test before it left); OUTSIDE drops
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
-FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
+FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )(\d+|nil)$", r"\1<previous test's>")]  # nil: no player 0 after the revive test
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
 # The session's first run is first seen before the first test starts: HEAD logged no test name there (nil), now the first test's.
 OUTSIDE_NAME = [("CHAR name", r"^PROBE INFO .*? CHAR (\d+) first seen ", r"PROBE INFO <first test> CHAR \1 first seen ")]

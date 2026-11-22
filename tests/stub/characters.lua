@@ -103,6 +103,12 @@ function swapForm(p, id)
   end
 end
 
+-- A card's effect, used from the pocket or by UseCard: Soul of Jacob and Esau adds an Esau (type 20) with a Parent (run 2).
+-- shortcut: every other card does nothing; Soul of the Forgotten's effect (plan open point 4) awaits the characters-recon session.
+function PM:UseCard(c)
+  if c == 97 then players[#players+1] = newPlayer(20, self) end
+end
+
 -- Simulate a scripted Clicker effect without touching the active slot or its charge.
 function PM:UseActiveItem(id, flags)
   assert(id == 482 and flags == 0)

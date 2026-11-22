@@ -1,4 +1,4 @@
--- Fake input: one game update's polls of the harness's forced presses, the uses they trigger, pedestal walks and 3 Dollar Bill grants.
+-- Fake input: one game update's polls of the harness's forced presses, the uses and drops they trigger, pedestal walks and 3 Dollar Bill grants.
 
 -- The use behind a press of `button` by `p`: a held card first for PILLCARD, then the pocket active; an active needs a full charge.
 -- MC_USE_ITEM runs before the discharge (IsaacDocs); the form swap is queued in `swaps`, as the engine stores the presser only after
@@ -7,7 +7,7 @@ local function use(p, button, swaps)
   if button == 10 and p.cards[1] then
     local c = p.cards[1]
     if not noSpend then table.remove(p.cards, 1) end
-    if c == 97 then players[#players+1] = newPlayer(20, p) end
+    p:UseCard(c)
     return
   end
   local slot = button == 10 and 2 or 0
@@ -19,6 +19,17 @@ local function use(p, button, swaps)
   if not cancelled then fire(3, id, nil, p, 0, slot, 0) end
   if not noSpend then p.charge[slot] = 0 end
   if not cancelled then swaps[#swaps+1] = {p, id} end
+end
+
+-- A drop press by `p`, as obsya1 saw it (within 1 update): with an active in the Schoolbag's second slot the two active slots swap;
+-- The Forgotten (16) turns The Soul (17) in place, the same entity on the same seed.
+local function drop(p)
+  -- shortcut: obsya1 logged the slots' items, and Esau Jr.'s charge 0 moving with it, not the other slot's charge; SwapActiveItems moves
+  -- both charges, check that in game before an assertion needs it.
+  if p.secondary then p:SwapActiveItems()
+  elseif p.t == 16 then p.t = 17
+  elseif p.t == 17 then p.t = 16 -- shortcut: the switch back is unobserved; the characters-recon switch test records it
+  end -- shortcut: any other drop press (Tainted Forgotten's, plan open point 5) does nothing here; model it from that recon
 end
 
 local function input(e, hook, button)
@@ -35,6 +46,8 @@ end
 function engineInput()
   local swaps = {}
   for _, p in ipairs({table.unpack(players)}) do
+    -- shortcut: the engine's poll order of DROP among the other buttons is unobserved; first here, so it reads no use's discharge
+    if input(p, 1, 11) == true and not ignorePress and not ignoreDrop then drop(p) end
     if input(p, 1, 9) == true and not ignorePress then use(p, 9, swaps) end
     local t1 = input(p, 1, 10) == true
     if p.pocket then input(p, 0, 10) end

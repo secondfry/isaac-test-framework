@@ -91,7 +91,7 @@ A snapshot test logs `SNAP <spec> > <test> | <n> <step> / <key> = <value>` after
 
 - No section yet (a recon test): the first played session in which the test passes writes it.
 - A section: compared key by key; a difference FAILs the test (`snapshot differs in <n> keys`) showing both values, and only a session whose tags line had `--update-snapshots` replaces it.
-- Never written for a failed test, nor from a log without the engine's version line (a dry log).
+- Never written for a failed test, nor for a test with an unreached step, nor from a log without the engine's version line (a dry log).
 
 Commit the `.snap.txt` files `report.py` writes; never deploy them.
 

@@ -172,13 +172,19 @@ def fails(verdict, why):
     return verdict.startswith("FAIL") and any(w in verdict for w in (why if isinstance(why, tuple) else (why,)))
 
 
-def expect_results(got, label, want, why=None, names=()):
-    """Every test in `names` FAILs naming `why` (or one of a tuple); every other test in `want` ends as it says."""
+def reached(verdict):
+    """`verdict` without its `; unreached: ...` note: what a test ended as when a perturbed run cut some of its steps."""
+    return re.sub(r"; unreached: .*?(?=; late Continue mid-test$|$)", "", verdict)
+
+
+def expect_results(got, label, want, why=None, names=(), cut=False):
+    """Every test in `names` FAILs naming `why` (or one of a tuple); every other test in `want` ends as it says (`cut`: whatever it
+    left unreached)."""
     for name in want:
         if name in names:
             assert fails(got[name], why), f"{label}: {name}: {got[name]}"
         else:
-            assert got[name] == want[name], f"{label}: {name}: {got[name]}"
+            assert (reached(got[name]) == reached(want[name]) if cut else got[name] == want[name]), f"{label}: {name}: {got[name]}"
 
 
 def infos(log, name):

@@ -104,10 +104,16 @@ def test_snapshots():
     run(session(failing, update="yes"), specs)
     assert snap_file(specs) == text, "a FAIL test rewrote the snapshot"
 
+    cut = test_lines("hello", "fresh run", "RECORDED; unreached: 2 Flip never happened", snaps=[("0 start / A type", "29")])
+    run(session(cut, update="yes"), specs)
+    assert snap_file(specs) == text, "a test with an unreached step rewrote the snapshot"
+    run(session(test_lines("hello", "cut new", "RECORDED; unreached: 1 Flip never happened", snaps=[("0 start / lineup", "A")])), specs)
+    assert "## cut new" not in snap_file(specs), "a test with an unreached step wrote a new snapshot"
+
     code, out, data, _ = run(session(changed, update="yes"), specs)
     assert (code, data["tests"][0]["snapshot"]["state"]) == (0, "updated"), out
     assert "0 start / A type = 21" in snap_file(specs), snap_file(specs)
-    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test")
+    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test or one with an unreached step")
 
 
 def test_stub_log():

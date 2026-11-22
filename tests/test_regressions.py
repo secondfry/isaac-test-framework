@@ -26,7 +26,7 @@ def test_regressions_lines(path):
 def test_tlaz_roll_29(path):
     # Clicker from the Dead form rolling 29 (run 8): S3's merge assertions with Flip kept, the rest unchanged
     got = dry.finished(dry.run(path, tlazRoll=29), "Clicker rolls 29", path)
-    dry.expect_results(got, "Clicker rolls 29", {**dry.expected(path), "regressions > S3": "PASS 21 assertions"})
+    dry.expect_results(got, "Clicker rolls 29", {**dry.expected(path), "regressions > S3": "PASS 21 assertions"}, cut=True)
     print("PASS Clicker rolling 29:", got["regressions > S3"])
 
 

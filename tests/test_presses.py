@@ -72,7 +72,7 @@ def test_press_ignored(path):
     assert any("esau_jr > Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back 2 Esau Jr. never happened:" in s for s in log)
     assert not any(s == "PROBE CMD giveitem c105" for s in log)
     got = dry.finished(log, "press ignored", path)
-    dry.expect_results(got, "press ignored", unswapped(path), ("no new character, arms ", "test limit "), swapping(path))
+    dry.expect_results(got, "press ignored", unswapped(path), ("no new character, arms ", "test limit "), swapping(path), cut=True)
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
     assert dry.run.saved.startswith(f"tags all\nSTUCK {len(stuck)} ") and " | " in dry.run.saved, dry.run.saved
@@ -83,7 +83,7 @@ def test_no_spend(path):
     got = dry.finished(dry.run(path, noSpend=True), "no spend", path)
     swaps = swapping(path)
     for name, verdict in unswapped(path).items():
-        assert dry.fails(got[name], spend_why(name)) if name in swaps else got[name] == verdict, f"no spend: {name}: {got[name]}"
+        assert dry.fails(got[name], spend_why(name)) if name in swaps else dry.reached(got[name]) == dry.reached(verdict), f"no spend: {name}: {got[name]}"
     print("PASS no spend fails every swap:", got[swaps[0]][:110])
 
 

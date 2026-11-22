@@ -115,6 +115,11 @@ def test_tags(path):
         print(f"PASS {line} runs just its tests")
 
 
+def limited(got, t):
+    """Snapshot test `t` ended at its limit, and its RESULT says at which step."""
+    return got[t.name].startswith(f"RECORDED; unreached: test limit {t.limit} updates at step ")
+
+
 def worst_case(tests):
     """The session's updates when each of `tests` stalls to its limit: their limits and HARNESS DONE's (a SKIP takes none)."""
     assert all(t.limit for t in tests), [t.name for t in tests if not t.limit]
@@ -127,10 +132,10 @@ def test_final_worst(path):
     got = dry.finished(log, "final worst case", path)
     final = tagged(path, "rehud-2.8")
     checked = [t for t in final if not t.snapshot]
-    dry.expect_results(got, "final worst case", dry.expected(path, FINAL_MODE), "test limit ", [t.name for t in checked])
+    dry.expect_results(got, "final worst case", dry.expected(path, FINAL_MODE), "test limit ", [t.name for t in checked], cut=True)
     for t in checked:
         assert got[t.name] == f"FAIL test limit {t.limit} updates", (t.name, got[t.name])
-    assert all(f"PROBE INFO {t.name} test limit {t.limit} updates" in log for t in final if t.snapshot)
+    assert all(limited(got, t) for t in final if t.snapshot), got
     worst = worst_case(final)
     assert dry.run.updates == worst, (dry.run.updates, worst)
     print(f"PASS {FINAL_MODE} worst case: {worst} updates ({worst / 30 / 60:.1f} minutes of updates)")
@@ -140,11 +145,11 @@ def test_obsx_limits(path):
     obsx = tagged(path, "obsx")  # each a snapshot test: one ended in its setup or by its limit before its assertion only records
     log = dry.run(path, mode="tags obsx", ignoreRestart=True)
     got = dry.finished(log, "obsx setup step times out", path)
-    assert all(got[t.name] == "RECORDED" for t in obsx), got
+    assert all(got[t.name].startswith("RECORDED; unreached: setup 1 never happened, steps 2-") for t in obsx), got
     assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(obsx)
     log = dry.run(path, mode="tags obsx", render_every=200)
     got = dry.finished(log, "obsx test times out", path)
-    assert all(got[t.name] == "RECORDED" for t in obsx), got
+    assert all(limited(got, t) for t in obsx), got
     assert sum(s.endswith("test limit 445 updates") for s in log) == len(obsx)
     assert dry.run.updates == worst_case(obsx) < 3 * 60 * 30, dry.run.updates
     print("PASS obsx setup step and test limits, and total update budget")
@@ -155,9 +160,10 @@ def test_obsy_worst(path):
     for tag in ("obsy-a", "obsy-b"):
         mode = f"tags {tag}"
         log = dry.run(path, mode=mode, render_every=10 ** 6)
-        dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
+        got = dry.finished(log, mode, path)
+        dry.expect_results(got, mode, dry.expected(path, mode), cut=True)
         tests = tagged(path, tag)
-        assert all(f"PROBE INFO {t.name} test limit {t.limit} updates" in log for t in tests), mode
+        assert all(limited(got, t) for t in tests), (mode, got)
         worst = worst_case(tests)
         assert dry.run.updates == worst < 3 * 60 * 30, (mode, dry.run.updates, worst)
         print(f"PASS {mode}: worst case {worst} updates")
@@ -173,7 +179,7 @@ def test_new_run_instead_of_continue(path):
             assert got[t.name].startswith("FAIL") and "a new run started, not a Continue" in got[t.name], got[t.name]
             continue
         # a recon test: the Continue step is logged as never happened and ends the test
-        assert got[t.name] == want[t.name] and any(s.startswith(f"PROBE INFO {t.name} ") and " exit and Continue never happened: " in s
+        assert got[t.name].startswith(want[t.name] + "; unreached: ") and " exit and Continue never happened" in got[t.name] and any(s.startswith(f"PROBE INFO {t.name} ") and " exit and Continue never happened: " in s
                                                    and s.endswith("a new run started, not a Continue") for s in log), t.name
     print("PASS new run instead of Continue fails:", next(got[t.name] for t in asked if not t.snapshot))
 
@@ -185,7 +191,7 @@ def test_late_continue(path):
     want = dry.expected(path, "tags obsy-b")
     names = [t.name for t in tagged(path, "obsy-b")]
     note = "; late Continue mid-test"
-    assert all(got[name].removesuffix(note) == want[name] for name in names), got
+    assert all(dry.reached(got[name]).removesuffix(note) == want[name] for name in names), got
     late = [s for s in log if s.endswith(" late Continue, ignored")]
     assert late and not any("unexpected game start" in s for s in log), late
     in_b = [s for s in late if any(s.startswith(f"PROBE INFO {n} ") for n in names)]  # a later one can land while later tests SKIP
@@ -199,7 +205,8 @@ def test_restart_ignored(path):
     got = dry.finished(dry.run(path, ignoreRestart=True), "restart ignored", path)
     want = {**dry.expected(path), **{t.name: "RECORDED" for t in dry.plan(path) if t.soft == "end" and "opt-in" not in t.tags}}
     dry.expect_results(got, "restart timeout", want, ("no new game after 600 updates", "test limit "),
-                       [t.name for t in dry.plan(path) if t.soft != "end" and "opt-in" not in t.tags])
+                       [t.name for t in dry.plan(path) if t.soft != "end" and "opt-in" not in t.tags], cut=True)
+    assert all(" never happened" in got[t.name] for t in dry.plan(path) if t.soft == "end" and "opt-in" not in t.tags), got
     print("PASS a restart that never comes fails every test but the soft recon ones")
 
 

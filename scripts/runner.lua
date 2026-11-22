@@ -111,6 +111,7 @@ local function overLimit(S, test)
 	if S.ctx.updates < test.limit then return end
 	if not test.snapshot then finish("test limit " .. test.limit .. " updates") return true end
 	P("INFO", test.name, "test limit", test.limit, "updates")
+	table.insert(S.ctx.notes, "test limit " .. test.limit .. " updates at step " .. S.stepIndex .. "/" .. #test.steps)
 	finish()
 	return true
 end
@@ -131,6 +132,7 @@ local function runStep(test, step, ctx)
 		return true, res
 	end
 	P("INFO", ctx.name, step.label, "never happened:", res)
+	table.insert(ctx.notes, step.label .. " never happened")
 	ctx.interrupted = test.onStepError == "end"
 	fire("giveUp", ctx)
 	if test.snapshot then fire("snap", ctx, step.label, false) end
@@ -180,7 +182,10 @@ local function tick(...)
 	ctx.name = test.name -- from the test's first update: the session's first run is first seen there
 	for _, f in ipairs({ ... }) do f() end
 	if test.onUpdate then test.onUpdate(ctx) end
-	if test.onStepError == "end" and ctx.interrupted then return finish() end
+	if test.onStepError == "end" and ctx.interrupted then
+		if S.stepIndex <= #test.steps then table.insert(ctx.notes, "steps " .. S.stepIndex .. "-" .. #test.steps .. " skipped") end
+		return finish()
+	end
 	if overLimit(S, test) then return end
 	for _, busy in ipairs(handlers.busy) do
 		if busy() then return end

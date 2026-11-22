@@ -277,7 +277,7 @@ def apply_snapshots(s, specs_dir):
 
 
 def apply_snapshot(t, sections, s):
-    writable = bool(s.version) and not t.failed()
+    writable = bool(s.version) and not t.failed() and not t.unreached
     old = sections[t.name][1] if t.name in sections else None
     diff = differences(old, t.snaps) if old is not None else []
     state = snapshot_state(old, diff, s.update, writable)

@@ -5,8 +5,8 @@ local engine = include("scripts.game")
 local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots, findPlayer = engine.ITEM_IDS, engine.floorName, engine.seedOf,
 	engine.owned, engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots, engine.findPlayer
 local rehud = include("scripts.rehud")
-local present, dbg, entries, tagText, storedSettling, keyOf = rehud.present, rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling,
-	rehud.keyOf
+local present, entries, tagText, storedSettling, keyOf, number, rosterRows = rehud.present, rehud.entries, rehud.tagText, rehud.storedSettling,
+	rehud.keyOf, rehud.number, rehud.rows
 local info = include("scripts.steps").info
 local enums = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
@@ -59,7 +59,7 @@ local function obsLines()
 	end
 	t[#t + 1] = "COUNT players " .. game:GetNumPlayers() .. " c703 pedestals " .. pedestals(ESAU_JR)
 	if not present() then return t end
-	local rows = dbg().roster.serialize()
+	local rows = rosterRows()
 	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
 	for _, r in ipairs(rows) do
 		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. " swapped " .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left) .. " type " .. tostring(r.type) .. " group " .. tostring(r.group)
@@ -209,7 +209,7 @@ local function helpersInfo(what)
 			local p = Isaac.GetPlayer(i)
 			local parent = p.Parent and select(2, findPlayer(function(q) return GetPtrHash(q) == GetPtrHash(p.Parent) end))
 			P("INFO", ctx.name, "HELPERS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
-				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(dbg().roster.number(keyOf(p))))
+				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(number(keyOf(p))))
 		end
 	end
 end

@@ -3,7 +3,7 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local findPlayer, ofType, owned = engine.findPlayer, engine.ofType, engine.owned
 local rehud = include("scripts.rehud")
-local dbg, keyOf = rehud.dbg, rehud.keyOf
+local keyOf, number = rehud.keyOf, rehud.number
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
 local steps = include("scripts.steps")
@@ -65,7 +65,7 @@ local clickerLook = look("after Clicker", function(ctx, label)
 	for i = 0, game:GetNumPlayers() - 1 do n = n + owned(Isaac.GetPlayer(i), 4) end
 	expectN(ctx, label, 4, n, ctx.floors[1])
 	noneLeft(ctx, label)
-	if ctx.esau and not findPlayer(function(p) return keyOf(p) == ctx.esau end) then expect(ctx, label .. ": merged Esau's number", dbg().roster.number(ctx.esau), nil) end
+	if ctx.esau and not findPlayer(function(p) return keyOf(p) == ctx.esau end) then expect(ctx, label .. ": merged Esau's number", number(ctx.esau), nil) end
 end)
 -- Esau's key before each press, for clickerLook.
 local function keepEsau(ctx, when)

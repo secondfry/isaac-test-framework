@@ -3,7 +3,8 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ofType, owned, withParent, heldItems = engine.ofType, engine.owned, engine.withParent, engine.heldItems
 local rehud = include("scripts.rehud")
-local dbg, entries, keyOf, countEntries, leftEntries = rehud.dbg, rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries
+local entries, keyOf, countEntries, leftEntries, number, isSwapped = rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries,
+	rehud.number, rehud.isSwapped
 local wait = include("scripts.wait")
 local act, condition = wait.act, wait.condition
 local console = include("scripts.console")
@@ -90,7 +91,7 @@ end, 120)
 local function keeperItems(ctx)
 	local isaac, owners = keyOf(Isaac.GetPlayer(0)), {}
 	for _, e in ipairs(entries()) do owners[#owners + 1] = "c" .. e.id .. ":" .. (e.owner == isaac and "Isaac" or e.owner == ctx.keeperKey and "Keeper" or tostring(e.owner)) end
-	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(dbg().roster.number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
+	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
 end
 
 local CHECKED = { "characters", "rehud" }
@@ -113,8 +114,8 @@ local tests = {
 			end),
 			remove(BIRTHRIGHT, 1), look("after remove Birthright", function(ctx, label)
 				oneC4(ctx, label)
-				expect(ctx, label .. ": Dead form swapped", dbg().roster.isSwapped(ctx.dead), true)
-				expect(ctx, label .. ": Dead form number", dbg().roster.number(ctx.dead), 1)
+				expect(ctx, label .. ": Dead form swapped", isSwapped(ctx.dead), true)
+				expect(ctx, label .. ": Dead form number", number(ctx.dead), 1)
 				expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
 			end),
 			stage(3), flip("Flip"), look("after Flip", function(ctx, label)
@@ -137,7 +138,7 @@ local tests = {
 		fixture = { name = "Isaac with Strawman's Keeper", setup = { fresh(ISAAC), give(4), give(STRAWMAN),
 			condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end) }, done = keeperPresent }, steps = {
 			named("Isaac"), named("Keeper", KEEPER),
-			lookC("Keeper", function(ctx, label) expect(ctx, label .. ": Keeper has a number", dbg().roster.number(keyOf(withParent(KEEPER))) ~= nil, true) end),
+			lookC("Keeper", function(ctx, label) expect(ctx, label .. ": Keeper has a number", number(keyOf(withParent(KEEPER))) ~= nil, true) end),
 			giveAnyone(5), lookC("after giveitem c5", function(ctx, label)
 				local k = withParent(KEEPER)
 				expect(ctx, "engine, not ReHUD: Keeper owns c5", owned(k, 5), 1)
@@ -149,10 +150,10 @@ local tests = {
 	{ name = "temporary Esau has a number until he leaves", tags = REHUD_2_8, limit = 350,
 		fixture = fixture("Isaac holding Soul of Jacob and Esau", { fresh(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB) }, ISAAC), steps = {
 			soulJE, named("Esau", ESAU),
-			lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", dbg().roster.number(keyOf(withParent(ESAU))) ~= nil, true) end),
+			lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", number(keyOf(withParent(ESAU))) ~= nil, true) end),
 			esauLeaves, lookC("after Esau left", function(ctx, label)
 				if not ctx.esauGone then return end
-				expect(ctx, label .. ": Esau's number", dbg().roster.number(ctx.esauKey), nil)
+				expect(ctx, label .. ": Esau's number", number(ctx.esauKey), nil)
 				expect(ctx, label .. ": Esau's entries", countEntries(function(e) return e.owner == ctx.esauKey end), 0)
 			end),
 		} },

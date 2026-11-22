@@ -2,7 +2,7 @@
 -- Exit & Continue, so the runner plays them last.
 local withParent = include("scripts.game").withParent
 local rehud = include("scripts.rehud")
-local dbg, keyOf, storedSettling = rehud.dbg, rehud.keyOf, rehud.storedSettling
+local keyOf, storedSettling, isSettling = rehud.keyOf, rehud.storedSettling, rehud.isSettling
 local condition = include("scripts.wait").condition
 local console = include("scripts.console")
 local fresh, give, stage = console.fresh, console.give, console.stage
@@ -83,7 +83,7 @@ local tests = {
 	{ name = "item copies survive Exit & Continue", tags = { "continue", "rehud", "exit-continue", "new" },
 		fixture = fixtures.fresh(CAIN),
 		steps = { look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
-			function(ctx) expect(ctx, "no re-settle after continue", dbg().roster.isSettling(keyOf(Isaac.GetPlayer(0))), false) end,
+			function(ctx) expect(ctx, "no re-settle after continue", isSettling(keyOf(Isaac.GetPlayer(0))), false) end,
 			engineWisps("after continue", 4, 1), engineWisps("after continue", 46, 1), look("after continue", copyKinds) } },
 }
 -- Recon: what Exit & Continue keeps of each character's ids (record.ids) and state.

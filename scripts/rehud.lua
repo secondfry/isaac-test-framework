@@ -1,4 +1,4 @@
--- The ReHUD.dbg adapter: the only file that reads ReHUD's own fields.
+-- The ReHUD.dbg adapter: the only file that reaches into ReHUD (its tracker, roster and GetData tag); others read the entries and rows it returns.
 local seedOf = include("scripts.game").seedOf
 
 local game = Game()
@@ -15,6 +15,13 @@ local function dbg()
 end
 
 local function entries() return dbg().tracker.entries end
+local function characterCount() return dbg().tracker.characterCount end
+-- The roster by key: a character's number (nil when it has none), whether it is stored, still settling, its group; every row.
+local function number(key) return dbg().roster.number(key) end
+local function isSwapped(key) return dbg().roster.isSwapped(key) end
+local function isSettling(key) return dbg().roster.isSettling(key) end
+local function group(key) return dbg().roster.group(key) end
+local function rows() return dbg().roster.serialize() end
 
 -- The GetData tag roster.lua playerKey writes (characters sharing a seed get seed + n * 2^32), or nil.
 local function tag(p)
@@ -56,9 +63,8 @@ local function settling()
 	for _, e in ipairs(entries()) do
 		if e.merged then return "a merge" end
 	end
-	local roster = dbg().roster
 	for i = 0, game:GetNumPlayers() - 1 do
-		if roster.isSettling(keyOf(Isaac.GetPlayer(i))) then return "a new character" end
+		if isSettling(keyOf(Isaac.GetPlayer(i))) then return "a new character" end
 	end
 end
 
@@ -66,14 +72,15 @@ end
 -- a step tested ReHUD's stored-mid-settle path or its settled one.
 local function storedSettling()
 	if not present() then return "" end
-	local r, seen, t = dbg().roster, {}, {}
+	local seen, t = {}, {}
 	for _, e in ipairs(entries()) do
-		if not seen[e.owner] and r.isSwapped(e.owner) and r.isSettling(e.owner) then seen[e.owner] = true; t[#t + 1] = e.owner end
+		if not seen[e.owner] and isSwapped(e.owner) and isSettling(e.owner) then seen[e.owner] = true; t[#t + 1] = e.owner end
 	end
 	return table.concat(t, ",")
 end
 
 return {
-	present = present, dbg = dbg, entries = entries, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
+	present = present, entries = entries, characterCount = characterCount, number = number, isSwapped = isSwapped, isSettling = isSettling,
+	group = group, rows = rows, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
 	ownerOf = ownerOf, settling = settling, storedSettling = storedSettling,
 }

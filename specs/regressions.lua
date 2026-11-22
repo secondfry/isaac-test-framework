@@ -3,7 +3,8 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local seedOf, wispsOf = engine.seedOf, engine.wispsOf
 local rehud = include("scripts.rehud")
-local dbg, keyOf, countEntries, leftEntries, ownerOf = rehud.dbg, rehud.keyOf, rehud.countEntries, rehud.leftEntries, rehud.ownerOf
+local keyOf, countEntries, leftEntries, ownerOf, number, isSwapped = rehud.keyOf, rehud.countEntries, rehud.leftEntries, rehud.ownerOf,
+	rehud.number, rehud.isSwapped
 local console = include("scripts.console")
 local give, stage = console.give, console.stage
 local changeType = include("scripts.steps").changeType
@@ -40,7 +41,7 @@ local function afterTLazClicker(ctx, label)
 		expectCount(ctx, label .. " (all)", sum, id, floor)
 	end
 	expectN(ctx, label, FLIP, lazarus and 1 or 0)
-	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
 	if lazarus then return expect(ctx, label .. ": left entries", leftEntries(), 0) end
 	noneLeft(ctx, label)
 end
@@ -52,7 +53,7 @@ local function r1Merged(ctx, label)
 	ctx.merged = key
 	expectOne(ctx, label, 4, ctx.floors[1], key)
 	expectOne(ctx, label, 5, ctx.floors[2], key)
-	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
 end
 
 -- r1, after the next Flip: a fresh Dead form whose only entry is its Flip; the stored survivor keeps c4 (floor 1), c5 (floor 2) and one
@@ -65,7 +66,7 @@ local function r1Fresh(ctx, label)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.merged)
 	expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.merged)
 	expectCount(ctx, label, 1, FLIP, nil, nil, ctx.merged)
-	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
 	expect(ctx, label .. ": left entries", leftEntries(), 0)
 end
 
@@ -80,7 +81,7 @@ local function mirrorMerged(ctx, label)
 	expectOne(ctx, label, 4, ctx.floors[1], key)
 	expectOne(ctx, label, 5, ctx.floors[2], key)
 	expectN(ctx, label, FLIP, 1)
-	expect(ctx, label .. ": stored form's number", dbg().roster.number(ctx.stored), nil)
+	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
 	expect(ctx, label .. ": left entries", leftEntries(), 0)
 end
 
@@ -93,7 +94,7 @@ local function engineInfo(ctx, what)
 		"primary", p:GetActiveItem(ActiveSlot.SLOT_PRIMARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
 end
 local function origStored(ctx, label)
-	expect(ctx, label .. ": Esau Jr. original stored", dbg().roster.isSwapped(ctx.orig), true)
+	expect(ctx, label .. ": Esau Jr. original stored", isSwapped(ctx.orig), true)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
 end
 -- ctx keys are ReHUD keys: Tainted Lazarus's Esau Jr. form takes its Dead form's seed (lua-api-notes.md Seeds and keys).
@@ -131,13 +132,13 @@ return { name = "regressions", tests = {
 			engineInfo(ctx, "after a Flip of the Esau Jr. form")
 			ctx.dead = keyOf(Isaac.GetPlayer(0))
 			expect(ctx, label .. ": a new Dead form", ctx.dead ~= ctx.orig and ctx.dead ~= ctx.form and Isaac.GetPlayer(0):GetPlayerType() == DEAD_T_LAZ, true)
-			expect(ctx, label .. ": form stored", dbg().roster.isSwapped(ctx.form), true)
+			expect(ctx, label .. ": form stored", isSwapped(ctx.form), true)
 			origStored(ctx, label)
 		end),
 		give(ESAU_JR), -- so the original stays revivable (invariant 3) once the Dead form is no Tainted Lazarus
 		changeType(ISAAC), look("after ChangePlayerType on the Dead form", function(ctx, label)
 			engineInfo(ctx, "after ChangePlayerType(0) on the Esau Jr. form's Dead form")
-			expect(ctx, label .. ": form merged", dbg().roster.number(ctx.form), nil)
+			expect(ctx, label .. ": form merged", number(ctx.form), nil)
 			origStored(ctx, label)
 		end),
 	} },
@@ -153,7 +154,7 @@ return { name = "regressions", tests = {
 		look("after the crossing on the form", function(ctx, label)
 			engineInfo(ctx, "after ChangePlayerType(38) on the Esau Jr. form")
 			expect(ctx, label .. ": player 0 is the form", keyOf(Isaac.GetPlayer(0)), ctx.form)
-			expect(ctx, label .. ": Dead form stored", dbg().roster.isSwapped(ctx.dead), true)
+			expect(ctx, label .. ": Dead form stored", isSwapped(ctx.dead), true)
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
 			origStored(ctx, label)
 			expect(ctx, label .. ": left entries", leftEntries(), 0)

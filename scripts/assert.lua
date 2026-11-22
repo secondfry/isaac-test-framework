@@ -4,7 +4,8 @@ local since = include("scripts.callbacks").since
 local engine = include("scripts.game")
 local ofType, characterCount = engine.ofType, engine.characterCount
 local rehud = include("scripts.rehud")
-local dbg, entries, keyOf, countEntries, leftEntries = rehud.dbg, rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries
+local entries, keyOf, countEntries, leftEntries, rehudCount = rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries,
+	rehud.characterCount
 local ids = include("scripts.ids")
 local T_LAZ, DEAD_T_LAZ = ids.T_LAZ, ids.DEAD_T_LAZ
 
@@ -80,7 +81,7 @@ end
 -- No list marked left, and ReHUD counts every character in play (no stored one holds a list here).
 local function noneLeft(ctx, label)
 	expect(ctx, label .. ": left entries", leftEntries(), 0)
-	expect(ctx, label .. ": characterCount = playable players", dbg().tracker.characterCount, characterCount())
+	expect(ctx, label .. ": characterCount = playable players", rehudCount(), characterCount())
 end
 
 return {

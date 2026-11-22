@@ -5,7 +5,7 @@ local engine = include("scripts.game")
 local seedOf, ofType, owned, slots, itemCounts, countsText = engine.seedOf, engine.ofType, engine.owned, engine.slots, engine.itemCounts,
 	engine.countsText
 local rehud = include("scripts.rehud")
-local dbg, keyOf, leftEntries = rehud.dbg, rehud.keyOf, rehud.leftEntries
+local keyOf, leftEntries, number, isSwapped, rehudCount = rehud.keyOf, rehud.leftEntries, rehud.number, rehud.isSwapped, rehud.characterCount
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
 local steps_ = include("scripts.steps")
@@ -177,19 +177,19 @@ local tests = {
 			jeCopies(ctx, label)
 		end),
 		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", function(ctx, label)
-			local r, esau = dbg().roster, ofType(ESAU)
+			local esau = ofType(ESAU)
 			ctx.form = keyOf(Isaac.GetPlayer(0))
 			expect(ctx, "engine, not ReHUD: Esau's owned c5 after Jacob's Esau Jr. (Q9)", esau and owned(esau, 5), 1)
 			jeCopies(ctx, label)
-			expect(ctx, label .. ": Jacob swapped", r.isSwapped(ctx.jacob), true)
-			expect(ctx, label .. ": numbers Jacob, Esau, form", tostring(r.number(ctx.jacob)) .. "," .. tostring(r.number(ctx.esau)) .. "," .. tostring(r.number(ctx.form)), "0,1,2")
+			expect(ctx, label .. ": Jacob swapped", isSwapped(ctx.jacob), true)
+			expect(ctx, label .. ": numbers Jacob, Esau, form", tostring(number(ctx.jacob)) .. "," .. tostring(number(ctx.esau)) .. "," .. tostring(number(ctx.form)), "0,1,2")
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
-			expect(ctx, label .. ": characterCount", dbg().tracker.characterCount, 3)
+			expect(ctx, label .. ": characterCount", rehudCount(), 3)
 		end),
 		esauJr("Esau Jr. 2"), look("after Esau Jr. 2", function(ctx, label)
 			jeCopies(ctx, label)
 			expect(ctx, label .. ": player 0 is Jacob", keyOf(Isaac.GetPlayer(0)), ctx.jacob)
-			expect(ctx, label .. ": form swapped", dbg().roster.isSwapped(ctx.form), true)
+			expect(ctx, label .. ": form swapped", isSwapped(ctx.form), true)
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
 	} },

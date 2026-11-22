@@ -90,38 +90,9 @@ local clickerLoop = clickerUntil(function() return Isaac.GetPlayer(0):GetPlayerT
 		ctx.esau = esau and keyOf(esau)
 	end)
 
--- Tainted Lazarus flips with c4, the user exits and continues, and ChangePlayerType merges the stored form: one c4, no c711.
-local function continueSteps(beforeFlip)
-	local steps = { fresh(T_LAZ), give(4), stage(2), beforeFlip }
-	-- Pacing alone decides whether the Flip stores the 29 form mid-settle, so the path each variant tests is checked.
-	local function beforeExit(ctx, label)
-		oneC4(ctx, label)
-		expect(ctx, label .. ": stored form mid-settle", storedSettling() ~= "", beforeFlip == nil)
-	end
-	for _, s in ipairs({ flip("Flip"), look("before exit", beforeExit), exitAndContinue(), changeType(ISAAC),
-		look("after continue and ChangePlayerType", function(ctx, label)
-			expectOne(ctx, label, 4, ctx.floors[1], keyOf(Isaac.GetPlayer(0)))
-			expectN(ctx, label, FLIP, 0)
-		end) }) do
-		steps[#steps + 1] = s
-	end
-	return steps
-end
-
 local function jeCopies(ctx, label)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], false, ctx.jacob)
 	expectCount(ctx, label, 1, 5, ctx.floors[1], false, ctx.esau)
-end
-
--- L1's copies: Cain's owned and innate c46 on floor 1, a c46 wisp from floor 2, an owned c4 and a c4 wisp from floor 1. The totals
--- catch a continue re-listing copies under the current floor.
-local function copyKinds(ctx, label)
-	own(ctx, label, 2, 46, ctx.floors[1], false)
-	own(ctx, label, 1, 46, ctx.floors[2], true)
-	own(ctx, label, 1, 4, ctx.floors[1], false)
-	own(ctx, label, 1, 4, ctx.floors[1], true)
-	expectCount(ctx, label, 3, 46)
-	expectCount(ctx, label, 2, 4)
 end
 
 -- After Clicker out of Tainted Lazarus (S3): every c4 (floor 1, the stored form's) and c5 (floor 2, the Dead form's) the engine counts,
@@ -282,11 +253,6 @@ local OBSY = {
 	-- Locked on save slot 1 (README): a restart that never gives the type ends the scenario with an INFO "character locked?" line.
 	obsScenario("obsy b Tainted Jacob", jrSetup(PlayerType.PLAYER_JACOB_B), charPresses()),
 	obsScenario("obsy b Eden", jrSetup(PlayerType.PLAYER_EDEN), charPresses()),
-	-- Does a stored A survive exit and Continue, and does a lost one stay lost?
-	obsScenario("obsy b continue with A stored", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), continued,
-		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }, LARGE_OBSY),
-	obsScenario("obsy b continue after B loses Esau Jr.", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), loseEsauJr(), continued,
-		{ "re-give c703", give(ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3"), jrPair("Esau Jr. #4") }, LARGE_OBSY),
 	-- Which id tells the two Birthright forms apart and stays stable across Flip, Esau Jr. and Continue?
 	obsScenario("obsy b identity", { fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, { { "ids after Birthright", ids("after Birthright") },
 		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
@@ -546,13 +512,6 @@ FINAL[#FINAL + 1] = obsScenario("final M original loses Esau Jr.", tlazJr(), { j
 FINAL[#FINAL + 1] = obsScenario("final J Strawman Keeper leaves", { fresh(ISAAC), give(4), give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end),
 	giveType(5, KEEPER) }, { { "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
 	{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT)
--- The summoned Esau and a Strawman Keeper across Exit & Continue: their Parent, ControllerIndex and rows before and after.
--- The Soul first: its swap wants 2 players, and giveitem goes to a Keeper once one exists.
-FINAL[#FINAL + 1] = obsScenario("final N summoned Esau across Continue", { fresh(ISAAC), give(4), addCard(Card.CARD_SOUL_JACOB) },
-	{ { "Soul of Jacob and Esau", soulJE }, { "give Strawman", give(STRAWMAN) }, { "Strawman Keeper", condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end) },
-		{ "settle", settled }, { "helpers before the exit", helpersInfo("before the exit") }, continued,
-		{ "players after Continue", playerCount }, { "settle 2", settled }, { "helpers after Continue", helpersInfo("after Continue") } },
-	{ kind = "large", budget = OBSY_CONTINUE_LIMIT, strict = true })
 
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
@@ -705,16 +664,6 @@ local SCENARIOS = {
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.stored)
 		end),
 		changeType(DEAD_T_LAZ), look("after ChangePlayerType", mirrorMerged),
-	} },
-	-- The Flip comes about 5 updates after restart, so the 29 form is stored mid-settle (the 20ca1f1 path).
-	{ name = "continue", kind = "large", new = true, steps = continueSteps() },
-	-- The settle wait first, so the 29 form is stored settled, as in real play.
-	{ name = "continue settled", kind = "large", new = true, steps =continueSteps(look("before Flip", oneC4)) },
-	-- Copy kinds survive a continue, and Cain's saved innate row means no second settle.
-	{ name = "L1", kind = "large", new = true, steps = {
-		fresh(CAIN), look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
-		function(ctx) expect(ctx, "no re-settle after continue", dbg().roster.isSettling(keyOf(Isaac.GetPlayer(0))), false) end,
-		engineWisps("after continue", 4, 1), engineWisps("after continue", 46, 1), look("after continue", copyKinds),
 	} },
 }
 

@@ -13,8 +13,6 @@ local VM = {}; VM.__index = VM
 function Vector(x, y) return setmetatable({X=x, Y=y}, VM) end
 VM.__add = function(a, b) return Vector(a.X + b.X, a.Y + b.Y) end
 VM.__sub = function(a, b) return Vector(a.X - b.X, a.Y - b.Y) end
-function VM:Length() return math.sqrt(self.X ^ 2 + self.Y ^ 2) end
-function VM:Resized(n) local l = self:Length() return Vector(self.X / l * n, self.Y / l * n) end
 Direction = {NO_DIRECTION=-1}
 function VM:Distance(o) return math.sqrt((self.X - o.X) ^ 2 + (self.Y - o.Y) ^ 2) end
 CBS = {}
@@ -52,7 +50,6 @@ function Isaac.FindByType(t, v, s)
 end
 function Isaac.Spawn(t, v, s, pos)
   local e = {Type=t, Variant=v, SubType=s, Position=Vector(pos.X, pos.Y), Wait=20}; e.ToPickup = function() return e end; pickups[#pickups+1] = e
-  for _, p in ipairs(players) do if p.Position:Distance(e.Position) < 20 then p.touching = true end end -- spawned underfoot: no touch (in game)
   return e
 end
 function GetPtrHash(p) return p.hash or p.seed end
@@ -62,13 +59,13 @@ ignorePress = false -- set by the test: the engine polls input but ignores a for
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do
-jrSeedToTwin = false -- set by the test: Esau Jr. moves the presser's seed to its twin, which holds no c703 (obsy b identity run 1)
 wrongFloor = false -- set by the test: the fake ReHUD lists new entries on a wrong floor
-tlazRoll = 21 -- set by the test: the type Clicker rolls from Tainted Lazarus
+tlazRoll = 35 -- set by the test: the type Clicker rolls from Tainted Lazarus (35 in 11 of 11 in game, with the Soul; 29 from 38 in run 8)
 -- Negative modes for the invariants, set by the test: the fake ReHUD never lists c4 (missCopy), lists each c4 twice (dupCopy), keeps the
 -- stored form unmerged when a Tainted Lazarus turns another character (keepStored), marks a vanished owner's list left instead of merging
--- it (leaveNotMerge), lists new entries under the next floor (laterFloor).
-missCopy, dupCopy, keepStored, leaveNotMerge, laterFloor = false, false, false, false, false
+-- it (leaveNotMerge), lists new entries under the next floor (laterFloor), keys characters by seed only, no tag (untagged), lists a row
+-- of no character, stored as an Esau Jr. one (phantomRow).
+missCopy, dupCopy, keepStored, leaveNotMerge, laterFloor, untagged, phantomRow = false, false, false, false, false, false, false
 players, stageN, pendingStart = {}, 1, nil
 local stored = {} -- the form each swap item (Flip, Esau Jr.) swapped out
 local seedN = 100
@@ -93,6 +90,7 @@ local function kinds(p)
 end
 function PM:ToPlayer() return self end
 function PM:GetData() return self.data end
+-- shortcut: Kill = leaves GetPlayer, unobserved; final E logs it.
 function PM:Kill() for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
@@ -106,7 +104,10 @@ function PM:GetZodiacEffect() return self.zodiac end
 function PM:AddItemWisp(id) wisps[#wisps+1] = setmetatable({SubType=id, Player=self}, WM) end
 function PM:IsCoopGhost() return false end
 function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 elseif s == 1 then return self.secondary or 0 end return self.active or 0 end
-function PM:SwapActiveItems() self.active, self.secondary, self.copy, self.copy2 = self.secondary, self.active, self.copy2, self.copy end
+function PM:SwapActiveItems()
+  self.active, self.secondary, self.copy, self.copy2 = self.secondary, self.active, self.copy2, self.copy
+  self.charge[0], self.charge[1], self.battery[0], self.battery[1] = self.charge[1], self.charge[0], self.battery[1], self.battery[0]
+end
 function PM:GetActiveCharge(s) return self.charge[s or 0] or 0 end
 local function full(p, s) local id = p:GetActiveItem(s) return id == 711 and 4 or MAX[id] or 0 end -- REP+ Flip takes 4, MaxCharges says 6
 function PM:SetActiveCharge(n, s) local f = full(self, s) self.charge[s or 0], self.battery[s or 0] = math.min(n, f), math.max(n - f, 0) end
@@ -127,6 +128,7 @@ function PM:AddCollectible(id)
     if not kept then self.items[id] = 1 end -- each Esau Jr. copy records the character it last swapped out
   end
   if id == 667 then players[#players+1] = newPlayer(14, self) end -- Strawman's Keeper
+  if id == 392 then self.zodiac = 300 + stageN end -- Zodiac grants on its own floor (S1b in game: within 1 update)
   if id == 619 and tlaz(self.t) then
     players[2] = pair(self, stored[711] or newPlayer(self.t == 29 and 38 or 29))
     stored[711] = nil
@@ -160,13 +162,33 @@ local function swapForm(p, id)
     q.hash, q.items, q.data = (p.hash or p.seed) + 100000, {}, {}
     for k, v in pairs(p.items) do q.items[k == 4 and 53 or k] = v end
     for k, r in ipairs(players) do if r == p then players[k] = q end end
-  elseif id == 703 and jrSeedToTwin and players[2] then
-    p.seed, players[2].seed = players[2].seed, p.seed
+  elseif id == 703 and not (p.copy and p.copy.held) and tlaz(p.t) and p.partner and (players[1] == p.partner or players[2] == p.partner) then
+    -- A Birthright twin's fresh copy (obsyb1-2): a form on the twin's seed, the presser and the twin stored together (players 2 -> 1).
+    local twin, form = p.partner, newPlayer(p.t)
+    form.seed, form.jrForm, form.active, form.items[703], form.copy = twin.seed, true, 703, 1, p.copy or {}
+    form.copy.held, form.copy.twin, form.charge[0] = p, twin, p.charge[0]
+    stored[p], stored[twin], players = p, twin, {form}
+  elseif id == 703 and p.copy and p.copy.twin then
+    -- Pressing back returns both (1 -> 2), the presser first.
+    local copy = p.copy
+    local back, twin = copy.held, copy.twin
+    back.active, back.copy, back.items[703], back.charge[0], copy.held, copy.twin = 703, copy, back.items[703] or 1, p.charge[0], p, nil
+    stored[back], stored[twin], stored[p] = nil, nil, p
+    players = {back, twin}
   elseif id == 711 or id == 703 then
     local copy = id == 703 and (p.copy or {})
+    local fresh = not (copy and copy.held) and not (not copy and stored[id])
     local other, s = (copy and copy.held) or (not copy and stored[id]) or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
-    -- Tainted Lazarus's new Esau Jr. form takes its stored Dead form's seed (console 2026-11-22)
-    if copy and not copy.held and p.t == 29 and stored[711] and stored[711].t == 38 then other.seed = stored[711].seed end
+    if copy and fresh then
+      other.jrForm = true
+      -- Tainted Lazarus's new Esau Jr. form takes its stored Dead form's seed (console 2026-11-22); otherwise a character's later fresh
+      -- copies make forms on the seed of the first form it made, typed as the presser (obsx run2-6 "original loses Esau Jr." press #1)
+      if p.t == 29 and stored[711] and stored[711].t == 38 then other.seed = stored[711].seed
+      elseif p.firstForm then other.seed = p.firstForm end
+      p.firstForm = p.firstForm or other.seed
+    end
+    -- A Flip of an Esau Jr. form with no stored Dead form keeps the form's seed (obsx run2/run6 "obs esaujr flip")
+    if not copy and fresh and p.jrForm then other.seed = p.seed end
     if copy then other.active, other.copy, other.items[703], copy.held = 703, copy, other.items[703] or 1, p else pair(p, other) end
     other.charge[s], other.battery[s] = p.charge[s], p.battery[s]
     local i = 1
@@ -176,8 +198,11 @@ local function swapForm(p, id)
     stored[other] = nil
     players[i] = other
   elseif id == 482 then
+    -- shortcut: no item split to the new Esau and no 50% removal (both seen in game), model it from G's INNER lines.
     if p.t == 19 then merge(p, players[2]); players[2] = nil; p.t = 5
-    elseif tlaz(p.t) then p:ChangePlayerType(tlazRoll) -- like ChangePlayerType: into 21 (in-game 2026-11-21), into 29 from 38 (run 8)
+    elseif tlaz(p.t) then
+      p:ChangePlayerType(tlazRoll) -- like ChangePlayerType: into 35 (11 of 11 in game), into 29 from 38 (run 8)
+      if tlazRoll == 35 then players[#players+1] = newPlayer(40) end -- Tainted Forgotten's Soul: its own seed, no items
     else p.t = 19; players[2] = newPlayer(20) end
   end
 end
@@ -236,28 +261,37 @@ function engineInput()
     end
   end
   frame = frame + 1
-  for _, p in ipairs(players) do p.Position = p.Position + p.Velocity end
+  local from = {}
+  for _, p in ipairs(players) do from[p] = p.Position; p.Position = p.Position + p.Velocity end
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
-  -- An active pedestal swaps with the held active when touched anew (shortcut: one touch flag per player, enough for one pedestal).
+  -- An active pedestal swaps with the held active when walked onto: by Velocity from off it, as a teleport never touched in game
+  -- (lua-api-notes.md). shortcut: a pedestal reached, not a hitbox crossed; model collision if a scenario walks past a pedestal.
   for _, p in ipairs(players) do
-    local on = false
     for _, e in ipairs(pickups) do
-      if p.Position:Distance(e.Position) < 20 then
-        on = true
-        if not p.touching and p.active then
-          local held, got = p.active, e.SubType
-          p.items[held] = nil
-          p.active, p.items[got], e.SubType, p.copy, e.copy = got, 1, held, e.copy, p.copy
-        end
+      if from[p] and p.Position:Distance(e.Position) < 20 and from[p]:Distance(e.Position) >= 20 and p.active then
+        local held, got = p.active, e.SubType
+        p.items[held] = nil
+        p.active, p.items[got], e.SubType, p.copy, e.copy = got, 1, held, e.copy, p.copy
       end
     end
-    p.touching = on
   end
-  -- 3 Dollar Bill: one granted item, changing every 180 updates (about 6 s, wiki)
+  -- 3 Dollar Bill: one granted item, changing every 170 updates (in game)
   for _, p in ipairs(players) do
-    if (p.items[191] or 0) > 0 then p.billT = (p.billT or -1) + 1; p.bill = 10 + math.floor(p.billT / 180) % 3 end
+    if (p.items[191] or 0) > 0 then p.billT = (p.billT or -1) + 1; p.bill = 10 + math.floor(p.billT / 170) % 3 end
   end
+end
+
+-- The fake user's hand step (tests/test_harness.py answers a YOU: line with it): walks player 0 by Velocity onto the pedestal holding
+-- `id`, stepping off first when it stands on one.
+function fakeUserWalk(id)
+  local p, e = players[1], Isaac.FindByType(5, 100, id)[1]
+  p.Velocity = Vector(0, 0)
+  if not e then return end
+  for _, q in ipairs(pickups) do
+    if p.Position:Distance(q.Position) < 20 then p.Velocity = Vector(0, 40) return end
+  end
+  p.Velocity = e.Position - p.Position
 end
 
 frame = 0
@@ -277,7 +311,7 @@ function Isaac.ExecuteCommand(c)
     if b == 619 and players[2] then stored[711], players[2] = players[2], nil end
   elseif a == "stage" then
     stageN = b
-    for _, p in ipairs(players) do if (p.items[392] or 0) > 0 then p.zodiac = 300 + b end end -- the stub's guess: Zodiac grants from the next floor, a new item each
+    for _, p in ipairs(players) do if (p.items[392] or 0) > 0 then p.zodiac = 300 + b end end -- `stage` re-rolls the Zodiac item
   end
 end
 
@@ -288,6 +322,7 @@ end
 local entries, settle, numbers, nextNumber, tagged, summoned = {}, {}, {}, 0, {}, {}
 local tracker = {entries=entries, characterCount=0}
 local function keyOf(p)
+  if untagged then return p.seed end
   if p.data.ReHUD_key then return p.data.ReHUD_key.key end
   local key = p.seed
   while tagged[key] do key = key + (1 << 32) end
@@ -299,7 +334,12 @@ local function isStored(key) for _, p in pairs(stored) do if keyOf(p) == key the
 local function esauJrOf(key) for k, p in pairs(stored) do if type(k) == "table" and keyOf(p) == key then return true end end end
 ReHUD = {dbg={tracker=tracker, roster={isSettling=function(key) return (settle[key] or 0) > 0 end, isSwapped=isStored, number=function(key) return numbers[key] end,
   group=function(key) return numbers[key] and 0 end, -- one human: every character shares ControllerIndex 0
-  serialize=function() local rows = {} for key in pairs(numbers) do rows[#rows+1] = {key=key, swapped=isStored(key), esauJr=esauJrOf(key)} end return rows end}}}
+  serialize=function()
+    local rows = {}
+    for key in pairs(numbers) do rows[#rows+1] = {key=key, swapped=isStored(key), esauJr=esauJrOf(key)} end
+    if phantomRow then rows[#rows+1] = {key=-1, number=99, swapped=true, esauJr=true} end
+    return rows
+  end}}}
 function fakeTrack()
   local all, held = {}, {}
   for _, p in ipairs(players) do

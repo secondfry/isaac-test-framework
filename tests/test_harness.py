@@ -18,13 +18,20 @@ OBSY_A = ["obsy a pedestal pick-back", "obsy a schoolbag", "obsy a schoolbag Cli
           "obsy a J&E by Jacob", "obsy a J&E by Esau", "obsy a Forgotten and Soul", "obsy a Tainted Forgotten", "obsy a Lazarus Risen"]
 OBSY_B = ["obsy b Tainted Jacob", "obsy b Eden", "obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"]
 OBSY_LARGE = {"obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"}  # kind "large", not new
+FINAL_LARGE = {"final N summoned Esau across Continue"}
 OBSY = OBSY_A + OBSY_B
 OBS += DISPUTES + OBSY
+FINAL = ["final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up", "final C Tainted Lazarus Esau Jr.", "final D Strawman",
+         "final E Soul of Jacob and Esau", "final F Flip partners", "final G Jacob and Esau Clicker split"]
+FINAL_OBS = ["final I Birthright twins Esau Jr.", "final K tag through Flip", "final L flipped cross", "final M original loses Esau Jr.",
+             "final J Strawman Keeper leaves", "final N summoned Esau across Continue"]  # INFO only
+FINAL_MODE = "only final,S3,r1,P4c"
+FINAL_RUN = ["P4c", "S3", "r1", "r1 mirror", *FINAL, *FINAL_OBS]
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
-             "continue", "continue settled", "L1"]
-NO_SWAP = {"S1", "S1b", "S2", "L1", *OBS}  # an obs press that never swaps is INFO, not a fail
+             *FINAL, *FINAL_OBS, "continue", "continue settled", "L1"]
+NO_SWAP = {"S1", "S1b", "S2", "L1", "final D Strawman", *OBS, *FINAL_OBS}  # an obs press that never swaps is INFO, not a fail
 NEW = {"continue", "continue settled", "L1"}  # mirrors main.lua's new = true flags
-LARGE = NEW | OBSY_LARGE
+LARGE = NEW | OBSY_LARGE | FINAL_LARGE
 # Exact verdicts: a lost check or note shows. Each look adds 5 invariant checks. P2 counts 8 or 9 checks per Clicker use: 22 here (the stub's
 # Clicker splits on its second use), any number in game.
 WANT = {
@@ -46,25 +53,39 @@ WANT = {
     "r1": "PASS 27 checks",
     "r1 mirror": "PASS 18 checks",
     "L1": "PASS 30 checks",
-    **{n: "INFO data only" for n in OBS},
+    "final A two Esau Jr. copies": "PASS 46 checks",
+    "final B Esau Jr. dropped and picked up": "PASS 25 checks",
+    "final C Tainted Lazarus Esau Jr.": "PASS 39 checks",
+    "final D Strawman": "PASS 21 checks",
+    "final E Soul of Jacob and Esau": "PASS 15 checks",
+    "final F Flip partners": "PASS 47 checks",
+    "final G Jacob and Esau Clicker split": "PASS 18 checks",
+    **{n: "INFO data only" for n in OBS + FINAL_OBS},
 }
-FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes" and n not in OBS]  # the floor invariant covers every scenario with a look
+FLOOR_CHECKED = [n for n in SCENARIOS if n != "probes" and n not in OBS and n not in FINAL_OBS]  # the floor invariant covers every scenario with a look
 # Every scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on its watched
 # drop, a staying one (Clicker) on its charge, a card on its count.
 STORED = "spent nothing: stored presser seen with no drop after its use"
 SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4c": STORED, "S4": STORED,
               "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
-              "continue": STORED, "continue settled": STORED}
+              "continue": STORED, "continue settled": STORED, "final A two Esau Jr. copies": STORED, "final B Esau Jr. dropped and picked up": STORED,
+              "final C Tainted Lazarus Esau Jr.": STORED, "final E Soul of Jacob and Esau": "spent nothing: card count", "final F Flip partners": STORED,
+              "final G Jacob and Esau Clicker split": "spent nothing: charge"}
 ASK = "ACTION exit to the menu and Continue now by type"
 # Each invariant's negative stub mode, and the scenarios it must fail on with that invariant's message (the rest may fail on their own checks).
-HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", "continue", "continue settled", "L1"]
+FINAL_C4 = ["final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up", "final C Tainted Lazarus Esau Jr.", "final D Strawman",
+            "final E Soul of Jacob and Esau", "final F Flip partners"]  # G holds no c4
+HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", *FINAL_C4, "continue", "continue settled", "L1"]
 INVARIANT_MODES = {
     "missCopy": ("invariant engine counts: c4 of ", HOLDS_C4),
     "dupCopy": ("invariant duplicates: c4 of ", HOLDS_C4),
     "keepStored": ("invariant phantom stored forms: ", ["test3", "S3", "continue", "continue settled"]),
-    "leaveNotMerge": ("invariant left entries: ", ["test3", "P4c", "P2", "S3", "r1", "r1 mirror", "continue", "continue settled"]),
-    # S4, P1, P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached
-    "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S1", "S1b", "S2", "r1", "r1 mirror", "continue", "continue settled", "L1"]),
+    "leaveNotMerge": ("invariant left entries: ", ["test3", "P4c", "P2", "S3", "r1", "r1 mirror", "final F Flip partners", "final G Jacob and Esau Clicker split",
+                                                   "continue", "continue settled"]),
+    # P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached; S4's Esau Jr. form (holding c703) and
+    # P1's summoned Esau do
+    "laterFloor": ("invariant floors: ", ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "S1", "S1b", "S2", "r1", "r1 mirror", *FINAL, "continue",
+                                          "continue settled", "L1"]),
 }
 REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
@@ -162,12 +183,13 @@ def obs_report(log):
         os.remove(f.name)
     assert p.returncode == 0 and not p.stderr, p.stderr
     out = p.stdout.splitlines()
-    assert out[-1] == f"obs scenarios: {len(OBS)} ({', '.join(OBS)})", out[-1]
+    timed = OBS + FINAL + FINAL_OBS  # the final ones get a timeline too
+    assert out[-1] == f"obs scenarios: {len(timed)} ({', '.join(timed)})", out[-1]
     for name in OBS:
         assert f"== {name}" in out and f"  summary {name}: INFO data only" in out, name
     # obs esaujr cross: the original (A) is stored by Esau Jr. and back after the second press; the form (B) holds the c5 marker
     rows = out[out.index("== obs esaujr cross"):out.index("  summary obs esaujr cross: INFO data only") + 3]
-    assert any(r.startswith("u") and "| P0 t29 B [c5 c711]" in r for r in rows), rows
+    assert any(r.startswith("u") and "| P0 t29 B [c5 c703 c711]" in r for r in rows), rows
     assert rows[-2].startswith("    A = ") and "appeared u1, gone u2, back u" in rows[-2], rows[-2]
     assert rows[-1].startswith("    B = ") and "engine c5x1" in rows[-1], rows[-1]
     assert any(r.startswith("       PLAYERX 0 variant ") for r in out), "no PLAYERX line under a row"
@@ -185,9 +207,11 @@ def check_obsy(log):
     verdicts = [s for s in info if " VERDICT Esau Jr." in s]
     for v in verdicts:  # each Esau Jr. press logs the form's first update
         name, label = v.split(" VERDICT ")[0], v.split(" VERDICT ")[1].split(" index ")[0]
+        if " -> unchanged" in v:  # a fresh copy's form on the presser's seed: its TIMING watch is dropped (same-seed press)
+            continue
         assert has(name, f"TIMING {label} frame ") and has(name, f"TIMING {label} pressed at frame "), v
     assert has("obsy a J&E by Esau", "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
-    assert has("obsy a pedestal pick-back", "touch try 1 c45 pedestals 1 c703 pedestals 0 c703 owned 0")  # spawned beside, not underfoot
+    assert has("obsy a pedestal pick-back", "touch try 1 c45 pedestals 1 c703 pedestals 0 c703 owned 1")  # spawned beside, not underfoot; the form holds c703
     assert has("obsy a pedestal pick-back", "c703 dropped after 2 updates: owned 0 c703 pedestals 1")
     timing = [s.split(" index ")[0] for s in info if " TIMING " in s and " frame " in s and " pressed at " not in s]
     assert timing and len(timing) == len(set(timing)), "a TIMING frame logged twice"
@@ -210,11 +234,12 @@ def main(path):
         print("RESULT", name, got[name])
         assert got[name] == WANT[name], f"{name}: {got[name]}"
     assert any(s.startswith("PROBE HARNESS START") and "regression mode" in s for s in log), "mode not logged"
-    assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 3 + len(OBSY_LARGE), "the continues did not resume"
+    assert sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log) == 3 + len(OBSY_LARGE) + len(FINAL_LARGE), "the continues did not resume"
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
     stored = [s for s in swaps if " spent stored presser charge, " in s]
-    assert presses and len(presses) == len(swaps) and stored, (len(presses), len(swaps), len(stored))
+    same = [s for s in log if s.startswith("PROBE INFO ") and " new form, same seed " in s]  # a fresh copy's form on its presser's seed
+    assert presses and len(presses) == len(swaps) + len(same) and stored, (len(presses), len(swaps), len(same), len(stored))
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
@@ -237,6 +262,15 @@ def main(path):
         want = "SKIP large and not new (default mode)" if name in LARGE and name not in NEW else WANT[name]
         assert got[name] == want, f"default mode: {name}: {got[name]}"
     print("PASS default mode runs small and new large scenarios, skips the rest")
+
+    log = run(path, mode=FINAL_MODE)
+    got = check_finished(log, FINAL_MODE)
+    for name in SCENARIOS:
+        assert got[name] == (WANT[name] if name in FINAL_RUN else f"SKIP not {FINAL_MODE[5:]} ({FINAL_MODE} mode)"), (name, got[name])
+    assert run.updates < 3 * 60 * 30, run.updates
+    rows = [s for s in log if s.startswith("PROBE ROWS final ")]
+    assert any(" LJ stored key 4294967" in s for s in rows), "LJ never listed on its own key beside D"
+    print(f"PASS {FINAL_MODE}: {len(FINAL_RUN)} scenarios, P4c runs, {run.updates} updates in the stub")
 
     log = run(path, mode="only obs\r\nSTUCK 3 obs mirror | settle")  # a STUCK line left in the file keeps the mode
     got = check_finished(log, "only obs mode")
@@ -263,10 +297,11 @@ def main(path):
     assert any("obsx form uses Clicker effect MC_USE_ITEM " in s and s.endswith("slot -1 charge n/a") for s in log)
     for name in DISPUTES[-4:]:
         history = [s for s in log if s.startswith(f"PROBE INFO {name} press #") and " A seed " in s]
-        expected = ["false", "true"] if name == "obsx original loses Esau Jr." else ["true", "false"]
+        # each copy keeps the character it last swapped out (console 2026-11-22): after a D6 the fresh copy makes a new form first
+        expected = {"obsx original loses Esau Jr.": ["false", "true"], "obsx form uses Clicker effect": ["true", "false"]}.get(name, ["false", "false"])
         assert [s.rsplit(" ", 1)[1] for s in history] == expected, history
     b_returns = [s for s in log if s.startswith("PROBE INFO obsx original loses Esau Jr. press #") and " B seed " in s]
-    assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["true", "false"], b_returns
+    assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["false", "false"], b_returns
     print("PASS only obsx, re-armed veto, same-update change, Birthright Flip, and controls")
 
     log = run(path, mode="only obsx", ignoreClickerEffect=True)
@@ -312,7 +347,8 @@ def main(path):
     assert all(got[name].removesuffix(note) == WANT[name] for name in OBSY_B), got
     late = [s for s in log if s.endswith(" late Continue, ignored")]
     assert late and not any("unexpected game start" in s for s in log), late
-    assert sum(got[name].endswith(note) for name in OBSY_B) == len(late), got
+    in_b = [s for s in late if any(s.startswith(f"PROBE INFO {n} ") for n in OBSY_B)]  # a later one can land while later scenarios SKIP
+    assert sum(got[name].endswith(note) for name in OBSY_B) == len(in_b), got
     print("PASS a late Continue is ignored and noted:", len(late), "times")
 
     # obsy b run 1: after a Continue, Esau Jr. made a new entity with the presser's seed and type, its items re-rolled
@@ -345,7 +381,7 @@ def main(path):
     print("PASS a seed moved to a twin is read at the pressed index:", moved[0])
 
     all_fail(check_finished(run(path, ignoreRestart=True), "restart ignored"), "restart timeout", "no new game after 600 updates",
-             [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY])
+             [n for n in SCENARIOS if n not in DISPUTES and n not in OBSY and n not in FINAL_OBS])
     # probes' first press is Esau Jr., a swap: every scenario fails on its first press
     log = run(path, ignorePress=True)
     assert any("obsx form loses Esau Jr. 2 Esau Jr. never happened:" in s for s in log)

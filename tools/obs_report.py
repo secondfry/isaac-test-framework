@@ -112,7 +112,7 @@ def report(lines):
         s = m.group(1)
         if s.startswith("SCENARIO START "):
             name = s[len("SCENARIO START "):]
-            sc = Scenario(name) if name.startswith("obs") else None
+            sc = Scenario(name) if name.startswith(("obs", "final ")) else None  # final: per-update OBS lines in F, G, I, J
             continue
         if not sc:
             continue

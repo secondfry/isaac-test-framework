@@ -2,8 +2,8 @@
 ModCallbacks = {MC_POST_UPDATE=1, MC_POST_RENDER=2, MC_USE_ITEM=3, MC_INPUT_ACTION=13, MC_POST_GAME_STARTED=15, MC_PRE_USE_ITEM=23, MC_POST_PLAYER_UPDATE=31}
 CallbackPriority = {EARLY=-100, LATE=100}
 EntityType = {ENTITY_FAMILIAR=3, ENTITY_PICKUP=5}; FamiliarVariant = {ITEM_WISP=237}; PickupVariant = {PICKUP_COLLECTIBLE=100}
-CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105, COLLECTIBLE_YUM_HEART=45, COLLECTIBLE_SCHOOLBAG=534}
-PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
+CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105, COLLECTIBLE_YUM_HEART=45, COLLECTIBLE_SCHOOLBAG=534, COLLECTIBLE_STRAW_MAN=667}
+PlayerType = {PLAYER_ISAAC=0, PLAYER_CAIN=2, PLAYER_KEEPER=14, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
   PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_JACOB_B=37, PLAYER_THESOUL_B=40}
 ActiveSlot = {SLOT_PRIMARY=0, SLOT_SECONDARY=1, SLOT_POCKET=2}
 Card = {CARD_SOUL_JACOB=97}
@@ -12,6 +12,10 @@ ButtonAction = {ACTION_ITEM=9, ACTION_PILLCARD=10, ACTION_DROP=11} -- the stub n
 local VM = {}; VM.__index = VM
 function Vector(x, y) return setmetatable({X=x, Y=y}, VM) end
 VM.__add = function(a, b) return Vector(a.X + b.X, a.Y + b.Y) end
+VM.__sub = function(a, b) return Vector(a.X - b.X, a.Y - b.Y) end
+function VM:Length() return math.sqrt(self.X ^ 2 + self.Y ^ 2) end
+function VM:Resized(n) local l = self:Length() return Vector(self.X / l * n, self.Y / l * n) end
+Direction = {NO_DIRECTION=-1}
 function VM:Distance(o) return math.sqrt((self.X - o.X) ^ 2 + (self.Y - o.Y) ^ 2) end
 CBS = {}
 modData = "" -- set by the test: what mod:LoadData() returns
@@ -74,7 +78,7 @@ local INNATE = {[2]={[46]=1}} -- innate copies by player type: Cain's Lucky Foot
 function newPlayer(t, parent)
   seedN = seedN + 1
   return setmetatable({t=t, seed=seedN, items=tlaz(t) and {[711]=1} or t == 2 and {[46]=1} or {}, charge={}, battery={}, cards={}, pocket=tlaz(t) and 711 or nil, zodiac=0, Variant=0, ControllerIndex=0, Parent=parent,
-    Position=Vector(0, 0)}, PM)
+    Position=Vector(0, 0), Velocity=Vector(0, 0), data={}, Index=seedN, hash=1000000 + seedN}, PM) -- hash: each entity its own, as seeds can be shared
 end
 -- Copies `p` holds by id, as {without a clock (owned, innate), with one (wisps, Zodiac, 3 Dollar Bill)}.
 local function kinds(p)
@@ -88,6 +92,8 @@ local function kinds(p)
   return k
 end
 function PM:ToPlayer() return self end
+function PM:GetData() return self.data end
+function PM:Kill() for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
 function PM:GetCollectibleCount() local n = 0 for _, c in pairs(self.items) do n = n + c end return n end
@@ -100,7 +106,7 @@ function PM:GetZodiacEffect() return self.zodiac end
 function PM:AddItemWisp(id) wisps[#wisps+1] = setmetatable({SubType=id, Player=self}, WM) end
 function PM:IsCoopGhost() return false end
 function PM:GetActiveItem(s) if s == 2 then return self.pocket or 0 elseif s == 1 then return self.secondary or 0 end return self.active or 0 end
-function PM:SwapActiveItems() self.active, self.secondary = self.secondary, self.active end
+function PM:SwapActiveItems() self.active, self.secondary, self.copy, self.copy2 = self.secondary, self.active, self.copy2, self.copy end
 function PM:GetActiveCharge(s) return self.charge[s or 0] or 0 end
 local function full(p, s) local id = p:GetActiveItem(s) return id == 711 and 4 or MAX[id] or 0 end -- REP+ Flip takes 4, MaxCharges says 6
 function PM:SetActiveCharge(n, s) local f = full(self, s) self.charge[s or 0], self.battery[s or 0] = math.min(n, f), math.max(n - f, 0) end
@@ -114,10 +120,13 @@ local function pair(a, b) a.partner, b.partner = b, a return b end
 function PM:AddCollectible(id)
   self.items[id] = (self.items[id] or 0) + 1
   if id == 45 or id == 105 or id == 482 or id == 703 then -- an active: the held one moves to a free Schoolbag slot, else is lost
-    if self.items[534] and self.active and not self.secondary then self.secondary = self.active
+    local kept = self.items[534] and self.active and not self.secondary
+    if kept then self.secondary, self.copy2 = self.active, self.copy
     elseif self.active then self.items[self.active] = nil end
-    self.active, self.items[id] = id, 1
+    self.active, self.copy = id, id == 703 and {} or nil
+    if not kept then self.items[id] = 1 end -- each Esau Jr. copy records the character it last swapped out
   end
+  if id == 667 then players[#players+1] = newPlayer(14, self) end -- Strawman's Keeper
   if id == 619 and tlaz(self.t) then
     players[2] = pair(self, stored[711] or newPlayer(self.t == 29 and 38 or 29))
     stored[711] = nil
@@ -148,18 +157,24 @@ local function swapForm(p, id)
     if math.type(jrSameSeed) == "integer" then jrSameSeed = jrSameSeed > 1 and jrSameSeed - 1 end
     local q = setmetatable({}, PM)
     for k, v in pairs(p) do q[k] = v end
-    q.hash, q.items = (p.hash or p.seed) + 100000, {}
+    q.hash, q.items, q.data = (p.hash or p.seed) + 100000, {}, {}
     for k, v in pairs(p.items) do q.items[k == 4 and 53 or k] = v end
     for k, r in ipairs(players) do if r == p then players[k] = q end end
   elseif id == 703 and jrSeedToTwin and players[2] then
     p.seed, players[2].seed = players[2].seed, p.seed
   elseif id == 711 or id == 703 then
-    local other, s = stored[id] or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
-    if id == 703 then other.active = 703 else pair(p, other) end
+    local copy = id == 703 and (p.copy or {})
+    local other, s = (copy and copy.held) or (not copy and stored[id]) or newPlayer(id == 711 and (p.t == 29 and 38 or 29) or p.t), id == 711 and 2 or 0
+    -- Tainted Lazarus's new Esau Jr. form takes its stored Dead form's seed (console 2026-11-22)
+    if copy and not copy.held and p.t == 29 and stored[711] and stored[711].t == 38 then other.seed = stored[711].seed end
+    if copy then other.active, other.copy, other.items[703], copy.held = 703, copy, other.items[703] or 1, p else pair(p, other) end
     other.charge[s], other.battery[s] = p.charge[s], p.battery[s]
     local i = 1
     for k, q in ipairs(players) do if q == p then i = k end end
-    stored[id], players[i] = players[i], other
+    if not copy then stored[id] = players[i] end
+    stored[p] = copy and p or nil -- Esau Jr. characters, stored by themselves
+    stored[other] = nil
+    players[i] = other
   elseif id == 482 then
     if p.t == 19 then merge(p, players[2]); players[2] = nil; p.t = 5
     elseif tlaz(p.t) then p:ChangePlayerType(tlazRoll) -- like ChangePlayerType: into 21 (in-game 2026-11-21), into 29 from 38 (run 8)
@@ -221,6 +236,7 @@ function engineInput()
     end
   end
   frame = frame + 1
+  for _, p in ipairs(players) do p.Position = p.Position + p.Velocity end
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
   -- An active pedestal swaps with the held active when touched anew (shortcut: one touch flag per player, enough for one pedestal).
@@ -232,7 +248,7 @@ function engineInput()
         if not p.touching and p.active then
           local held, got = p.active, e.SubType
           p.items[held] = nil
-          p.active, p.items[got], e.SubType = got, 1, held
+          p.active, p.items[got], e.SubType, p.copy, e.copy = got, 1, held, e.copy, p.copy
         end
       end
     end
@@ -245,14 +261,17 @@ function engineInput()
 end
 
 frame = 0
-G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetCurrentRoomIndex=function() return 84 end, GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 function Isaac.ExecuteCommand(c)
   local a, b = c:match("^(%S+) c?(%d+)$")
   b = tonumber(b)
   if a == "restart" then if not ignoreRestart then pendingStart = b end
-  elseif a == "giveitem" then players[1]:AddCollectible(b)
+  elseif a == "giveitem" then
+    local to = players[1]
+    for _, p in ipairs(players) do if p.t == 14 and p.Parent then to = p end end -- to the Keeper once one exists (in-game 2026-11-22)
+    to:AddCollectible(b)
   elseif a == "remove" then
     players[1].items[b] = math.max(0, (players[1].items[b] or 1) - 1)
     if b == 619 and players[2] then stored[711], players[2] = players[2], nil end
@@ -262,30 +281,43 @@ function Isaac.ExecuteCommand(c)
   end
 end
 
--- Fake ReHUD: one entry per copy and kind held by a character (no Parent, not the Tainted Soul) or stored form, listed under the floor it
--- first appeared on; a vanished owner's entries go to player 0 (a merge) and its number is forgotten. Numbers are first seen; a new
--- seed settles for 20 updates, frozen while stored (roster.lua).
-local entries, settle, numbers, nextNumber = {}, {}, {}, 0
+-- Fake ReHUD: one entry per copy and kind held by a character (not the Tainted Soul) or stored form, listed under the floor it
+-- first appeared on; a vanished owner's entries go to player 0 (a merge), a summoned Esau's go, and its number is forgotten. Numbers are
+-- first seen; a new key settles for 20 updates, frozen while stored (roster.lua). Keys as roster.lua playerKey: a GetData tag, the seed
+-- for a seed's first character, seed + n * 2^32 for later ones.
+local entries, settle, numbers, nextNumber, tagged, summoned = {}, {}, {}, 0, {}, {}
 local tracker = {entries=entries, characterCount=0}
-local function isStored(key) for _, p in pairs(stored) do if p.seed == key then return true end end return false end
+local function keyOf(p)
+  if p.data.ReHUD_key then return p.data.ReHUD_key.key end
+  local key = p.seed
+  while tagged[key] do key = key + (1 << 32) end
+  tagged[key], p.data.ReHUD_key = true, {key=key}
+  return key
+end
+local function isStored(key) for _, p in pairs(stored) do if keyOf(p) == key then return true end end return false end
+-- An Esau Jr. character (stored under itself): roster.lua's esauJr link, which keeps it listed until the run ends.
+local function esauJrOf(key) for k, p in pairs(stored) do if type(k) == "table" and keyOf(p) == key then return true end end end
 ReHUD = {dbg={tracker=tracker, roster={isSettling=function(key) return (settle[key] or 0) > 0 end, isSwapped=isStored, number=function(key) return numbers[key] end,
   group=function(key) return numbers[key] and 0 end, -- one human: every character shares ControllerIndex 0
-  serialize=function() local rows = {} for key in pairs(numbers) do rows[#rows+1] = {key=key, swapped=isStored(key)} end return rows end}}}
+  serialize=function() local rows = {} for key in pairs(numbers) do rows[#rows+1] = {key=key, swapped=isStored(key), esauJr=esauJrOf(key)} end return rows end}}}
 function fakeTrack()
   local all, held = {}, {}
   for _, p in ipairs(players) do
-    if not p.Parent and p.t ~= 40 then
+    if p.t ~= 40 then
+      local key = keyOf(p)
       all[#all+1] = p
       p.unseen = nil
-      if settle[p.seed] == nil then settle[p.seed] = 20 elseif settle[p.seed] > 0 then settle[p.seed] = settle[p.seed] - 1 end
+      if p.Parent and p.t == 20 then summoned[key] = true end
+      if settle[key] == nil then settle[key] = 20 elseif settle[key] > 0 then settle[key] = settle[key] - 1 end
     end
   end
   for _, p in pairs(stored) do if not p.unseen then all[#all+1] = p end end
   for _, p in ipairs(all) do
-    if not numbers[p.seed] then numbers[p.seed], nextNumber = nextNumber, nextNumber + 1 end
+    local key = keyOf(p)
+    if not numbers[key] then numbers[key], nextNumber = nextNumber, nextNumber + 1 end
     local k = kinds(p)
     if dupCopy and k[4] then k[4] = {k[4][1] * 2, k[4][2] * 2} elseif missCopy then k[4] = nil end
-    held[p.seed] = k
+    held[key] = k
   end
   for key in pairs(numbers) do if not held[key] and not leaveNotMerge then numbers[key] = nil end end
   local have = {}
@@ -293,20 +325,23 @@ function fakeTrack()
   for i = #entries, 1, -1 do -- newest first, so the oldest of a kind goes
     local e = entries[i]
     if not held[e.owner] and leaveNotMerge then e.left = true end
+    if not e.left and not held[e.owner] and summoned[e.owner] then table.remove(entries, i) goto nextEntry end
     if not e.left then
-      if not held[e.owner] then e.owner = players[1].seed end
+      if not held[e.owner] then e.owner = keyOf(players[1]) end
       local kind = e.temporary and 2 or 1
       local s = slot(e.owner, e.id, kind)
       have[s] = (have[s] or 0) + 1
       local c = held[e.owner][e.id]
       if have[s] > (c and c[kind] or 0) then table.remove(entries, i) else e.number = numbers[e.owner] end
     end
+    ::nextEntry::
   end
   for _, p in ipairs(all) do
-    for id, c in pairs(held[p.seed]) do
+    local key = keyOf(p)
+    for id, c in pairs(held[key]) do
       for kind = 1, 2 do
-        for _ = (have[slot(p.seed, id, kind)] or 0) + 1, c[kind] do
-          entries[#entries+1] = {id=id, number=numbers[p.seed], owner=p.seed, floor=wrongFloor and "Wrong" or "Floor"..(laterFloor and stageN + 1 or stageN), temporary=kind == 2}
+        for _ = (have[slot(key, id, kind)] or 0) + 1, c[kind] do
+          entries[#entries+1] = {id=id, number=numbers[key], owner=key, floor=wrongFloor and "Wrong" or "Floor"..(laterFloor and stageN + 1 or stageN), temporary=kind == 2}
         end
       end
     end
@@ -326,7 +361,7 @@ end
 function startRun(t, cont)
   if not cont then
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
-    stageN = 1; stored, wisps, pickups, numbers, nextNumber = {}, {}, {}, {}, 0; for i = #entries, 1, -1 do entries[i] = nil end
+    stageN = 1; stored, wisps, pickups, numbers, nextNumber, tagged, summoned = {}, {}, {}, {}, 0, {}, {}; for i = #entries, 1, -1 do entries[i] = nil end
   end
   fire(15, cont)
 end

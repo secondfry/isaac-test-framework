@@ -18,6 +18,7 @@ EXPLAINED = [
     "split (20 Clicker uses)",  # P2: Clicker rolls a random character and may never land on Jacob & Esau
     "Zodiac rolled the same item",  # S1b: the stage re-roll can repeat
     "3 Dollar Bill still grants",  # S1b: the next grant can roll the same item
+    "no split in 12 Clicker uses",  # final G: Clicker lands on Jacob & Esau about 1 in 7
 ]
 PROBE = re.compile(r"(?:^|Lua Debug: )PROBE (.*)")
 RESULT = re.compile(r"RESULT (.+?) (PASS|FAIL|INFO|SKIP)\b(.*)")

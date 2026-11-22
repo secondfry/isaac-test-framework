@@ -77,8 +77,21 @@ local function wispsOf(p)
 	return n, first
 end
 
--- shortcut: copy of ReHUD main.lua isCharacter; expose it on ReHUD.dbg if the copy drifts.
-local function isCharacter(p) return p.Variant == 0 and not p.Parent and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B end
+-- shortcut: copy of ReHUD 2.8's character rule (main.lua isCharacter): Strawman's Keeper and Soul of Jacob and Esau's Esau, both with a Parent,
+-- get rows (user decisions 2026-11-22); expose it on ReHUD.dbg if the copy drifts.
+local function isCharacter(p) return p.Variant == 0 and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B end
+
+-- ReHUD's key for a live player: the GetData tag roster.lua playerKey writes (characters sharing a seed get seed + n * 2^32), else the seed.
+local function keyOf(p)
+	local d = p:GetData()
+	local tag = type(d) == "table" and d.ReHUD_key
+	return tag and tag.key or seedOf(p)
+end
+local function tagText(p)
+	local d = p:GetData()
+	local tag = type(d) == "table" and d.ReHUD_key
+	return tag and tostring(tag.key) or "none"
+end
 
 local function playable()
 	local n = 0
@@ -460,7 +473,7 @@ local function swap(label, id, slot, count, ceiling, who)
 	return action(label, function()
 		local p, H = Isaac.GetPlayer(index), HARNESS
 		local b = snapshot(index)
-		H.pressHash = nil
+		H.pressHash, H.swapItem = nil, id -- trackChars: a character leaving play now is stored (Esau Jr., Flip) or not
 		if who and who.any then H.pressHash = false elseif who then H.pressHash = GetPtrHash(p) end
 		-- shortcut: the full press answers both triggered polls of its update, safe only while the pocket holds no card (a card reads
 		-- the first, Flip the second); Flip's charge of 4 is spent by one use, so it cannot flip twice. Revisit for a card beside Flip.
@@ -496,7 +509,7 @@ local function swap(label, id, slot, count, ceiling, who)
 			if c and c < b.charge and b.items and (GetPtrHash(p) ~= b.hash or heldItems(p) ~= b.items) then
 				local how = GetPtrHash(p) ~= b.hash and ("new form, same seed " .. b.seed .. ", hash " .. b.hash .. " -> " .. GetPtrHash(p)) or ("acted in place: same seed " .. b.seed)
 				P("INFO", ctx.name, label, how .. ", items " .. b.items .. " -> " .. heldItems(p) .. ", charge " .. b.charge .. " -> " .. c)
-				H.press, H.full, H.fullPolled, H.pressHash, H.watch, ctx.arms = nil, nil, nil, nil, nil, b.arms
+				H.press, H.full, H.fullPolled, H.pressHash, H.watch, H.swapItem, ctx.arms = nil, nil, nil, nil, nil, nil, b.arms
 				for i = #(H.timing or {}), 1, -1 do if H.timing[i].label == label then table.remove(H.timing, i) end end -- the seed never changes: this watch would wake on a later press
 				return true
 			end
@@ -518,7 +531,7 @@ local function swap(label, id, slot, count, ceiling, who)
 			if ctx.t - b.newAt >= 30 then error(label .. ": new character but spent nothing: " .. read .. " after " .. ctx.t .. " updates") end
 			return false, "spent nothing: " .. read
 		end
-		H.watch, ctx.arms = nil, b.arms
+		H.watch, H.swapItem, ctx.arms = nil, nil, b.arms
 		P("SWAP", label, b.who, "->", a.who, "players", b.count, "->", a.count, how, polls)
 		return true
 	end, ceiling)
@@ -549,7 +562,7 @@ local function settling()
 	end
 	local roster = dbg().roster
 	for i = 0, game:GetNumPlayers() - 1 do
-		if roster.isSettling(seedOf(Isaac.GetPlayer(i))) then return "a new character" end
+		if roster.isSettling(keyOf(Isaac.GetPlayer(i))) then return "a new character" end
 	end
 end
 
@@ -596,7 +609,7 @@ local function invariants(ctx, label)
 	local r, present, have = dbg().roster, {}, {}
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
-		if isCharacter(p) then present[seedOf(p)] = not p:IsCoopGhost() and p end
+		if isCharacter(p) then present[keyOf(p)] = not p:IsCoopGhost() and p end
 	end
 	local rank, stageNow = {}, game:GetLevel():GetStage()
 	for k = 1, stageNow do
@@ -631,7 +644,8 @@ local function invariants(ctx, label)
 		end
 	end
 	for _, row in ipairs(r.serialize()) do
-		if row.swapped and not revivable(r, row.key, present) then phantoms[#phantoms + 1] = tostring(row.key) .. " stored, nobody can swap it back" end
+		-- An Esau Jr. character stays stored until the run ends (user decision 2026-11-22): its copy may lie anywhere.
+		if row.swapped and not row.esauJr and not revivable(r, row.key, present) then phantoms[#phantoms + 1] = tostring(row.key) .. " stored, nobody can swap it back" end
 	end
 	holds(ctx, label, "engine counts", counts)
 	holds(ctx, label, "duplicates", dups)
@@ -846,26 +860,27 @@ end
 -- and a different outcome fails the checks. ctx.orig: the Esau Jr. presser; ctx.form: the Esau Jr. form; ctx.dead: a Flip partner.
 local function engineInfo(ctx, what)
 	local p = Isaac.GetPlayer(0)
-	P("INFO", ctx.name, "engine " .. what .. ": type", p:GetPlayerType(), "seed", seedOf(p), "original", ctx.orig, "form", ctx.form, "dead", ctx.dead,
+	P("INFO", ctx.name, "engine " .. what .. ": type", p:GetPlayerType(), "seed", seedOf(p), "key", keyOf(p), "original", ctx.orig, "form", ctx.form, "dead", ctx.dead,
 		"primary", p:GetActiveItem(ActiveSlot.SLOT_PRIMARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
 end
 local function origStored(ctx, label)
 	expect(ctx, label .. ": Esau Jr. original stored", dbg().roster.isSwapped(ctx.orig), true)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
 end
+-- ctx keys are ReHUD keys: Tainted Lazarus's Esau Jr. form takes its Dead form's seed (lua-api-notes.md Seeds and keys).
 local function esauJrForm(ctx, label)
-	ctx.form = seedOf(Isaac.GetPlayer(0))
+	ctx.form = keyOf(Isaac.GetPlayer(0))
 	expect(ctx, label .. ": a new form", ctx.form ~= ctx.orig and ctx.form ~= ctx.dead, true)
 	origStored(ctx, label)
 end
 local function origBeforeEsauJr(ctx, label)
-	ctx.orig, ctx.form, ctx.dead = seedOf(Isaac.GetPlayer(0)), nil, nil
+	ctx.orig, ctx.form, ctx.dead = keyOf(Isaac.GetPlayer(0)), nil, nil
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
 end
 
 -- obs esaujr: no checks, only what the engine and ReHUD do and in what order. While HARNESS.obs is set, tick logs the whole state on
 -- every update where it changed: one OBS line per player, roster row and tracker entry.
-local OBS_IDS = { 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
+local OBS_IDS = { 2, 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
 local function pedestals(id) return #Isaac.FindByType(EntityType.ENTITY_PICKUP, PickupVariant.PICKUP_COLLECTIBLE, id) end
 local function obsLines()
 	local t = {}
@@ -875,7 +890,7 @@ local function obsLines()
 		t[#t + 1] = "PLAYER " .. i .. " type " .. p:GetPlayerType() .. " seed " .. seedOf(p) .. " hash " .. GetPtrHash(p) .. " ctrl " .. p.ControllerIndex
 			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(ActiveSlot.SLOT_PRIMARY)
 			.. " secondary " .. p:GetActiveItem(ActiveSlot.SLOT_SECONDARY) .. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET)
-		t[#t + 1] = "PLAYERX " .. i .. " variant " .. p.Variant .. " ghost " .. tostring(p:IsCoopGhost())
+		t[#t + 1] = "PLAYERX " .. i .. " variant " .. p.Variant .. " ghost " .. tostring(p:IsCoopGhost()) .. " Index " .. p.Index .. " tag " .. tagText(p)
 			.. " charge primary " .. p:GetActiveCharge(ActiveSlot.SLOT_PRIMARY) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_PRIMARY)
 			.. " pocket " .. p:GetActiveCharge(ActiveSlot.SLOT_POCKET) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_POCKET) .. " items " .. heldItems(p)
 	end
@@ -923,7 +938,7 @@ local function obs(tag, step, when, stopOnError, limit)
 		P("INFO", ctx.name, tag, "never happened:", res)
 		ctx.obsInterrupted = stopOnError
 		ctx.t, ctx.held, ctx.before, ctx.label, ctx.why = nil, nil, nil, nil, nil
-		H.press, H.full, H.fullPolled, H.watch, H.cancelClicker, H.pressHash, H.timing = nil, nil, nil, nil, nil, nil, nil
+		H.press, H.full, H.fullPolled, H.watch, H.cancelClicker, H.pressHash, H.timing, H.swapItem = nil, nil, nil, nil, nil, nil, nil, nil
 	end
 end
 
@@ -963,12 +978,13 @@ end
 
 -- An obs scenario: `pre` unlogged (ending in a settle wait), then the logger, then `steps` as { tag, step } pairs, each soft and
 -- numbered, then a last settle wait; a step may be a list of pairs, a pair may carry its step ceiling 4th. Markers: c4 before the
--- first swap, c5 right after it. `opts`: kind (default "small") and budget (the scenario ceiling, default OBSX_SCENARIO_LIMIT).
+-- first swap, c5 right after it. `opts`: kind (default "small"), budget (the scenario ceiling, default OBSX_SCENARIO_LIMIT) and strict
+-- (steps and ceilings as obsx whatever the name).
 local function strictObs(name) return name:sub(1, 5) == "obsx " or name:sub(1, 5) == "obsy " end
 local function obsScenario(name, pre, steps, opts)
 	opts = opts or {}
 	local all, n = {}, 0
-	local stopOnError = strictObs(name)
+	local stopOnError = opts.strict or strictObs(name)
 	for _, s in ipairs(pre) do
 		all[#all + 1] = stopOnError and obs("setup " .. (#all + 1), s, nil, true) or s
 	end
@@ -1453,6 +1469,484 @@ local OBS = {
 }
 for _, s in ipairs(OBSY) do OBS[#OBS + 1] = s end
 
+local FINAL, trackChars, innerWatch -- set in the block below: a function, as the main chunk is near Lua's 200-locals limit
+;(function()
+-- final: ReHUD 2.8's final build (`only final,S3,r1,P4c`). The harness tells characters apart by its own GetData tag (GetData follows a
+-- character through storage within a session, in-game 2026-11-22), so two characters on one seed stay two, and remembers each one's items
+-- from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
+local function itemCounts(p)
+	local t = {}
+	for id = 1, maxId do
+		if itemConfig:GetCollectible(id) then
+			local n = p:GetCollectibleNum(id, false)
+			if n > 0 then t[id] = n end
+		end
+	end
+	return t
+end
+
+local function countsText(t)
+	local ids, out = {}, {}
+	for id in pairs(t) do ids[#ids + 1] = id end
+	table.sort(ids)
+	for _, id in ipairs(ids) do out[#out + 1] = id .. "x" .. t[id] end
+	return #out > 0 and table.concat(out, " ") or "-"
+end
+
+local function charOf(p)
+	local H, d = HARNESS, p:GetData()
+	local tag = type(d) == "table" and d.HARNESS_char
+	return tag and tag.gen == H.gen and H.chars and H.chars.list[tag.id]
+end
+
+-- Every update of a run: tags each new character (tag.gen: a reused entity after a restart is a new character), refreshes the live ones and
+-- marks one that left play as stored (gone during an Esau Jr. or Flip swap) or gone (merged, summoned Esau gone, removed).
+function trackChars()
+	local H = HARNESS
+	local C = H.chars
+	if not C or game:GetNumPlayers() == 0 then return end
+	local seen = {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		local d = isCharacter(p) and p:GetData()
+		if type(d) == "table" then
+			local c = charOf(p)
+			if not c then
+				C.n = C.n + 1
+				d.HARNESS_char = { gen = H.gen, id = C.n }
+				c = { id = C.n, name = "#" .. C.n }
+				C.list[C.n] = c
+				P("INFO", H.ctx.name, "CHAR", c.id, "first seen at index", i, "type", p:GetPlayerType(), "seed", seedOf(p), "hash", GetPtrHash(p), "parent", p.Parent ~= nil)
+			elseif c.state ~= "live" then
+				P("INFO", H.ctx.name, "CHAR", c.id, c.name, "back in play at index", i, "type", p:GetPlayerType(), "seed", seedOf(p), "hash", GetPtrHash(p))
+			end
+			seen[c.id] = true
+			c.state, c.key, c.type, c.seed, c.hash, c.index, c.items = "live", keyOf(p), p:GetPlayerType(), seedOf(p), GetPtrHash(p), i, itemCounts(p)
+		end
+	end
+	for id, c in pairs(C.list) do
+		if c.state == "live" and not seen[id] then
+			c.state = (H.swapItem == ESAU_JR or H.swapItem == FLIP) and "stored" or "gone"
+			P("INFO", H.ctx.name, "CHAR", id, c.name, "left play:", c.state, H.swapItem and ("during a c" .. H.swapItem .. " swap") or "outside a swap", "last items", countsText(c.items))
+		end
+	end
+end
+
+local function charNamed(n)
+	for _, c in pairs(HARNESS.chars.list) do
+		if c.name == n then return c end
+	end
+end
+
+-- Names the character at GetPlayer `index` (default 0), or the first of type `t` when given.
+local function named(n, t)
+	return function(ctx)
+		trackChars()
+		local p = t and playerOfType(t) or Isaac.GetPlayer(0)
+		local c = p and charOf(p)
+		if not c then error("no character to name " .. n) end
+		c.name = n
+		P("INFO", ctx.name, "CHAR", c.id, "is", n, "type", c.type, "seed", c.seed, "key", c.key, "hash", c.hash, "items", countsText(c.items))
+	end
+end
+
+-- An engine fact from lua-api-notes.md (who a press brings): its FAIL names the engine.
+local function who(n)
+	return function(ctx)
+		trackChars()
+		local c = charOf(Isaac.GetPlayer(0))
+		expect(ctx, "engine, not ReHUD: player 0 is " .. n, c and c.name, n)
+	end
+end
+-- Unobserved who: logged only.
+local function whoInfo(what)
+	return function(ctx)
+		trackChars()
+		local c = charOf(Isaac.GetPlayer(0))
+		P("INFO", ctx.name, "after " .. what .. " (unobserved) player 0 is", c and c.name, "type", Isaac.GetPlayer(0):GetPlayerType(), "seed", seedOf(Isaac.GetPlayer(0)))
+	end
+end
+
+-- One check: every remembered character not gone has its own row (a number no other character's key holds), and a stored one is marked
+-- stored and listed with exactly the copies it held when last live. Live ones are the invariants' engine-count check. A ROWS line per character.
+local function charRows(ctx, label)
+	local r, problems, byNumber = dbg().roster, {}, {}
+	local ids = {}
+	for id in pairs(HARNESS.chars.list) do ids[#ids + 1] = id end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		local c = HARNESS.chars.list[id]
+		local have = {}
+		for _, e in ipairs(entries()) do
+			if e.owner == c.key then have[e.id] = (have[e.id] or 0) + 1 end
+		end
+		local num = r.number(c.key)
+		P("ROWS", ctx.name, label, "char", id, c.name, c.state, "key", c.key, "number", num, "swapped", r.isSwapped(c.key), "type", c.type, "seed", c.seed,
+			"hash", c.hash, "index", c.index, "engine", countsText(c.items), "rehud", countsText(have))
+		if c.state ~= "gone" then
+			if num == nil then problems[#problems + 1] = c.name .. " (" .. c.state .. ") has no row"
+			elseif byNumber[num] then problems[#problems + 1] = c.name .. " shares row " .. num .. " with " .. byNumber[num]
+			else byNumber[num] = c.name end
+			if c.state == "stored" then
+				if not r.isSwapped(c.key) then problems[#problems + 1] = c.name .. " not marked stored" end
+				local all = {}
+				for k in pairs(c.items) do all[k] = true end
+				for k in pairs(have) do all[k] = true end
+				for k in pairs(all) do
+					if (c.items[k] or 0) ~= (have[k] or 0) then problems[#problems + 1] = c.name .. " c" .. k .. ": " .. (have[k] or 0) .. " entries, held " .. (c.items[k] or 0) end
+				end
+			end
+		end
+	end
+	holds(ctx, label, "characters", problems)
+end
+
+local function lookC(label, check)
+	return look(label, function(ctx, l)
+		trackChars()
+		charRows(ctx, l)
+		if check then check(ctx, l) end
+	end)
+end
+
+-- Player 0 swaps its primary and Schoolbag actives (the drop button's swap; the drop press is unconfirmed, obsy a schoolbag).
+local function swapSlots(ctx)
+	local p = Isaac.GetPlayer(0)
+	local before = slots(p)
+	p:SwapActiveItems()
+	P("INFO", ctx.name, "SwapActiveItems", before, "->", slots(p))
+	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("no Esau Jr. in the primary slot after SwapActiveItems: " .. slots(p)) end
+end
+
+-- AddCollectible on the first player of type `t`.
+local function giveType(id, t)
+	return action("AddCollectible c" .. id .. " on type " .. t, function()
+		local p = playerOfType(t)
+		if not p then error("no player of type " .. t) end
+		local n = owned(p, id)
+		p:AddCollectible(id)
+		return n
+	end, function(_, n)
+		local p = playerOfType(t)
+		return p and owned(p, id) == n + 1, "owned copies did not rise by 1"
+	end)
+end
+
+-- Console giveitem to whoever the engine gives it (the Keeper once a Strawman Keeper existed, in-game 2026-11-22); logs who got it.
+local function giveAnyone(id)
+	local function counts()
+		local t = {}
+		for i = 0, game:GetNumPlayers() - 1 do t[i] = owned(Isaac.GetPlayer(i), id) end
+		return t
+	end
+	return action("giveitem c" .. id .. " (anyone)", function()
+		HARNESS.pending = "giveitem c" .. id
+		return counts()
+	end, function(ctx, b)
+		for i, n in pairs(counts()) do
+			if n > (b[i] or 0) then
+				P("INFO", ctx.name, "giveitem c" .. id .. " went to index", i, "type", Isaac.GetPlayer(i):GetPlayerType())
+				return true
+			end
+		end
+		return false, "no player's owned c" .. id .. " rose"
+	end)
+end
+
+local function waitFor(label, cond)
+	return action(label, function() end, function() return cond(), label .. " not yet" end, 60)
+end
+
+local KEEPER, ESAU = PlayerType.PLAYER_KEEPER, PlayerType.PLAYER_ESAU
+local STRAWMAN = CollectibleType.COLLECTIBLE_STRAW_MAN -- 667, resources/scripts/enums.lua
+local function helper(t)
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if p:GetPlayerType() == t and p.Parent then return p end
+	end
+end
+
+local function ownerCount(key)
+	local n = 0
+	for _, e in ipairs(entries()) do
+		if e.owner == key then n = n + 1 end
+	end
+	return n
+end
+
+-- Walks player 0 into `pos` (Velocity, as a teleport or a Position set every update was never a touch, obsya1-2; walking in is untested).
+local function walkTo(p, pos)
+	local d = pos - p.Position
+	if d:Length() > 1 then p.Velocity = d:Resized(math.min(6, d:Length())) end
+end
+
+-- Walks player 0 onto a pedestal until `done(p)`; after 90 updates the screen asks the user to walk there instead (up to 600 more).
+local function walkUntil(label, target, done, away)
+	return action(label, function(ctx) return target(ctx) end, function(ctx, pos)
+		local p = Isaac.GetPlayer(0)
+		if done(p) then
+			P("INFO", ctx.name, label, "after", ctx.t, "updates by", ctx.t > 90 and "the user" or "walking", "|", slots(p), "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART))
+			p.Velocity = Vector(0, 0)
+			return true
+		end
+		if ctx.t <= 90 then walkTo(p, (away and ctx.t <= 20) and (pos + Vector(-80, 0)) or pos)
+		elseif ctx.t == 91 then
+			ctx.label = "YOU: walk onto the item pedestal"
+			P("INFO", ctx.name, label, "walking never touched the pedestal in 90 updates: asking the user")
+		end
+		return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR)
+	end, 700)
+end
+
+local dropByWalking = walkUntil("drop Esau Jr. on a c45 pedestal", function(ctx)
+	local p = Isaac.GetPlayer(0)
+	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
+	local pos = p.Position + Vector(80, 0)
+	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, pos, Vector(0, 0), nil)
+	return pos
+end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 end)
+
+local pickByWalking = walkUntil("pick Esau Jr. back up", function()
+	local e = Isaac.FindByType(EntityType.ENTITY_PICKUP, PEDESTAL, ESAU_JR)[1]
+	if not e then error("no c703 pedestal") end
+	return Vector(e.Position.X, e.Position.Y)
+end, function(p) return owned(p, ESAU_JR) > 0 end, true)
+
+-- Off the c45 pedestal, so the character a press brings cannot touch it.
+local function stepOff(ctx)
+	local p = Isaac.GetPlayer(0)
+	p.Position, p.Velocity = p.Position + Vector(0, 80), Vector(0, 0)
+end
+
+local function onlyIf(what, cond, step)
+	return function(ctx)
+		if not ctx.t and not ctx.held and not cond() then return P("INFO", ctx.name, "skipped:", what) end
+		return step(ctx)
+	end
+end
+local function holdsJr() return Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESAU_JR end
+
+-- Soul of Jacob and Esau's Esau leaves when Isaac leaves the room (wiki); without a room change by 60 updates he is killed (wiki: no
+-- consequences); logs every 10 updates while he stays, and when he goes.
+local function leaveRoom()
+	local level = game:GetLevel()
+	local cur, rooms = level:GetCurrentRoomIndex(), level:GetRooms()
+	for i = 0, rooms.Size - 1 do
+		local d = rooms:Get(i)
+		if d.SafeGridIndex >= 0 and d.SafeGridIndex ~= cur then
+			game:StartRoomTransition(d.SafeGridIndex, Direction.NO_DIRECTION, RoomTransitionAnim and RoomTransitionAnim.WALK or 0)
+			return d.SafeGridIndex
+		end
+	end
+	error("no other room")
+end
+local function esauLeaves(ctx)
+	ctx.t = (ctx.t or 0) + 1
+	local e = helper(ESAU)
+	if ctx.t == 1 then
+		ctx.esauKey = e and keyOf(e)
+		local ok, res = pcall(leaveRoom)
+		P("INFO", ctx.name, "leave the room: StartRoomTransition", ok and ("to " .. tostring(res)) or ("failed: " .. tostring(res)))
+	end
+	if not e then
+		P("INFO", ctx.name, "summoned Esau gone after", ctx.t, "updates, after", ctx.how or "the room change", "room", game:GetLevel():GetCurrentRoomIndex(), "players", game:GetNumPlayers())
+		ctx.t, ctx.esauGone = nil, true
+		return
+	end
+	if ctx.t % 10 == 0 then P("INFO", ctx.name, "summoned Esau still present at update", ctx.t, "room", game:GetLevel():GetCurrentRoomIndex()) end
+	if ctx.t == 60 then
+		ctx.how = "Kill()"
+		P("INFO", ctx.name, "summoned Esau Kill():", tostring(pcall(function() e:Kill() end)))
+	end
+	if ctx.t >= 150 then
+		table.insert(ctx.notes, "summoned Esau never left")
+		ctx.t = nil
+		return
+	end
+	return "again"
+end
+
+-- G: every player's Inner Eye (c2) owned/total and item count, logged on each update it changed (H.ctx.innerWatch).
+local function innerLine()
+	local t = {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		t[#t + 1] = i .. ":t" .. p:GetPlayerType() .. ":seed " .. seedOf(p) .. ":c2 " .. owned(p, 2) .. "/" .. p:GetCollectibleNum(2, false) .. ":count " .. p:GetCollectibleCount()
+	end
+	return table.concat(t, " | ")
+end
+function innerWatch()
+	local ctx = HARNESS.ctx
+	if not ctx.innerWatch or game:GetNumPlayers() == 0 then return end
+	local s = innerLine()
+	if s == ctx.innerLast then return end
+	ctx.innerLast = s
+	P("INFO", ctx.name, "INNER frame", game:GetFrameCount(), s)
+end
+local function innerOn(ctx) ctx.innerWatch = true end
+local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER " .. what, innerLine()) end end
+
+-- Clicker until Jacob & Esau is merged and split back, up to 12 uses (each about 1 in 7 to land on J&E, runs 2-8), a look after each.
+local function jeClickerLoop(ctx)
+	if not ctx.phase then
+		if ctx.split then return end
+		if (ctx.uses or 0) >= 12 then table.insert(ctx.notes, "no split in 12 Clicker uses") return end
+		ctx.uses, ctx.phase = (ctx.uses or 0) + 1, "press"
+		if Isaac.GetPlayer(0):GetActiveItem() ~= CLICKER then error("Clicker left the active slot") end
+		P("INFO", ctx.name, "INNER before Clicker " .. ctx.uses, innerLine())
+	end
+	if ctx.phase == "press" then
+		if clicker(ctx) == "again" then return "again" end
+		P("INFO", ctx.name, "INNER after Clicker " .. ctx.uses, innerLine())
+		ctx.phase = "look"
+	end
+	if ctx.gLook(ctx) == "again" then return "again" end
+	ctx.phase = nil
+	if game:GetNumPlayers() == 1 then ctx.wasMerged = true end
+	ctx.split = ctx.wasMerged and Isaac.GetPlayer(0):GetPlayerType() == JE and playerOfType(ESAU) ~= nil
+	return "again"
+end
+
+-- F: what Clicker out of a Tainted Lazarus form gave the live character, and which stored characters' items it got (marked gone: merged).
+local function beforeClicker(ctx) trackChars() ctx.pre = itemCounts(Isaac.GetPlayer(0)) end
+local ACTIVES = { [ESAU_JR] = true, [FLIP] = true, [CLICKER] = true, [SCHOOLBAG] = true }
+local function clickerMerges(ctx)
+	trackChars()
+	local now, gained = itemCounts(Isaac.GetPlayer(0)), {}
+	for id, n in pairs(now) do
+		if n > (ctx.pre[id] or 0) then gained[id] = n - (ctx.pre[id] or 0) end
+	end
+	P("INFO", ctx.name, "Clicker: type", Isaac.GetPlayer(0):GetPlayerType(), "items gained", countsText(gained), "players", game:GetNumPlayers())
+	for _, c in pairs(HARNESS.chars.list) do
+		if c.state == "stored" then
+			local hit = {}
+			for id in pairs(c.items) do
+				if gained[id] and not ACTIVES[id] then hit[#hit + 1] = "c" .. id end
+			end
+			P("INFO", ctx.name, "Clicker: stored", c.name, "items", countsText(c.items), "found on the live one:", #hit > 0 and table.concat(hit, " ") or "none")
+			if #hit > 0 then c.state = "gone" end
+		end
+	end
+end
+
+-- Tainted Lazarus L, Flip to a new Dead form D, back, Esau Jr. to L's form LJ (on D's seed), and LJ's Flip to D (in-game 2026-11-22).
+local function tlazFlips()
+	return { restart(T_LAZ), give(4), give(ESAU_JR), named("L"), flip("Flip L -> D"), named("D"), give(5), flip("Flip D -> L"), who("L"),
+		lookC("L and D"), esauJr("Esau Jr. L -> LJ"), named("LJ"), give(6),
+		function(ctx) expect(ctx, "engine, not ReHUD: LJ on D's item seed", seedOf(Isaac.GetPlayer(0)), charNamed("D").seed) end,
+		lookC("LJ"), flip("Flip LJ -> D"), who("D"), lookC("D back") }
+end
+local function steps(...)
+	local t = {}
+	for _, list in ipairs({ ... }) do
+		for _, s in ipairs(list) do t[#t + 1] = s end
+	end
+	return t
+end
+
+FINAL = {
+	-- A: two copies, each keeping the character it last swapped out; Schoolbag holds both on A.
+	{ name = "final A two Esau Jr. copies", kind = "small", steps = {
+		restart(ISAAC), give(4), give(ESAU_JR), named("Isaac"), lookC("start"),
+		esauJr("copy 1: Isaac -> A"), named("A"), give(5), give(SCHOOLBAG), give(ESAU_JR), obsInfo("A's slots", slots), lookC("A with two copies"),
+		esauJr("copy 2: A -> B"), named("B"), give(6), lookC("B"),
+		esauJr("copy 2: B -> A"), who("A"), lookC("A back"),
+		swapSlots, esauJr("copy 1: A -> Isaac"), who("Isaac"), lookC("Isaac back"),
+		esauJr("copy 1: Isaac -> A"), who("A"), lookC("A again"),
+		swapSlots, esauJr("copy 2: A -> B"), who("B"), lookC("B again"),
+	} },
+	-- B: A drops Esau Jr. on a pedestal and takes it back; its press brings Isaac back (console 2026-11-22).
+	{ name = "final B Esau Jr. dropped and picked up", kind = "small", steps = {
+		restart(ISAAC), give(4), give(ESAU_JR), named("Isaac"), esauJr("Isaac -> A"), named("A"), give(5), lookC("A"),
+		dropByWalking, lookC("Esau Jr. on the pedestal"), pickByWalking, stepOff, lookC("Esau Jr. picked back up"),
+		esauJr("A presses the picked-up copy"), who("Isaac"), lookC("Isaac back"),
+	} },
+	-- C: LJ shares D's seed; each keeps its own row and items through Flips and presses.
+	{ name = "final C Tainted Lazarus Esau Jr.", kind = "small", steps = steps(tlazFlips(), {
+		flip("Flip by D"), whoInfo("Flip by D"), lookC("after Flip by D"),
+		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. by player 0")), whoInfo("Esau Jr. by player 0"), lookC("after Esau Jr."),
+		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. again")), whoInfo("Esau Jr. again"), lookC("after Esau Jr. again"),
+	}) },
+	-- D: Strawman's Keeper (type 14, a Parent) has its own row; giveitem then goes to it (in-game 2026-11-22).
+	{ name = "final D Strawman", kind = "small", steps = {
+		restart(ISAAC), give(4), give(STRAWMAN), waitFor("Strawman Keeper", function() return helper(KEEPER) ~= nil end), named("Isaac"), named("Keeper", KEEPER),
+		lookC("Keeper", function(ctx, label) expect(ctx, label .. ": Keeper has a number", dbg().roster.number(keyOf(helper(KEEPER))) ~= nil, true) end),
+		giveAnyone(5), lookC("after giveitem c5", function(ctx, label)
+			local k = helper(KEEPER)
+			expectCount(ctx, label .. " (Keeper)", owned(k, 5), 5, nil, nil, keyOf(k))
+		end),
+		giveType(6, KEEPER), lookC("after Keeper AddCollectible c6", function(ctx, label) expectCount(ctx, label, 1, 6, nil, nil, keyOf(helper(KEEPER))) end),
+	} },
+	-- E: the summoned Esau (type 20, a Parent) has a row while present and none once he is gone.
+	{ name = "final E Soul of Jacob and Esau", kind = "small", steps = {
+		restart(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB), soulJE, named("Esau", ESAU),
+		lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", dbg().roster.number(keyOf(helper(ESAU))) ~= nil, true) end),
+		esauLeaves, lookC("after Esau left", function(ctx, label)
+			if not ctx.esauGone then return end
+			expect(ctx, label .. ": Esau's number", dbg().roster.number(ctx.esauKey), nil)
+			expect(ctx, label .. ": Esau's entries", ownerCount(ctx.esauKey), 0)
+		end),
+	} },
+	-- F (observation): Flip partners change after Esau Jr. (LJ <-> D, then DJ <-> LJ), then Clicker out of the live form; ReHUD sets each
+	-- partner once (roster.lua partnerOf), so a failure here is expected. OBS lines log the engine and ReHUD every update.
+	{ name = "final F Flip partners", kind = "small", steps = steps({ startObs }, tlazFlips(), {
+		give(ESAU_JR), esauJr("Esau Jr. D -> DJ"), named("DJ"), give(7), lookC("DJ"),
+		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
+		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),
+	}) },
+	-- G (observation): Inner Eye on both twins (Jacob 1, Esau 2), Clicker merges them and, when it rolls J&E, splits them; INNER lines log
+	-- every player's c2 per update, so the log shows whether the engine drops a c2 (and whose) or ReHUD mislists it.
+	{ name = "final G Jacob and Esau Clicker split", kind = "small", steps = {
+		restart(JE), startObs, innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
+		lookC("start", innerInfo("start")), function(ctx) ctx.gLook = lookC("after Clicker") end, jeClickerLoop, innerInfo("end"),
+	} },
+}
+
+local STRICT = { strict = true } -- each final observation stops at its first missing step and at 445 updates
+-- Observation only (INFO, OBS lines every update): cf965b0 counts a newcomer holding Esau Jr. of the index's previous type as a swap even
+-- when the player count drops, and stores a vanished character whose partner is stored; this logs what the engine does to the twins.
+FINAL[#FINAL + 1] = obsScenario("final I Birthright twins Esau Jr.", { restart(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, {
+	{ "players", playerCount }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) }, { "players after Esau Jr.", playerCount }, { "settle", settled },
+	{ "Esau Jr. back", verdict("Esau Jr. back", esauJr("Esau Jr. back")) }, { "players after Esau Jr. back", playerCount }, { "settle 2", settled },
+	{ "Flip", verdict("Flip", flip("Flip")) }, { "players after Flip", playerCount } }, STRICT)
+
+-- Observation only: the Keeper killed; whether it leaves GetPlayer, and where ReHUD puts its items (assumed: a merge into Isaac).
+local killKeeper = action("Kill the Strawman Keeper", function(ctx)
+	local k = helper(KEEPER)
+	if not k then error("no Keeper") end
+	ctx.keeperKey = keyOf(k)
+	P("INFO", ctx.name, "Keeper ControllerIndex", k.ControllerIndex, "Isaac's", Isaac.GetPlayer(0).ControllerIndex)
+	P("INFO", ctx.name, "Keeper Kill():", tostring(pcall(function() k:Kill() end)), "key", ctx.keeperKey)
+end, function(ctx)
+	if helper(KEEPER) then return false, "Keeper still a player" end
+	P("INFO", ctx.name, "Keeper left GetPlayer after", ctx.t, "updates")
+	return true
+end, 120)
+local function keeperItems(ctx)
+	local isaac, owners = keyOf(Isaac.GetPlayer(0)), {}
+	for _, e in ipairs(entries()) do owners[#owners + 1] = "c" .. e.id .. ":" .. (e.owner == isaac and "Isaac" or e.owner == ctx.keeperKey and "Keeper" or tostring(e.owner)) end
+	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(dbg().roster.number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
+end
+-- Observation only, review questions (2026-11-22): GetData tag through Flip; GetPtrHash in the flipped cross and on a Flip of an Esau Jr.
+-- form, and whether A's stored Dead form returns when A (type 38) flips; the hash of a form that comes back on a stored form's seed with
+-- other items; the summoned Esau across Exit & Continue (large: the user's Continue).
+FINAL[#FINAL + 1] = obsScenario("final K tag through Flip", { restart(T_LAZ), give(4) }, { { "Flip", verdict("Flip", flip("Flip")) },
+	{ "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT)
+FINAL[#FINAL + 1] = obsScenario("final L flipped cross", tlazJr(), { { "Flip", verdict("Flip", flip("Flip")) }, { "give c5", give(5) },
+	{ "Flip back", verdict("Flip back", flip("Flip back")) }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) },
+	{ "Flip of the Esau Jr. form", verdict("Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form")) },
+	{ "Flip back to the form", verdict("Flip back to the form", flip("Flip back to the form")) },
+	{ "ChangePlayerType 38", changeType(DEAD_LAZ) }, jrAgain(), { "Flip A (type 38)", verdict("Flip A (type 38)", flip("Flip A (type 38)")) } }, STRICT)
+FINAL[#FINAL + 1] = obsScenario("final M original loses Esau Jr.", tlazJr(), { jrFirst(), { "Esau Jr. back to A", verdict("Esau Jr. back to A", esauJr("Esau Jr. back to A")) },
+	replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },
+	{ "Esau Jr. after the loss #2", verdict("Esau Jr. after the loss #2", esauJr("Esau Jr. after the loss #2")) } }, STRICT)
+FINAL[#FINAL + 1] = obsScenario("final J Strawman Keeper leaves", { restart(ISAAC), give(4), give(STRAWMAN), waitFor("Strawman Keeper", function() return helper(KEEPER) ~= nil end),
+	giveType(5, KEEPER) }, { { "kill the Keeper", killKeeper }, { "settle", settled }, { "where its items went", keeperItems } }, STRICT)
+FINAL[#FINAL + 1] = obsScenario("final N summoned Esau across Continue", { restart(ISAAC), give(4), addCard(Card.CARD_SOUL_JACOB) },
+	{ { "Soul of Jacob and Esau", soulJE }, { "settle", settled }, continued, { "players after Continue", playerCount }, { "settle 2", settled } },
+	{ kind = "large", budget = OBSY_CONTINUE_LIMIT, strict = true })
+end)()
+
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
 local SCENARIOS = {
@@ -1508,12 +2002,12 @@ local SCENARIOS = {
 		esauJr("Esau Jr. 1"), look("after Esau Jr. 1", esauJrForm), changeType(ISAAC),
 		look("after ChangePlayerType on the form", function(ctx, label)
 			engineInfo(ctx, "after ChangePlayerType(0) on the Esau Jr. form")
-			expect(ctx, label .. ": player 0 is the form", seedOf(Isaac.GetPlayer(0)), ctx.form)
+			expect(ctx, label .. ": player 0 is the form", keyOf(Isaac.GetPlayer(0)), ctx.form)
 			origStored(ctx, label)
 		end),
 		esauJr("Esau Jr. 2"), look("after Esau Jr. 2", function(ctx, label)
 			engineInfo(ctx, "after Esau Jr. from the form turned Isaac")
-			expect(ctx, label .. ": player 0 is the original", seedOf(Isaac.GetPlayer(0)), ctx.orig)
+			expect(ctx, label .. ": player 0 is the original", keyOf(Isaac.GetPlayer(0)), ctx.orig)
 			expectOne(ctx, label, 4, ctx.floors[1], ctx.orig)
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
@@ -1521,7 +2015,7 @@ local SCENARIOS = {
 		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), flip("Flip of the form"),
 		look("after Flip of the form", function(ctx, label)
 			engineInfo(ctx, "after a Flip of the Esau Jr. form")
-			ctx.dead = seedOf(Isaac.GetPlayer(0))
+			ctx.dead = keyOf(Isaac.GetPlayer(0))
 			expect(ctx, label .. ": a new Dead form", ctx.dead ~= ctx.orig and ctx.dead ~= ctx.form and Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ, true)
 			expect(ctx, label .. ": form stored", dbg().roster.isSwapped(ctx.form), true)
 			origStored(ctx, label)
@@ -1543,7 +2037,7 @@ local SCENARIOS = {
 		esauJr("Esau Jr."), look("after Esau Jr.", esauJrForm), changeType(DEAD_LAZ),
 		look("after the crossing on the form", function(ctx, label)
 			engineInfo(ctx, "after ChangePlayerType(38) on the Esau Jr. form")
-			expect(ctx, label .. ": player 0 is the form", seedOf(Isaac.GetPlayer(0)), ctx.form)
+			expect(ctx, label .. ": player 0 is the form", keyOf(Isaac.GetPlayer(0)), ctx.form)
 			expect(ctx, label .. ": Dead form stored", dbg().roster.isSwapped(ctx.dead), true)
 			expectCount(ctx, label, 1, 5, ctx.floors[2], nil, ctx.dead)
 			origStored(ctx, label)
@@ -1577,7 +2071,8 @@ local SCENARIOS = {
 	{ name = "P1", kind = "small", steps = {
 		restart(ISAAC), give(4), give(4), stage(2), look("before Soul of Jacob and Esau", twoC4),
 		addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
-		giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 0) end),
+		-- ReHUD 2.8 lists the summoned Esau (user decision 2026-11-22): his c1 under him.
+		giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 1, nil, keyOf(playerOfType(PlayerType.PLAYER_ESAU))) end),
 		stage(3), look("on stage 3", twoC4),
 	} },
 	{ name = "P2", kind = "small", steps = {
@@ -1709,6 +2204,14 @@ local SCENARIOS = {
 	} },
 }
 
+-- The final scenarios run after r1 mirror, before the large ones.
+for i, s in ipairs(SCENARIOS) do
+	if s.name == "r1 mirror" then
+		for k, f in ipairs(FINAL) do table.insert(SCENARIOS, i + k, f) end
+		break
+	end
+end
+
 -- The obs scenarios run after P4c, the scenario they observe the engine for.
 for i, s in ipairs(SCENARIOS) do
 	if s.name == "P4c" then
@@ -1732,21 +2235,30 @@ local function finish(err)
 	P("RESULT", sc.name, verdict .. (ctx.lateContinue and "; late Continue mid-scenario" or ""))
 	H.obs, H.cancelClicker, H.timing, H.pressHash = nil, nil, nil, nil
 	H.lateContinue = H.expectStart == "continue" or nil -- the user may still Continue after the step gave up, during the next scenario
-	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch = H.si + 1, 1, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
+	H.si, H.pi, H.expectStart, H.press, H.full, H.fullPolled, H.watch, H.swapItem = H.si + 1, 1, nil, nil, nil, nil, nil, nil -- a timed-out press must not reach the next scenario
 	H.ctx = { floors = {}, fails = {}, notes = {} }
+end
+
+-- `only a,b`: a scenario whose name starts with any of the comma-separated prefixes.
+local function picked(only, name)
+	for prefix in only:gmatch("[^,]+") do
+		if name:sub(1, #prefix) == prefix then return true end
+	end
 end
 
 local function tick()
 	local H = HARNESS
 	observe()
 	if not H.running then return end
+	trackChars()
+	innerWatch()
 	local sc = SCENARIOS[H.si]
 	if not sc then
 		H.running, H.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
 		P("HARNESS DONE")
 		return
 	end
-	if H.pi == 1 and H.only and sc.name:sub(1, #H.only) ~= H.only then
+	if H.pi == 1 and H.only and not picked(H.only, sc.name) then
 		P("RESULT", sc.name, "SKIP not " .. H.only .. " (" .. H.mode .. " mode)")
 		H.si = H.si + 1
 		return
@@ -1772,7 +2284,7 @@ local function tick()
 	if not H.ctx.name then P("SCENARIO START", sc.name) end -- tools/run_report.py pairs it with a RESULT
 	H.ctx.name, H.ctx.leftOk = sc.name, sc.leftOk
 	local label = H.ctx.label
-	H.ask = label and label:find("Continue") and label or nil -- the user's own step gets its own line, so it is not lost at the end of a long status
+	H.ask = label and (label:find("Continue") or label:find("^YOU:")) and label or nil -- the user's own step gets its own line, so it is not lost at the end of a long status
 	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. ((label and not H.ask) and (": " .. label) or "")
 	local ok, res = pcall(step, H.ctx)
 	if not ok then return finish("error in step " .. H.pi .. ": " .. tostring(res)) end
@@ -1803,6 +2315,7 @@ end)
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
 	local H = HARNESS
 	H.gen, H.continued = H.gen + 1, isContinued
+	if not isContinued then H.chars = { list = {}, n = 0 } end
 	P("GAME START", H.gen, "continued", isContinued)
 	if not H.started then
 		if isContinued then P("HARNESS idle: start a new run to test") return end

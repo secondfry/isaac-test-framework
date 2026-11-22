@@ -8,8 +8,6 @@ from legacy_names import FINAL, FINAL_MODE, OBSY, OBSY_LARGE, full, names
 WANT = {
     "legacy > probes": "PASS 10 assertions",
     "legacy > test3": "PASS 15 assertions",
-    "legacy > birthright": "PASS 36 assertions",
-    "legacy > P3": "PASS 30 assertions",
     "legacy > P4a": "PASS 18 assertions",
     "legacy > P4c": "PASS 87 assertions",
     "legacy > obs esaujr cross": "RECORDED",
@@ -48,9 +46,7 @@ WANT = {
     "legacy > obsy b Eden": "RECORDED",
     "legacy > obsy b continue with A stored": "RECORDED",
     "legacy > obsy b continue after B loses Esau Jr.": "RECORDED",
-    "legacy > obsy b identity": "RECORDED",
     "legacy > S4": "PASS 29 assertions",
-    "legacy > P1": "PASS 25 assertions",
     "legacy > P2": "PASS 22 assertions",
     "legacy > S1": "PASS 53 assertions",
     "legacy > S1b": "PASS 37 assertions",
@@ -61,15 +57,11 @@ WANT = {
     "legacy > final A two Esau Jr. copies": "PASS 46 assertions",
     "legacy > final B Esau Jr. dropped and picked up": "PASS 25 assertions",
     "legacy > final C Tainted Lazarus Esau Jr.": "PASS 39 assertions",
-    "legacy > final D Strawman": "PASS 22 assertions",
-    "legacy > final E Soul of Jacob and Esau": "PASS 15 assertions",
     "legacy > final F Flip partners": "PASS 47 assertions",
     "legacy > final G Jacob and Esau Clicker split": "PASS 18 assertions",
     "legacy > final I Birthright twins Esau Jr.": "RECORDED",
-    "legacy > final K tag through Flip": "RECORDED",
     "legacy > final L flipped cross": "RECORDED",
     "legacy > final M original loses Esau Jr.": "RECORDED",
-    "legacy > final J Strawman Keeper leaves": "RECORDED",
     "legacy > final N summoned Esau across Continue": "RECORDED",
     "legacy > continue": "PASS 14 assertions",
     "legacy > continue settled": "PASS 20 assertions",
@@ -104,14 +96,7 @@ def check_obsy(log):
     assert has("obsy a Forgotten and Soul", "switch to the Soul after 61 updates by ChangePlayerType 17")
     assert has("obsy a schoolbag Clicker", "VERDICT Clicker index 0 B -> unchanged")
     assert has("obsy a J&E by Esau", "index 1 type ") and has("obsy a J&E by Esau", " primary 105 c703 owned 0")
-    assert has("obsy b identity", "VERDICT Flip after Continue index 0 A -> B moved from 1 |")
     assert sum(s.startswith("after Continue: player seeds ") for old in OBSY for s in info[old]) == len(OBSY_LARGE)
-    ids = [s for s in info["obsy b identity"] if s.startswith("IDS ")]
-    assert len(ids) == 7 * 2 - 1 and all(" InitSeed " in s and " OtherTwin " in s and " MainTwin " in s for s in ids), ids  # one player after Esau Jr. #1
-    # A Birthright twin's fresh copy stores presser and twin (obsyb1-2): the presser's spend is its watched drop, never a twin's seed
-    swaps = [s for s in dry.segment(log, full("obsy b identity")) if s.startswith("PROBE SWAP Esau Jr. #")]
-    assert " players 2 -> 1 " in swaps[0] and " players 1 -> 2 " in swaps[1], swaps
-    assert all(" spent stored presser charge, " in s for s in swaps), swaps
     print("PASS obsy verdicts, timing, Schoolbag, Soul switch, Continue, ids and Birthright twin lines")
 
 

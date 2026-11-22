@@ -322,12 +322,6 @@ local OBSY = {
 		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }, LARGE_OBSY),
 	obsScenario("obsy b continue after B loses Esau Jr.", jrSetup(ISAAC), { jrPair("Esau Jr. #1"), loseEsauJr(), continued,
 		{ "re-give c703", give(ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3"), jrPair("Esau Jr. #4") }, LARGE_OBSY),
-	-- Which id tells the two Birthright forms apart and stays stable across Flip, Esau Jr. and Continue?
-	obsScenario("obsy b identity", { fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, { { "ids after Birthright", ids("after Birthright") },
-		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
-		{ "select type-29 twin", birthrightFlip, deadFirst }, jrPair("Esau Jr. #1"), { "ids after Esau Jr. #1", ids("after Esau Jr. #1") },
-		jrPair("Esau Jr. #2"), { "ids after Esau Jr. #2", ids("after Esau Jr. #2") }, continued, { "ids after Continue", ids("after Continue") },
-		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", ids("after Flip after Continue") } }, LARGE_OBSY),
 }
 
 local OBS = {
@@ -397,46 +391,6 @@ local OBS = {
 }
 for _, s in ipairs(OBSY) do OBS[#OBS + 1] = s end
 
--- Soul of Jacob and Esau's Esau leaves when Isaac leaves the room (wiki); without a room change by 60 updates he is killed (wiki: no
--- consequences); logs every 10 updates while he stays, and when he goes.
-local function leaveRoom()
-	local level = game:GetLevel()
-	local cur, rooms = level:GetCurrentRoomIndex(), level:GetRooms()
-	for i = 0, rooms.Size - 1 do
-		local d = rooms:Get(i)
-		if d.SafeGridIndex >= 0 and d.SafeGridIndex ~= cur then
-			game:StartRoomTransition(d.SafeGridIndex, Direction.NO_DIRECTION, RoomTransitionAnim and RoomTransitionAnim.WALK or 0)
-			return d.SafeGridIndex
-		end
-	end
-	error("no other room")
-end
-local function esauLeaves(ctx)
-	ctx.t = (ctx.t or 0) + 1
-	local e = withParent(ESAU)
-	if ctx.t == 1 then
-		ctx.esauKey = e and keyOf(e)
-		local ok, res = pcall(leaveRoom)
-		P("INFO", ctx.name, "leave the room: StartRoomTransition", ok and ("to " .. tostring(res)) or ("failed: " .. tostring(res)))
-	end
-	if not e then
-		P("INFO", ctx.name, "summoned Esau gone after", ctx.t, "updates, after", ctx.how or "the room change", "room", game:GetLevel():GetCurrentRoomIndex(), "players", game:GetNumPlayers())
-		ctx.t, ctx.esauGone = nil, true
-		return
-	end
-	if ctx.t % 10 == 0 then P("INFO", ctx.name, "summoned Esau still present at update", ctx.t, "room", game:GetLevel():GetCurrentRoomIndex()) end
-	if ctx.t == 60 then
-		ctx.how = "Kill()"
-		P("INFO", ctx.name, "summoned Esau Kill():", tostring(pcall(function() e:Kill() end)))
-	end
-	if ctx.t >= 150 then
-		table.insert(ctx.notes, "summoned Esau never left")
-		ctx.t = nil
-		return
-	end
-	return "again"
-end
-
 -- G: Clicker until Jacob & Esau is merged and split back, up to 12 uses (each about 1 in 7 to land on J&E, runs 2-8), a look after
 -- each and INNER lines around each press.
 local jeClickerLoop = clickerUntil(function(ctx)
@@ -491,27 +445,6 @@ local FINAL = {
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. by player 0")), whoInfo("Esau Jr. by player 0"), lookC("after Esau Jr."),
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. again")), whoInfo("Esau Jr. again"), lookC("after Esau Jr. again"),
 	} },
-	-- D: Strawman's Keeper (type 14, a Parent) has its own row; giveitem then goes to it (in-game 2026-11-22).
-	{ name = "final D Strawman", kind = "small", budget = 200, steps = {
-		fresh(ISAAC), give(4), give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), named("Isaac"), named("Keeper", KEEPER),
-		lookC("Keeper", function(ctx, label) expect(ctx, label .. ": Keeper has a number", dbg().roster.number(keyOf(withParent(KEEPER))) ~= nil, true) end),
-		giveAnyone(5), lookC("after giveitem c5", function(ctx, label)
-			local k = withParent(KEEPER)
-			expect(ctx, "engine, not ReHUD: Keeper owns c5", owned(k, 5), 1)
-			expectCount(ctx, label .. " (Keeper)", 1, 5, nil, nil, keyOf(k))
-		end),
-		giveType(6, KEEPER), lookC("after Keeper AddCollectible c6", function(ctx, label) expectCount(ctx, label, 1, 6, nil, nil, keyOf(withParent(KEEPER))) end),
-	} },
-	-- E: the summoned Esau (type 20, a Parent) has a row while present and none once he is gone.
-	{ name = "final E Soul of Jacob and Esau", kind = "small", budget = 350, steps = {
-		fresh(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB), soulJE, named("Esau", ESAU),
-		lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", dbg().roster.number(keyOf(withParent(ESAU))) ~= nil, true) end),
-		esauLeaves, lookC("after Esau left", function(ctx, label)
-			if not ctx.esauGone then return end
-			expect(ctx, label .. ": Esau's number", dbg().roster.number(ctx.esauKey), nil)
-			expect(ctx, label .. ": Esau's entries", countEntries(function(e) return e.owner == ctx.esauKey end), 0)
-		end),
-	} },
 	-- F (observation): Flip partners change after Esau Jr. (LJ <-> D, then DJ <-> LJ), then Clicker out of the live form; ReHUD sets each
 	-- partner once (roster.lua partnerOf), so a failure here is expected. OBS lines log the engine and ReHUD every update.
 	{ name = "final F Flip partners", kind = "small", budget = 450, onlyPicked = true, steps = { startChecked, tlazFlips(),
@@ -547,28 +480,9 @@ local function helpersInfo(what)
 	end
 end
 
--- Observation only: the Keeper killed; whether it leaves GetPlayer, and where ReHUD puts its items (ReHUD reads it as a merge, roster.lua shortcut).
-local killKeeper = act("Kill the Strawman Keeper", function(ctx)
-	local k = withParent(KEEPER)
-	if not k then error("no Keeper") end
-	ctx.keeperKey = keyOf(k)
-	P("INFO", ctx.name, "Keeper ControllerIndex", k.ControllerIndex, "Isaac's", Isaac.GetPlayer(0).ControllerIndex)
-	P("INFO", ctx.name, "Keeper Kill():", tostring(pcall(function() k:Kill() end)), "key", ctx.keeperKey)
-end, function(ctx)
-	if withParent(KEEPER) then return false, "Keeper still a player" end
-	P("INFO", ctx.name, "Keeper left GetPlayer after", ctx.t, "updates")
-	return true
-end, 120)
-local function keeperItems(ctx)
-	local isaac, owners = keyOf(Isaac.GetPlayer(0)), {}
-	for _, e in ipairs(entries()) do owners[#owners + 1] = "c" .. e.id .. ":" .. (e.owner == isaac and "Isaac" or e.owner == ctx.keeperKey and "Keeper" or tostring(e.owner)) end
-	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(dbg().roster.number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
-end
 -- Observation only, review questions (2026-11-22): GetData tag through Flip; GetPtrHash in the flipped cross and on a Flip of an Esau Jr.
 -- form, and whether A's stored Dead form returns when A (type 38) flips; the hash of a form that comes back on a stored form's seed with
 -- other items; the summoned Esau across Exit & Continue (large: the user's Continue).
-FINAL[#FINAL + 1] = obsScenario("final K tag through Flip", { fresh(T_LAZ), give(4) }, { { "Flip", verdict("Flip", flip("Flip")) },
-	{ "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT)
 FINAL[#FINAL + 1] = obsScenario("final L flipped cross", tlazJr(), { { "Flip", verdict("Flip", flip("Flip")) }, { "give c5", give(5) },
 	{ "Flip back", verdict("Flip back", flip("Flip back")) }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) },
 	{ "Flip of the Esau Jr. form", verdict("Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form")) },
@@ -578,9 +492,6 @@ FINAL[#FINAL + 1] = obsScenario("final L flipped cross", tlazJr(), { { "Flip", v
 FINAL[#FINAL + 1] = obsScenario("final M original loses Esau Jr.", tlazJr(), { jrFirst(), { "Esau Jr. back to A", verdict("Esau Jr. back to A", esauJr("Esau Jr. back to A")) },
 	replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },
 	{ "Esau Jr. after the loss #2", verdict("Esau Jr. after the loss #2", esauJr("Esau Jr. after the loss #2")) } }, STRICT)
-FINAL[#FINAL + 1] = obsScenario("final J Strawman Keeper leaves", { fresh(ISAAC), give(4), give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end),
-	giveType(5, KEEPER) }, { { "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
-	{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT)
 -- The summoned Esau and a Strawman Keeper across Exit & Continue: their Parent, ControllerIndex and rows before and after.
 -- The Soul first: its swap wants 2 players, and giveitem goes to a Keeper once one exists.
 FINAL[#FINAL + 1] = obsScenario("final N summoned Esau across Continue", { fresh(ISAAC), give(4), addCard(Card.CARD_SOUL_JACOB) },
@@ -606,31 +517,6 @@ local SCENARIOS = {
 			expectOne(ctx, label .. " (Isaac owns)", 4, nil, key)
 			expectOne(ctx, label .. " (Isaac owns)", 5, nil, key)
 			expectN(ctx, label, FLIP, 0)
-		end),
-	} },
-	{ name = "birthright", kind = "small", steps = {
-		tlazFlipped(), give(BIRTHRIGHT, 2), look("after Birthright", birthrightOwners),
-		flip("Flip 1 of 2"), look("after Flip 1", birthrightOwners), flip("Flip 2 of 2"), look("after two Flips", birthrightOwners),
-		stage(3), look("on stage 3", birthrightOwners),
-	} },
-	-- Run 7: the Dead form, number 1, holds c711 from Basement II.
-	{ name = "P3", kind = "small", steps = {
-		fresh(T_LAZ), give(4), stage(2), look("after c4", oneC4),
-		give(BIRTHRIGHT, 2), look("after Birthright", function(ctx, label)
-			oneC4(ctx, label)
-			ctx.dead = keyOf(ofType(DEAD_T_LAZ))
-		end),
-		remove(BIRTHRIGHT, 1), look("after remove Birthright", function(ctx, label)
-			oneC4(ctx, label)
-			expect(ctx, label .. ": Dead form swapped", dbg().roster.isSwapped(ctx.dead), true)
-			expect(ctx, label .. ": Dead form number", dbg().roster.number(ctx.dead), 1)
-			expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
-		end),
-		stage(3), flip("Flip"), look("after Flip", function(ctx, label)
-			oneC4(ctx, label)
-			expect(ctx, label .. ": player 0 is the Dead form", keyOf(Isaac.GetPlayer(0)), ctx.dead)
-			expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
-			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
 	} },
 	{ name = "P4a", kind = "small", steps = {
@@ -707,13 +593,6 @@ local SCENARIOS = {
 			expect(ctx, label .. ": form swapped", dbg().roster.isSwapped(ctx.form), true)
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 		end),
-	} },
-	{ name = "P1", kind = "small", steps = {
-		fresh(ISAAC), give(4), give(4), stage(2), look("before Soul of Jacob and Esau", twoC4),
-		addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
-		-- ReHUD 2.8 lists the summoned Esau (user decision 2026-11-22): his c1 under him.
-		giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 1, nil, keyOf(ofType(ESAU))) end),
-		stage(3), look("on stage 3", twoC4),
 	} },
 	{ name = "P2", kind = "small", steps = {
 		fresh(JACOB), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,

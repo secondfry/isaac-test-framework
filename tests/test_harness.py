@@ -104,15 +104,21 @@ OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 PEDESTAL = {"yum-heart": 45, "Esau Jr.": 703}  # the fake user's target, by the YOU: line's wording
 
 
-def run(path, mode="regression", on_exit="continue", render_every=1, continue_after=0, **flags):
-    """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"; continue_after
-    delays that answer by this many updates. A YOU: line is answered by walking player 0 onto the pedestal it names."""
-    lua = LuaRuntime()
-    assert lua.eval("_VERSION") == "Lua 5.3", lua.eval("_VERSION")
+def load(lua, path):
+    """The stub, then the mod's main.lua at `path`."""
     with open(os.path.join(HERE, "stub.lua"), encoding="utf-8") as f:
         lua.execute(f.read())
     with open(path, encoding="utf-8") as f:
         lua.execute(f.read())
+
+
+def run(path, mode="regression", on_exit="continue", render_every=1, continue_after=0, loader=load, **flags):
+    """Plays the whole suite; on_exit is what the fake user does when asked to exit and Continue: "continue" or "new"; continue_after
+    delays that answer by this many updates. A YOU: line is answered by walking player 0 onto the pedestal it names. `loader(lua, path)`
+    loads the stub and the mod."""
+    lua = LuaRuntime()
+    assert lua.eval("_VERSION") == "Lua 5.3", lua.eval("_VERSION")
+    loader(lua, path)
     g = lua.globals()
     g.modData = mode
     for k, v in flags.items():

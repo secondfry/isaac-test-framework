@@ -1,2 +1,5 @@
 __pycache__/
 .vanilla-session.txt
+# tools/report.py output, when --out (or the log) is inside the repo
+report.json
+traces/

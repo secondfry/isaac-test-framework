@@ -35,9 +35,12 @@ CONFIGS = [
     ("wrong floor", {"wrongFloor": True}),
     *((f"{flag} ({mode})", {"mode": mode, flag: True}) for flag, mode, _, _ in dry.INVARIANT_MODES),
 ]
-# Each allowed difference, tagged with its bug or decision id (plan.md): (id, the test it starts in, a regex masked in both logs from
-# that test's start on).
-ALLOW = []
+# Each allowed difference, tagged with its bug or decision id (plan.md): (id, the test it lies in, a regex masked in both logs from that
+# test's start to its RESULT).
+ALLOW = [
+    # its look is built once, not by a step: G's frames and trace updates come one update sooner
+    ("D6", "final G Jacob and Esau Clicker split", r"frame \d+|OBS u\d+"),
+]
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -57,15 +60,17 @@ def load_base(lua, _path):
 
 
 def normalise(log):
-    out, masks = [], []
+    out, masks = [], {}
     for line in log:
         for _, test, regex in ALLOW:
             if line.startswith(f"PROBE SCENARIO START {test}"):
-                masks.append(re.compile(regex))
+                masks[test] = re.compile(regex)
         line = WHERE.sub("<at> ", line)
-        for m in masks:
+        for m in masks.values():
             line = m.sub("<allowed>", line)
         out.append(line)
+        for test in [t for t in masks if line.startswith(f"PROBE RESULT {t} ")]:
+            del masks[test]
     return sort_entries(out)
 
 

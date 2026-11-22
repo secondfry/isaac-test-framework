@@ -1,11 +1,11 @@
 -- Esau Jr. step lists: presses with verdicts, re-gives, losing the copy, Clicker on the presser and the returns that follow.
 local P = include("scripts.log").P
-local action = include("scripts.wait").action
+local act = include("scripts.wait").act
 local engine = include("scripts.game")
-local seedOf, playerBySeed, owned, pedestals = engine.seedOf, engine.playerBySeed, engine.owned, engine.pedestals
+local seedOf, bySeed, owned, pedestals = engine.seedOf, engine.bySeed, engine.owned, engine.pedestals
 local give = include("scripts.console").give
-local press = include("scripts.press")
-local swap, flip, esauJr = press.swap, press.flip, press.esauJr
+local presses = include("scripts.press")
+local press, flip, esauJr = presses.press, presses.flip, presses.esauJr
 local giveEsau = include("scripts.steps").giveEsau
 local verdict = include("scripts.record").verdict
 local ids = include("scripts.ids")
@@ -40,9 +40,9 @@ end
 
 local function recordReturn(label)
 	return function(ctx)
-		P("INFO", ctx.name, label, "A seed", ctx.originalSeed, "present", playerBySeed(ctx.originalSeed) ~= nil)
+		P("INFO", ctx.name, label, "A seed", ctx.originalSeed, "present", bySeed(ctx.originalSeed) ~= nil)
 		if ctx.formSeed then
-			P("INFO", ctx.name, label, "B seed", ctx.formSeed, "present", playerBySeed(ctx.formSeed) ~= nil)
+			P("INFO", ctx.name, label, "B seed", ctx.formSeed, "present", bySeed(ctx.formSeed) ~= nil)
 		end
 	end
 end
@@ -61,10 +61,10 @@ local function loseEsauJr()
 		{ "check Esau Jr. in primary", function()
 			if Isaac.GetPlayer(0):GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. before giving D6") end
 		end },
-		{ "give D6", give(CollectibleType.COLLECTIBLE_D6) },
+		{ "give D6", give(D6) },
 		{ "check D6 in primary", function(ctx)
 			local p = Isaac.GetPlayer(0)
-			if p:GetActiveItem(PRIMARY) ~= CollectibleType.COLLECTIBLE_D6 then error("D6 did not replace Esau Jr.") end
+			if p:GetActiveItem(PRIMARY) ~= D6 then error("D6 did not replace Esau Jr.") end
 			local n = owned(p, ESAU_JR)
 			P("INFO", ctx.name, "c703 owned", n, "pedestals", pedestals(ESAU_JR))
 			if n ~= 0 then error("c703 still owned after D6") end
@@ -78,14 +78,14 @@ local function replaceEsauJr()
 	return t
 end
 
-local useClickerEffect = action("UseActiveItem Clicker", function()
+local useClickerEffect = act("UseActiveItem Clicker", function()
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("expected Esau Jr. in primary before UseActiveItem") end
 	local before = { seed = seedOf(p), who = p:GetPlayerType() }
 	p:UseActiveItem(CLICKER, 0)
 	return before
 end, function(ctx, before)
-	local p = playerBySeed(before.seed)
+	local p = bySeed(before.seed)
 	local who = p and p:GetPlayerType()
 	local primary = p and p:GetActiveItem(PRIMARY)
 	P("INFO", ctx.name, "UseActiveItem Clicker type", before.who, "->", who, "changed", who ~= nil and who ~= before.who,
@@ -95,14 +95,15 @@ end, function(ctx, before)
 	return true
 end)
 
-local function jr(label, who) return verdict(label, swap(label, ESAU_JR, PRIMARY, nil, nil, who), who and who.index, true) end
+local function jr(label, who) return verdict(label, press(label, ESAU_JR, PRIMARY, nil, nil, who), who and who.index, true) end
+local function jrPair(label, who) return { label, jr(label, who) } end
 local function flipV(label) return verdict(label, flip(label)) end
 
 -- Press, press back, press to the form again, the form loses Esau Jr. (D6) and gets it back, two presses. `first`: pairs
 -- before the presses; `lose`: pairs for the loss (default: player 0's D6 and re-give).
 local function charPresses(who, first, lose)
-	return { first or {}, { "Esau Jr. #1", jr("Esau Jr. #1", who) }, { "Esau Jr. #2", jr("Esau Jr. #2", who) }, { "Esau Jr. #3", jr("Esau Jr. #3", who) },
-		lose or replaceEsauJr(), { "Esau Jr. #4", jr("Esau Jr. #4", who) }, { "Esau Jr. #5", jr("Esau Jr. #5", who) } }
+	return { first or {}, jrPair("Esau Jr. #1", who), jrPair("Esau Jr. #2", who), jrPair("Esau Jr. #3", who),
+		lose or replaceEsauJr(), jrPair("Esau Jr. #4", who), jrPair("Esau Jr. #5", who) }
 end
 local esauLoses = { { "check c703 on index 1", function()
 		local p = Isaac.GetPlayer(1)
@@ -122,5 +123,5 @@ local esauLoses = { { "check c703 on index 1", function()
 return {
 	regiveEsauJr = regiveEsauJr, jrFirst = jrFirst, jrAgain = jrAgain, jrTwice = jrTwice, giveClicker = giveClicker,
 	rememberOriginal = rememberOriginal, rememberForm = rememberForm, controlPresses = controlPresses, loseEsauJr = loseEsauJr,
-	replaceEsauJr = replaceEsauJr, useClickerEffect = useClickerEffect, jr = jr, flipV = flipV, charPresses = charPresses, esauLoses = esauLoses,
+	replaceEsauJr = replaceEsauJr, useClickerEffect = useClickerEffect, jrPair = jrPair, flipV = flipV, charPresses = charPresses, esauLoses = esauLoses,
 }

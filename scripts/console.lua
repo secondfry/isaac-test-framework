@@ -1,6 +1,6 @@
 -- Console commands: queued as steps, run from MC_POST_RENDER by flush.
 local P = include("scripts.log").P
-local action = include("scripts.wait").action
+local act = include("scripts.wait").act
 local engine = include("scripts.game")
 local floorName, owned = engine.floorName, engine.owned
 
@@ -8,7 +8,7 @@ local game = Game()
 
 -- giveitem/remove by console on player 0: one copy more or less, and `players` players when given (Birthright on Tainted Lazarus: 2, removed: 1).
 local function changeOwned(verb, id, delta, players)
-	return action(verb .. " c" .. id, function()
+	return act(verb .. " c" .. id, function()
 		HARNESS.pending = verb .. " c" .. id
 		return owned(Isaac.GetPlayer(0), id)
 	end, function(_, n)
@@ -22,7 +22,7 @@ local function remove(id, players) return changeOwned("remove", id, -1, players)
 
 -- Records the new floor as ctx.floors[n]; an unchanged name would make every floor check meaningless.
 local function stage(n)
-	return action("stage " .. n, function()
+	return act("stage " .. n, function()
 		HARNESS.pending = "stage " .. n
 		return floorName()
 	end, function(ctx, old)
@@ -35,8 +35,8 @@ local function stage(n)
 end
 
 -- A new (not continued) game with player 0 of type `t`; records floor 1.
-local function restart(t)
-	return action("restart " .. t, function()
+local function fresh(t)
+	return act("restart " .. t, function()
 		local H = HARNESS
 		H.pending, H.expectStart = "restart " .. t, true
 		return H.gen
@@ -59,7 +59,7 @@ local function giveAnyone(id)
 		for i = 0, game:GetNumPlayers() - 1 do t[i] = owned(Isaac.GetPlayer(i), id) end
 		return t
 	end
-	return action("giveitem c" .. id .. " (anyone)", function()
+	return act("giveitem c" .. id .. " (anyone)", function()
 		HARNESS.pending = "giveitem c" .. id
 		return counts()
 	end, function(ctx, b)
@@ -84,4 +84,4 @@ local function flush()
 	end
 end
 
-return { give = give, remove = remove, stage = stage, restart = restart, giveAnyone = giveAnyone, flush = flush }
+return { give = give, remove = remove, stage = stage, fresh = fresh, giveAnyone = giveAnyone, flush = flush }

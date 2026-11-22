@@ -1,7 +1,7 @@
 -- The characters of a run as the harness sees them, each by its entity (GetPtrHash), with the items it held when last live.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
-local seedOf, playerOfType, isCharacter, itemCounts, countsText = engine.seedOf, engine.playerOfType, engine.isCharacter, engine.itemCounts,
+local seedOf, ofType, isCharacter, itemCounts, countsText = engine.seedOf, engine.ofType, engine.isCharacter, engine.itemCounts,
 	engine.countsText
 local keyOf = include("scripts.rehud").keyOf
 local expect = include("scripts.assert").expect
@@ -10,9 +10,8 @@ local FLIP, ESAU_JR = ids.FLIP, ids.ESAU_JR
 
 local game = Game()
 
--- final: ReHUD 2.8's final build (`only final,S3,r1,P4c`). The harness tells characters apart by its own GetData tag (GetData follows a
--- character through storage within a session, in-game 2026-11-22), so two characters on one seed stay two, and remembers each one's items
--- from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
+-- The harness tells characters apart by their entity (GetPtrHash), so two characters on one seed stay two, and remembers each one's
+-- items from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
 
 -- A character is its entity (GetPtrHash): a stored one comes back with it (lua-api-notes.md), and a gone one never comes back, so a
 -- reused hash on a gone one is a new character.
@@ -26,7 +25,7 @@ end
 
 -- Every update of a run: names each new character, refreshes the live ones and marks one that left play as stored (gone during an
 -- Esau Jr. or Flip swap, storedBy that item) or gone (merged, summoned Esau gone, removed).
-local function trackChars()
+local function track()
 	local H = HARNESS
 	local C = H.chars
 	if not C or game:GetNumPlayers() == 0 then return end
@@ -61,17 +60,17 @@ local function onGameStart(isContinued)
 	if not isContinued then HARNESS.chars = { list = {}, byHash = {}, n = 0 } end
 end
 
-local function charNamed(n)
+local function byName(n)
 	for _, c in pairs(HARNESS.chars.list) do
 		if c.name == n then return c end
 	end
 end
 
--- Names the character at GetPlayer `index` (default 0), or the first of type `t` when given.
+-- Names the character at GetPlayer index 0, or the first of type `t` when given.
 local function named(n, t)
 	return function(ctx)
-		trackChars()
-		local p = t and playerOfType(t) or Isaac.GetPlayer(0)
+		track()
+		local p = t and ofType(t) or Isaac.GetPlayer(0)
 		local c = p and charOf(p)
 		if not c then error("no character to name " .. n) end
 		c.name = n
@@ -82,7 +81,7 @@ end
 -- An engine fact from lua-api-notes.md (who a press brings): its FAIL names the engine.
 local function who(n)
 	return function(ctx)
-		trackChars()
+		track()
 		local c = charOf(Isaac.GetPlayer(0))
 		expect(ctx, "engine, not ReHUD: player 0 is " .. n, c and c.name, n)
 	end
@@ -90,10 +89,10 @@ end
 -- Unobserved who: logged only.
 local function whoInfo(what)
 	return function(ctx)
-		trackChars()
+		track()
 		local c = charOf(Isaac.GetPlayer(0))
 		P("INFO", ctx.name, "after " .. what .. " (unobserved) player 0 is", c and c.name, "type", Isaac.GetPlayer(0):GetPlayerType(), "seed", seedOf(Isaac.GetPlayer(0)))
 	end
 end
 
-return { trackChars = trackChars, onGameStart = onGameStart, charNamed = charNamed, named = named, who = who, whoInfo = whoInfo }
+return { track = track, onGameStart = onGameStart, byName = byName, named = named, who = who, whoInfo = whoInfo }

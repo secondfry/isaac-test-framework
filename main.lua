@@ -1,5 +1,5 @@
--- ReHUD test harness: on the first new run after launch it plays its scenarios by itself and logs PROBE/RESULT lines to log.txt.
--- Needs the `ReHUD.dbg` hook (ReHUD eeae5c0 or later). This file only wires: the scenarios to the runner, the handlers to the game.
+-- ReHUD test harness: on the first new run after launch it plays its tests by itself and logs PROBE/RESULT lines to log.txt.
+-- Needs the `ReHUD.dbg` hook (ReHUD cf965b0 or later). This file only wires: the tests to the runner, the handlers to the game.
 local mod = RegisterMod("ReHUD Test Harness", 1)
 local runner = include("scripts.runner")
 local press = include("scripts.press")
@@ -21,8 +21,8 @@ mod:AddCallback(ModCallbacks.MC_USE_ITEM, press.onClickerUse, CollectibleType.CO
 mod:AddPriorityCallback(ModCallbacks.MC_POST_UPDATE, CallbackPriority.EARLY, press.onVetoUpdate)
 mod:AddCallback(ModCallbacks.MC_POST_PLAYER_UPDATE, record.onPlayerUpdate)
 mod:AddCallback(ModCallbacks.MC_POST_UPDATE, runner.guard(function()
-	record.observe()
-	runner.tick(characters.trackChars, record.innerWatch)
+	record.update()
+	runner.tick(characters.track, record.innerWatch)
 end))
 mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
 	console.flush()

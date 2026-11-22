@@ -1,7 +1,7 @@
 -- Manual steps: what the user does by hand (Exit & Continue, walking onto a pedestal), each waiting for its effect.
 local P = include("scripts.log").P
 local wait = include("scripts.wait")
-local action, CONTINUE_TIMEOUT = wait.action, wait.CONTINUE_TIMEOUT
+local act, CONTINUE_TIMEOUT = wait.act, wait.CONTINUE_TIMEOUT
 local engine = include("scripts.game")
 local seeds, owned, pedestals, slots = engine.seeds, engine.owned, engine.pedestals, engine.slots
 local ids = include("scripts.ids")
@@ -12,7 +12,7 @@ local CONTINUE_STEP_LIMIT = 600
 -- The user exits to the menu and continues: a continued game with the same players (seeds) as before the exit; `soft` takes any
 -- players and logs them (obsy: what a continue does to a stored form is the question).
 local function exitAndContinue(soft)
-	return action("exit to the menu and Continue now", function()
+	return act("exit to the menu and Continue now", function()
 		HARNESS.expectStart = "continue"
 		return { gen = HARNESS.gen, seeds = seeds() }
 	end, function(ctx, b)
@@ -30,20 +30,20 @@ end
 local continued = { "exit and Continue", exitAndContinue(true), nil, CONTINUE_STEP_LIMIT }
 
 -- The user's own step: the user walks onto pedestals by hand (e58d1b3), as a teleport never touched in game (lua-api-notes.md) and a
--- scripted walk is not wanted; `act` once, then up to 450 updates for `done(p)`, the label on its own screen line.
-local function handStep(label, act, done)
-	return action(label, act, function(ctx)
+-- scripted walk is not wanted; `start` once, then up to 450 updates for `done(p)`, the label on its own screen line.
+local function walk(label, start, done)
+	return act(label, start, function(ctx)
 		local p = Isaac.GetPlayer(0)
 		if not done(p) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) end
 		P("INFO", ctx.name, label, "after", ctx.t, "updates |", slots(p), "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART))
 		return true
 	end, 450)
 end
-local dropByHand = handStep("YOU: walk onto the yum-heart pedestal", function()
+local dropByHand = walk("YOU: walk onto the yum-heart pedestal", function()
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
 	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, p.Position + Vector(80, 0), Vector(0, 0), nil)
 end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 end)
-local pickByHand = handStep("YOU: step off, then walk back onto the Esau Jr. pedestal", function() end, function(p) return owned(p, ESAU_JR) > 0 end)
+local pickByHand = walk("YOU: step off, then walk back onto the Esau Jr. pedestal", function() end, function(p) return owned(p, ESAU_JR) > 0 end)
 
 return { exitAndContinue = exitAndContinue, continued = continued, dropByHand = dropByHand, pickByHand = pickByHand }

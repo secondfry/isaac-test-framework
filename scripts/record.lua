@@ -1,31 +1,30 @@
--- What the logs record about the engine and ReHUD: state dumps, the per-update OBS trace, press verdicts and timing, ids and Inner Eye lines.
+-- What the logs record about the engine and ReHUD: the state after a step, the per-update OBS trace, press verdicts and timing, ids and Inner Eye lines.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
-local itemConfig, maxId, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots = engine.itemConfig, engine.maxId, engine.floorName,
-	engine.seedOf, engine.owned, engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots
+local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots = engine.ITEM_IDS, engine.floorName, engine.seedOf, engine.owned,
+	engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots
 local rehud = include("scripts.rehud")
 local dbg, entries, tagText, storedSettling = rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling
-local obsInfo = include("scripts.steps").obsInfo
+local info = include("scripts.steps").info
 local enums = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
 	enums.SECONDARY
 
 local game = Game()
 
-local function probe(ctx, label)
+-- The whole state after a step: the floor, each player and its items, each ReHUD entry.
+local function logState(ctx, label)
 	P("STEP", ctx.name, label, "floor", floorName(), "stage", game:GetLevel():GetStage())
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
 		P("PLAYER", i, "type", p:GetPlayerType(), "ctrl", p.ControllerIndex, "variant", p.Variant, "parent", p.Parent ~= nil,
 			"ghost", p:IsCoopGhost(), "seed", seedOf(p), "count", p:GetCollectibleCount())
 		local wispOf = wispsOf(p)
-		for id = 1, maxId do
-			if itemConfig:GetCollectible(id) then
-				local all = p:GetCollectibleNum(id, false)
-				if all > 0 then
-					local own, w = owned(p, id), wispOf[id] or 0
-					P("ITEM", i, "c" .. id, "owned", own, "wisp", w, "other", all - own - w)
-				end
+		for _, id in ipairs(ITEM_IDS) do
+			local all = p:GetCollectibleNum(id, false)
+			if all > 0 then
+				local own, w = owned(p, id), wispOf[id] or 0
+				P("ITEM", i, "c" .. id, "owned", own, "wisp", w, "other", all - own - w)
 			end
 		end
 	end
@@ -59,7 +58,7 @@ local function obsLines()
 	return t
 end
 
-local function observe()
+local function update()
 	local o = HARNESS.obs
 	if not o then return end
 	o.u = o.u + 1
@@ -70,16 +69,21 @@ local function observe()
 	for _, l in ipairs(lines) do P("OBS u" .. o.u, "after " .. o.step .. ":", l) end
 end
 
-local function startObs() HARNESS.obs = { u = 0, step = "start" } end
+local function start() HARNESS.obs = { u = 0, step = "start" } end
 -- OBS lines in a checked scenario: its presses keep the checked swap rule.
-local function startObsChecked() HARNESS.obs = { u = 0, step = "start", checked = true } end
+local function startChecked() HARNESS.obs = { u = 0, step = "start", checked = true } end
+-- Later OBS lines say they follow step `tag`.
+local function stepBegins(tag)
+	local o = HARNESS.obs
+	if o and o.step ~= tag then o.step = tag; P("OBS u" .. o.u, "step " .. tag .. " begins") end
+end
 -- A finished scenario's trace and timing watches.
 local function stop(H) H.obs, H.timing = nil, nil end
 
-local pocketHeld = obsInfo("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
-local typeNow = obsInfo("player 0 type", function(p) return p:GetPlayerType() end)
-local playerCount = obsInfo("players in game", function() return game:GetNumPlayers() end)
-local storedSettlingNow = obsInfo("stored forms still settling", storedSettling)
+local pocketHeld = info("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
+local typeNow = info("player 0 type", function(p) return p:GetPlayerType() end)
+local playerCount = info("players in game", function() return game:GetNumPlayers() end)
+local storedSettlingNow = info("stored forms still settling", storedSettling)
 
 -- Seeds as labels A, B, C... in first-seen order within the scenario.
 local function tagOf(ctx, seed)
@@ -155,7 +159,7 @@ local function verdict(label, step, index, timed)
 	end
 end
 
-local slotsNow = obsInfo("player 0 slots", slots)
+local slotsNow = info("player 0 slots", slots)
 
 -- Every vanilla per-entity id of each player, each read pcall'd; twins as the GetPlayer index whose GetPtrHash matches
 -- (no method is called on a returned twin but GetPtrHash).
@@ -206,7 +210,7 @@ local function innerOn(ctx) ctx.innerWatch = true end
 local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER " .. what, innerLine()) end end
 
 return {
-	probe = probe, observe = observe, startObs = startObs, startObsChecked = startObsChecked, stop = stop, pocketHeld = pocketHeld,
+	logState = logState, update = update, start = start, startChecked = startChecked, stepBegins = stepBegins, stop = stop, pocketHeld = pocketHeld,
 	typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow, onPlayerUpdate = onPlayerUpdate, verdict = verdict,
 	slotsNow = slotsNow, ids = ids, innerLine = innerLine, innerWatch = innerWatch, innerOn = innerOn, innerInfo = innerInfo,
 }

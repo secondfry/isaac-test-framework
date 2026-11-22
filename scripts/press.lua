@@ -1,23 +1,24 @@
 -- Real presses of the swap items (Flip, Esau Jr., Clicker, a card) and the input, use and veto handlers they need.
 local P = include("scripts.log").P
-local action = include("scripts.wait").action
+local act = include("scripts.wait").act
 local strictObs = include("scripts.runner").strictObs
 local engine = include("scripts.game")
-local itemConfig, seedOf, cards, heldItems, chargeOf, playerByHash, slots = engine.itemConfig, engine.seedOf, engine.cards, engine.heldItems,
-	engine.chargeOf, engine.playerByHash, engine.slots
+local itemConfig, seedOf, cards, heldItems, chargeOf, byHash, slots = engine.itemConfig, engine.seedOf, engine.cards, engine.heldItems,
+	engine.chargeOf, engine.byHash, engine.slots
 local ids = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, DEAD_LAZ, T_FORGOTTEN, PRIMARY, SECONDARY = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.DEAD_LAZ, ids.T_FORGOTTEN,
 	ids.PRIMARY, ids.SECONDARY
 
 local game = Game()
 
-local function snapshot(index)
+-- The presser's player count and type/seed, before and after a press.
+local function presserState(index)
 	local p = Isaac.GetPlayer(index or 0)
 	return { count = game:GetNumPlayers(), who = p:GetPlayerType() .. "/" .. seedOf(p) }
 end
 
 -- A stored presser (Esau Jr., Flip without Birthright) has no vanilla accessor, but its charge + battery drop shows on its own entity
--- after its MC_USE_ITEM and before the engine stores it (runs 6-7), so HARNESS.watch (set by swap) keeps the first such reading as `seen`.
+-- after its MC_USE_ITEM and before the engine stores it (runs 6-7), so HARNESS.watch (set by press) keeps the first such reading as `seen`.
 -- The presser is matched by GetPtrHash, as a new form can take its seed (obsx run2/run6 "obs esaujr flip", obsyb1-2).
 -- shortcut: rests on J510's order; if a swap FAILs "seen with no drop", log every channel around the press again to find where the drop moved.
 local function watchSee(channel, e)
@@ -43,7 +44,7 @@ local function onInput(_, e, hook, button)
 	local H = HARNESS
 	watchSee("INPUT_ACTION", e)
 	if not (H.press or H.full) or hook == InputHook.GET_ACTION_VALUE or not e then return end -- polled ~1470/s: cheap exit first
-	-- H.pressHash: the pressing entity's hash (swap's `who`), false for any entity, nil for player 0.
+	-- H.pressHash: the pressing entity's hash (press's `who`), false for any entity, nil for player 0.
 	if H.pressHash ~= false and GetPtrHash(e) ~= (H.pressHash or GetPtrHash(Isaac.GetPlayer(0))) then return end
 	if button == H.full or (type(H.full) == "table" and H.full[button]) then
 		H.fullPolled = true
@@ -65,7 +66,7 @@ end
 -- How the use spent `id`, or nil and what was read. `b` is the presser before the press: its hash and full charge or card count.
 -- A stored presser passes only on the drop HARNESS.watch saw before the engine stored it.
 local function spentHow(b, id, slot)
-	local presser = playerByHash(b.hash)
+	local presser = byHash(b.hash)
 	if slot == "card" then
 		local n = presser and cards(presser, id)
 		if n == b.cards - 1 then return "spent card " .. b.cards .. "->" .. n end
@@ -95,64 +96,72 @@ local function arm(H, b)
 	b.arms = b.arms + 1
 end
 
+-- Readies the presser `p` for a press of `id`: a card's count, or the active charged full (so a drop is visible) and watched; returns
+-- the PRESS line's charge text.
+local function prime(p, id, slot, b, H, label)
+	if slot == "card" then
+		b.cards = cards(p, id)
+		if b.cards == 0 then error(label .. ": card " .. id .. " not held") end
+		return ""
+	end
+	if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
+	-- ItemConfig MaxCharges reads 6 for Flip, but REP+ Flip takes 4, and SetActiveCharge(6, 2) gave 4 + 2 battery (user, in game);
+	-- FullCharge without force fills the first bar only (run 3: charge 4, battery 0).
+	if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot)
+	else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
+	b.charge = p:GetActiveCharge(slot)
+	-- Only active slots: watchSee reads GetActiveItem(slot), which a "card" slot would make throw in MC_INPUT_ACTION.
+	H.watch = { hash = b.hash, id = id, slot = slot, total = b.charge + p:GetBatteryCharge(slot) }
+	return " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
+end
+
+-- obs data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1). True, logged
+-- as INFO, when an obs press (b.items set) spent and left the pressed index on its seed and type with a new entity or other items.
+-- `c`: the presser's charge now; a gone presser's spend is the drop its watch saw before the engine stored it.
+local function sameSeedForm(ctx, label, b, presser, c, index)
+	local H, p = HARNESS, Isaac.GetPlayer(index)
+	local spent = (c and c < b.charge and ("charge " .. b.charge .. " -> " .. c)) or (not presser and H.watch and H.watch.seen)
+	if not (spent and b.items and (GetPtrHash(p) ~= b.hash or heldItems(p) ~= b.items)) then return end
+	local how = GetPtrHash(p) ~= b.hash and ("new form, same seed " .. b.seed .. ", hash " .. b.hash .. " -> " .. GetPtrHash(p)) or ("acted in place: same seed " .. b.seed)
+	P("INFO", ctx.name, label, how .. ", items " .. b.items .. " -> " .. heldItems(p) .. ", " .. spent)
+	endPress(H)
+	ctx.arms = b.arms
+	for i = #(H.timing or {}), 1, -1 do if H.timing[i].label == label then table.remove(H.timing, i) end end -- the seed never changes: this watch would wake on a later press
+	return true
+end
+
 -- Every character swap: player 0 presses `id` (active in `slot`, or a held card with slot "card"), and it is done only when a new
 -- character appears (`count` players after, when given) and the use spent the charge or the card.
 -- A pocket active takes the full press; cards and ACTION_ITEM the one-shot (one-shot: run 2; full press: runs 4-5).
 -- `who` (obsy): { index = GetPlayer index of the presser, any = answer every entity's polls }; its press is a full one of ACTION_ITEM
 -- and ACTION_PILLCARD both, as which button and entity use a second player's or Tainted Forgotten's active is unknown.
-local function swap(label, id, slot, count, ceiling, who)
+local function press(label, id, slot, count, ceiling, who)
 	local index = who and who.index or 0
 	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	if who then button = { [ButtonAction.ACTION_ITEM] = true, [ButtonAction.ACTION_PILLCARD] = true } end
-	return action(label, function()
+	return act(label, function()
 		local p, H = Isaac.GetPlayer(index), HARNESS
-		local b = snapshot(index)
-		H.pressHash, H.swapItem = nil, id -- trackChars: a character leaving play now is stored (Esau Jr., Flip) or not
+		local b = presserState(index)
+		H.pressHash, H.swapItem = nil, id -- characters.track: a character leaving play now is stored (Esau Jr., Flip) or not
 		if who and who.any then H.pressHash = false elseif who then H.pressHash = GetPtrHash(p) end
 		-- shortcut: the full press answers both triggered polls of its update, safe only while the pocket holds no card (a card reads
 		-- the first, Flip the second); Flip's charge of 4 is spent by one use, so it cannot flip twice. Revisit for a card beside Flip.
 		b.seed, b.button, b.full, b.index, b.hash = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET or who ~= nil, index, GetPtrHash(p)
 		-- Only an obs scenario takes a same-seed new form as a press (see below); a checked one (F, G log OBS lines too) needs a new character.
 		if H.obs and not H.obs.checked then b.items = heldItems(p) end
-		local read = ""
-		if slot == "card" then
-			b.cards = cards(p, id)
-			if b.cards == 0 then error(label .. ": card " .. id .. " not held") end
-		else
-			if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
-			-- Full, so a drop is visible. ItemConfig MaxCharges reads 6 for Flip, but REP+ Flip takes 4, and SetActiveCharge(6, 2) gave
-			-- 4 + 2 battery (user, in game); FullCharge without force fills the first bar only (run 3: charge 4, battery 0).
-			if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot)
-			else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
-			b.charge = p:GetActiveCharge(slot)
-			read = " charge " .. b.charge .. " battery " .. p:GetBatteryCharge(slot)
-			-- Only active slots: watchSee reads GetActiveItem(slot), which a "card" slot would make throw in MC_INPUT_ACTION.
-			H.watch = { hash = b.hash, id = id, slot = slot, total = b.charge + p:GetBatteryCharge(slot) }
-		end
+		local read = prime(p, id, slot, b, H, label)
 		b.arms, b.fired, b.pressed = 0, H.fired, H.pressed
 		arm(H, b)
 		P("PRESS", label, "button", who and "ITEM+PILLCARD" or button, (b.full and "full" or "one-shot") .. read, who and ("player " .. index .. (who.any and ", any entity" or "")) or "")
 		return b
 	end, function(ctx, b)
-		local H, a = HARNESS, snapshot(index)
+		local H, a = HARNESS, presserState(index)
 		local polls = "arms " .. b.arms .. ", fired " .. (H.fired - b.fired) .. ", pressed " .. (H.pressed - b.pressed)
 		if a.who == b.who and a.count == b.count then
 			-- A use that spends the charge and swaps nothing (obs2: Flip on a 38 whose other form is gone) never swaps later: stop early.
-			local presser = playerByHash(b.hash)
+			local presser = byHash(b.hash)
 			local c = slot ~= "card" and chargeOf(presser, id, slot)
-			-- A gone presser's spend is the drop its watch saw before the engine stored it.
-			local spent = (c and c < b.charge and ("charge " .. b.charge .. " -> " .. c)) or (not presser and H.watch and H.watch.seen)
-			-- obs data: after a Continue a press made a new entity with the old seed and type, its items re-rolled (obsy b run 1).
-			local p = Isaac.GetPlayer(index)
-			if spent and b.items and (GetPtrHash(p) ~= b.hash or heldItems(p) ~= b.items) then
-				local how = GetPtrHash(p) ~= b.hash and ("new form, same seed " .. b.seed .. ", hash " .. b.hash .. " -> " .. GetPtrHash(p)) or ("acted in place: same seed " .. b.seed)
-				P("INFO", ctx.name, label, how .. ", items " .. b.items .. " -> " .. heldItems(p) .. ", " .. spent)
-
-				endPress(H)
-				ctx.arms = b.arms
-				for i = #(H.timing or {}), 1, -1 do if H.timing[i].label == label then table.remove(H.timing, i) end end -- the seed never changes: this watch would wake on a later press
-				return true
-			end
+			if sameSeedForm(ctx, label, b, presser, c, index) then return true end
 			if c and c < b.charge and ctx.t >= 30 then error(label .. ": charge spent " .. b.charge .. " -> " .. c .. ", no new character after " .. ctx.t .. " updates") end
 			-- shortcut: re-arms until a new character shows (the one-shot each update, the full press one update after its release, so
 			-- each is a fresh press), in case the first poll was not the use logic; a press shown late could fire twice, harmless while the
@@ -177,12 +186,12 @@ local function swap(label, id, slot, count, ceiling, who)
 	end, ceiling)
 end
 
-local function flip(label) return swap(label, FLIP, ActiveSlot.SLOT_POCKET) end
-local function esauJr(label) return swap(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
+local function flip(label) return press(label, FLIP, ActiveSlot.SLOT_POCKET) end
+local function esauJr(label) return press(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
 -- On Isaac, not beside Flip: a card beside a pocket active sits in slot 1 (run 5) and is untested with either press.
-local soulJE = swap("Soul of Jacob and Esau", Card.CARD_SOUL_JACOB, "card", 2)
+local soulJE = press("Soul of Jacob and Esau", Card.CARD_SOUL_JACOB, "card", 2)
 
-local clicker = swap("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
+local clicker = press("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
 
 local function clickerCallback(name, p, slot)
 	local H = HARNESS
@@ -215,7 +224,7 @@ local function onVetoUpdate()
 	b.observed = true
 	local p = Isaac.GetPlayer(0)
 	P("INFO", H.ctx.name, "cancelled Clicker", "update", H.obs.u + 1,
-		"type", b.who, "->", snapshot().who, "charge", b.charge, "->", chargeOf(p, CLICKER, PRIMARY),
+		"type", b.who, "->", presserState().who, "charge", b.charge, "->", chargeOf(p, CLICKER, PRIMARY),
 		"MC_PRE_USE_ITEM calls", b.pre, "MC_USE_ITEM calls", b.used or 0)
 	if not b.change then return end
 	if seedOf(p) ~= b.seed then
@@ -228,11 +237,11 @@ end
 
 -- shortcut: one veto per press, matched by GetPtrHash of player 0; extend it if a second player must press.
 local function cancelledClicker(change)
-	return action("cancelled Clicker", function()
+	return act("cancelled Clicker", function()
 		local H, p = HARNESS, Isaac.GetPlayer(0)
 		if p:GetActiveItem(PRIMARY) ~= CLICKER then error("Clicker not held in the primary slot") end
 		p:SetActiveCharge(itemConfig:GetCollectible(CLICKER).MaxCharges, PRIMARY)
-		local b = snapshot()
+		local b = presserState()
 		b.seed, b.hash, b.change = seedOf(p), GetPtrHash(p), change
 		b.charge, b.button, b.arms = p:GetActiveCharge(PRIMARY), ButtonAction.ACTION_ITEM, 0
 		H.cancelClicker = b
@@ -245,14 +254,14 @@ local function cancelledClicker(change)
 	end, 10)
 end
 
-local obsClicker = swap("Clicker", CLICKER, PRIMARY, nil, 60)
+local obsClicker = press("Clicker", CLICKER, PRIMARY, nil, 60)
 
 local birthrightFlip = flip("put type 29 in player 0")
 
 -- A real drop press by player 0 (one-shot, re-armed every 10 updates) until `cond(p)`; after 60 updates `fallback(p)` once, pcall'd.
 -- Nothing is pressed when `cond` already holds.
 local function dropPress(label, cond, fallbackName, fallback)
-	return action(label, function(ctx)
+	return act(label, function(ctx)
 		ctx.fell, ctx.already = nil, cond(Isaac.GetPlayer(0))
 		if not ctx.already then HARNESS.press = ButtonAction.ACTION_DROP end
 	end, function(ctx)
@@ -271,16 +280,17 @@ local function dropPress(label, cond, fallbackName, fallback)
 		return false, slots(p) .. " type " .. p:GetPlayerType()
 	end)
 end
-local function primaryIs(id) return function(p) return p:GetActiveItem(PRIMARY) == id end end
-local function jrToPrimary() return dropPress("Esau Jr. to primary", primaryIs(ESAU_JR), "SwapActiveItems", function(p) p:SwapActiveItems() end) end
+local function swapActives(p) p:SwapActiveItems() end
+-- Item `id` into `slot` by a drop press, SwapActiveItems as the fallback.
+local function toSlot(label, slot, id) return dropPress(label, function(p) return p:GetActiveItem(slot) == id end, "SwapActiveItems", swapActives) end
 
-local deadFirst = function() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ end
+local function deadFirst() return Isaac.GetPlayer(0):GetPlayerType() == DEAD_LAZ end
 
 -- Player 0 swaps its two Esau Jr. copies (primary and Schoolbag) by a real drop press, SwapActiveItems as the fallback. Both slots hold
 -- c703, so marked charges (primary 0, secondary 1) show the swap.
 local function swapCopies()
 	local function marked(p) return p:GetActiveCharge(PRIMARY) == 1 and p:GetActiveCharge(SECONDARY) == 0 end
-	local press = dropPress("swap the Esau Jr. copies", marked, "SwapActiveItems", function(p) p:SwapActiveItems() end)
+	local drop = dropPress("swap the Esau Jr. copies", marked, "SwapActiveItems", swapActives)
 	return function(ctx)
 		if not ctx.t then
 			local p = Isaac.GetPlayer(0)
@@ -288,13 +298,13 @@ local function swapCopies()
 			p:SetActiveCharge(0, PRIMARY)
 			p:SetActiveCharge(1, SECONDARY)
 		end
-		return press(ctx)
+		return drop(ctx)
 	end
 end
 
 return {
 	onUse = onUse, onPlayerUpdate = onPlayerUpdate, onInput = onInput, onVetoPre = onVetoPre, onClickerUse = onClickerUse,
-	onVetoUpdate = onVetoUpdate, endPress = endPress, teardown = teardown, swap = swap, flip = flip, esauJr = esauJr, soulJE = soulJE,
+	onVetoUpdate = onVetoUpdate, endPress = endPress, teardown = teardown, press = press, flip = flip, esauJr = esauJr, soulJE = soulJE,
 	clicker = clicker, cancelledClicker = cancelledClicker, obsClicker = obsClicker, birthrightFlip = birthrightFlip, dropPress = dropPress,
-	primaryIs = primaryIs, jrToPrimary = jrToPrimary, deadFirst = deadFirst, swapCopies = swapCopies,
+	toSlot = toSlot, deadFirst = deadFirst, swapCopies = swapCopies,
 }

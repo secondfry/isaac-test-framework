@@ -1,104 +1,118 @@
--- Plays the scenarios one step per update, picked by the mode in the mod data, and logs each one's RESULT.
+-- Plays the tests one step per update, picked by the mode in the mod data, and logs each one's RESULT.
 local P = include("scripts.log").P
 
 -- Lua state survives `restart` and exit/continue, so the state lives in a global; a reload of this file keeps it.
 -- shortcut: one pass per launch, and a native crash restarts the suite from the first scenario; add a rerun trigger, or SaveData resume, when either gets in the way.
-HARNESS = HARNESS or { started = false, running = false, gen = 0, si = 1, pi = 1, fired = 0, pressed = 0, ctx = { floors = {}, fails = {}, notes = {} }, status = "waiting for a run" }
+HARNESS = HARNESS or { started = false, running = false, gen = 0, testIndex = 1, stepIndex = 1, fired = 0, pressed = 0, ctx = { floors = {}, fails = {}, notes = {} }, status = "waiting for a run" }
 
--- main.lua's wiring, rebuilt on every load: the scenarios in play order, and what each finished scenario resets.
-local SCENARIOS, teardowns = {}, {}
+-- main.lua's wiring, rebuilt on every load: the tests in play order, and what each finished test resets.
+local tests, teardowns = {}, {}
+
+-- A step list may nest step lists (a fixture's steps): flattened into a new list, the caller's tables untouched.
+local function flatten(list, out)
+	out = out or {}
+	for _, s in ipairs(list) do
+		if type(s) == "table" then flatten(s, out) else out[#out + 1] = s end
+	end
+	return out
+end
 local function add(list)
-	for _, s in ipairs(list) do SCENARIOS[#SCENARIOS + 1] = s end
+	for _, s in ipairs(list) do
+		local test = {}
+		for k, v in pairs(s) do test[k] = v end
+		test.steps = flatten(s.steps)
+		tests[#tests + 1] = test
+	end
 end
 local function onTeardown(f) teardowns[#teardowns + 1] = f end
 
 local function strictObs(name) return name:sub(1, 5) == "obsx " or name:sub(1, 5) == "obsy " end
 
--- The RESULT verdict: the error or failed checks, else PASS with the check count (INFO without checks); notes either way.
+-- The RESULT verdict: the error or failed assertions, else PASS with their count (INFO without any); notes either way.
 local function verdictOf(ctx, err)
 	local v
 	if err then v = "FAIL " .. err
 	elseif #ctx.fails > 0 then v = "FAIL " .. table.concat(ctx.fails, "; ")
-	else v = ctx.checks and ("PASS " .. ctx.checks .. " checks") or "INFO data only" end
+	else v = ctx.assertions and ("PASS " .. ctx.assertions .. " checks") or "INFO data only" end
 	return v .. (#ctx.notes > 0 and ("; unobserved: " .. table.concat(ctx.notes, ", ")) or "") .. (ctx.lateContinue and "; late Continue mid-scenario" or "")
 end
 
 local function finish(err)
 	local H = HARNESS
-	P("RESULT", SCENARIOS[H.si].name, verdictOf(H.ctx, err))
-	for _, f in ipairs(teardowns) do f(H) end -- a timed-out press must not reach the next scenario
-	H.lateContinue = H.expectStart == "continue" or nil -- the user may still Continue after the step gave up, during the next scenario
-	H.si, H.pi, H.expectStart = H.si + 1, 1, nil
+	P("RESULT", tests[H.testIndex].name, verdictOf(H.ctx, err))
+	for _, f in ipairs(teardowns) do f(H) end -- a timed-out press must not reach the next test
+	H.lateContinue = H.expectStart == "continue" or nil -- the user may still Continue after the step gave up, during the next test
+	H.testIndex, H.stepIndex, H.expectStart = H.testIndex + 1, 1, nil
 	H.ctx = { floors = {}, fails = {}, notes = {} }
 end
 
--- `only a,b`: a scenario whose name starts with any of the comma-separated prefixes.
+-- `only a,b`: a test whose name starts with any of the comma-separated prefixes.
 local function picked(only, name)
 	for prefix in only:gmatch("[^,]+") do
 		if name:sub(1, #prefix) == prefix then return true end
 	end
 end
 
--- Why this mode skips `sc`, or nil.
-local function skipReason(H, sc)
-	if H.only then return not picked(H.only, sc.name) and ("not " .. H.only) or nil end
-	if sc.onlyPicked then return "run only when picked by only" end
-	if sc.kind == "large" and not sc.new and H.mode ~= "regression" then return "large and not new" end
+-- Why this mode skips `test`, or nil.
+local function skipReason(H, test)
+	if H.only then return not picked(H.only, test.name) and ("not " .. H.only) or nil end
+	if test.onlyPicked then return "run only when picked by only" end
+	if test.kind == "large" and not test.new and H.mode ~= "regression" then return "large and not new" end
 end
 
--- Counts the scenario's updates against its ceiling, true once it is over: a checked scenario (budget) FAILs, an obs one (obsBudget)
+-- Counts the test's updates against its ceiling, true once it is over: a test with assertions (budget) FAILs, an obs one (obsBudget)
 -- ends INFO.
-local function overBudget(H, sc)
-	local cap = sc.obsBudget or sc.budget
+local function overBudget(H, test)
+	local cap = test.obsBudget or test.budget
 	if not cap then return end
 	H.ctx.updates = (H.ctx.updates or 0) + 1
 	if H.ctx.updates < cap then return end
 	H.pending = nil
-	if sc.budget then finish("scenario ceiling " .. cap .. " updates") return true end
-	P("INFO", sc.name, "scenario ceiling", cap, "updates")
+	if test.budget then finish("scenario ceiling " .. cap .. " updates") return true end
+	P("INFO", test.name, "scenario ceiling", cap, "updates")
 	finish()
 	return true
 end
 
--- One update of play; `...` run first on every update while the suite runs.
+-- One update of play; `...` run first on every update while the session runs.
 local function tick(...)
 	local H = HARNESS
 	if not H.running then return end
 	for _, f in ipairs({ ... }) do f() end
-	local sc = SCENARIOS[H.si]
-	if not sc then
+	local test = tests[H.testIndex]
+	if not test then
 		H.running, H.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
 		P("HARNESS DONE")
 		return
 	end
-	local skip = H.pi == 1 and skipReason(H, sc)
+	local skip = H.stepIndex == 1 and skipReason(H, test)
 	if skip then
-		P("RESULT", sc.name, "SKIP " .. skip .. " (" .. H.mode .. " mode)")
-		H.si = H.si + 1
+		P("RESULT", test.name, "SKIP " .. skip .. " (" .. H.mode .. " mode)")
+		H.testIndex = H.testIndex + 1
 		return
 	end
-	if sc.obsBudget and H.ctx.obsInterrupted then return finish() end
-	if overBudget(H, sc) then return end
+	if test.obsBudget and H.ctx.obsInterrupted then return finish() end
+	if overBudget(H, test) then return end
 	if H.pending then return end
-	local step = sc.steps[H.pi]
+	local step = test.steps[H.stepIndex]
 	if not step then return finish() end
-	if not H.ctx.name then P("SCENARIO START", sc.name) end -- tools/run_report.py pairs it with a RESULT
-	H.ctx.name, H.ctx.leftOk = sc.name, sc.leftOk
+	if not H.ctx.name then P("SCENARIO START", test.name) end -- tools/run_report.py pairs it with a RESULT
+	H.ctx.name, H.ctx.leftOk = test.name, test.leftOk
 	local label = H.ctx.label
 	H.ask = label and (label:find("Continue") or label:find("^YOU:")) and label or nil -- the user's own step gets its own line, so it is not lost at the end of a long status
-	H.status = sc.name .. " step " .. H.pi .. "/" .. #sc.steps .. ((label and not H.ask) and (": " .. label) or "")
+	H.status = test.name .. " step " .. H.stepIndex .. "/" .. #test.steps .. ((label and not H.ask) and (": " .. label) or "")
 	local ok, res = pcall(step, H.ctx)
-	if not ok then return finish("error in step " .. H.pi .. ": " .. tostring(res)) end
-	if res ~= "again" then H.pi = H.pi + 1 end
+	if not ok then return finish("error in step " .. H.stepIndex .. ": " .. tostring(res)) end
+	if res ~= "again" then H.stepIndex = H.stepIndex + 1 end
 end
 
--- An MC_POST_UPDATE handler running `f`: an error ends the scenario it hit, not the suite.
+-- An MC_POST_UPDATE handler running `f`: an error ends the test it hit, not the session.
 local function guard(f)
 	return function()
 		local ok, err = pcall(f)
 		if not ok then
 			P("HARNESS ERROR", err)
-			if HARNESS.si <= #SCENARIOS then pcall(finish, "harness error: " .. tostring(err)) end
+			if HARNESS.testIndex <= #tests then pcall(finish, "harness error: " .. tostring(err)) end
 		end
 	end
 end
@@ -109,25 +123,31 @@ local function render()
 	if H.ask and H.running then Isaac.RenderText(H.ask, 60, 44, 1, 1, 0, 1) end
 end
 
+-- The mode file is data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
+-- "regression" runs every test; "only <prefix>" just the tests whose name starts with it, whatever their kind; anything else, or none,
+-- runs the small ones and the new large ones. Sets H.modLine, H.only and H.mode.
+local function readMode(H, raw)
+	H.modLine = raw:match("^[^\r\n]*") -- the first line only: a STUCK line left below it never changes the mode
+	local text = H.modLine:match("^%s*(.-)%s*$")
+	H.only = text:match("^only (.+)$")
+	H.mode = text == "regression" and "regression" or H.only and ("only " .. H.only) or "default"
+end
+
 local function onGameStart(isContinued)
 	local H = HARNESS
 	H.gen, H.continued = H.gen + 1, isContinued
 	P("GAME START", H.gen, "continued", isContinued)
 	if not H.started then
 		if isContinued then P("HARNESS idle: start a new run to test") return end
-		-- The mode file is data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
-		-- "regression" runs every scenario; "only <prefix>" just the scenarios whose name starts with it, whatever their kind; anything else, or none, runs the small ones and the new large ones.
 		local raw = H.mod:LoadData()
-		H.modLine = raw:match("^[^\r\n]*") -- the first line only: a STUCK line left below it never changes the mode
-		local text = H.modLine:match("^%s*(.-)%s*$")
-		H.only = text:match("^only (.+)$")
-		H.started, H.running, H.mode = true, true, text == "regression" and "regression" or H.only and ("only " .. H.only) or "default"
-		P("HARNESS START", #SCENARIOS, "scenarios,", H.mode, "mode, mod data of '" .. H.mod.Name .. "' read", string.format("%q", raw))
+		readMode(H, raw)
+		H.started, H.running = true, true
+		P("HARNESS START", #tests, "scenarios,", H.mode, "mode, mod data of '" .. H.mod.Name .. "' read", string.format("%q", raw))
 		return
 	end
 	if H.running and not H.expectStart then
 		if not (isContinued and H.lateContinue) then return finish("unexpected game start (hold-R, new run or continue)") end
-		P("INFO", H.ctx.name or SCENARIOS[H.si].name, "late Continue, ignored")
+		P("INFO", H.ctx.name or tests[H.testIndex].name, "late Continue, ignored")
 		H.lateContinue, H.ctx.lateContinue = nil, true
 	end
 	H.expectStart = nil

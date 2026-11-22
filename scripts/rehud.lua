@@ -5,42 +5,47 @@ local game = Game()
 
 local function dbg()
 	local d = ReHUD and ReHUD.dbg
-	if not (d and d.tracker and d.roster) then error("ReHUD.dbg missing: install ReHUD eeae5c0 or later") end
+	if not (d and d.tracker and d.roster) then error("ReHUD.dbg missing: install ReHUD cf965b0 or later") end
 	return d
 end
 
 local function entries() return dbg().tracker.entries end
 
--- ReHUD's key for a live player: the GetData tag roster.lua playerKey writes (characters sharing a seed get seed + n * 2^32), else the seed.
-local function keyOf(p)
+-- The GetData tag roster.lua playerKey writes (characters sharing a seed get seed + n * 2^32), or nil.
+local function tag(p)
 	local d = p:GetData()
-	local tag = type(d) == "table" and d.ReHUD_key
-	return tag and tag.key or seedOf(p)
+	return type(d) == "table" and d.ReHUD_key or nil
+end
+-- ReHUD's key for a live player: its tag, else the seed.
+local function keyOf(p)
+	local t = tag(p)
+	return t and t.key or seedOf(p)
 end
 local function tagText(p)
-	local d = p:GetData()
-	local tag = type(d) == "table" and d.ReHUD_key
-	return tag and tostring(tag.key) or "none"
+	local t = tag(p)
+	return t and tostring(t.key) or "none"
 end
 
--- ReHUD entries of item `id` matching every given field (nil: any); `temporary` true is a copy with a clock.
-local function countOf(id, floor, temporary, owner)
+-- ReHUD entries for which pred(e) holds.
+local function countEntries(pred)
 	local n = 0
 	for _, e in ipairs(entries()) do
-		if e.id == id and (floor == nil or e.floor == floor) and (temporary == nil or e.temporary == temporary) and (owner == nil or e.owner == owner) then n = n + 1 end
+		if pred(e) then n = n + 1 end
 	end
 	return n
 end
+local function leftEntries() return countEntries(function(e) return e.left end) end
 
-local function leftEntries()
-	local n = 0
+-- The owner of the last entry of item `id`, or nil.
+local function ownerOf(id)
+	local owner
 	for _, e in ipairs(entries()) do
-		if e.left then n = n + 1 end
+		if e.id == id then owner = e.owner end
 	end
-	return n
+	return owner
 end
 
--- What ReHUD is still settling, or nil. The roster key is the Sad Onion RNG seed (roster.lua playerKey), which is seedOf.
+-- What ReHUD is still settling, or nil, by each player's roster key (keyOf).
 local function settling()
 	for _, e in ipairs(entries()) do
 		if e.merged then return "a merge" end
@@ -61,15 +66,7 @@ local function storedSettling()
 	return table.concat(t, ",")
 end
 
-local function ownerCount(key)
-	local n = 0
-	for _, e in ipairs(entries()) do
-		if e.owner == key then n = n + 1 end
-	end
-	return n
-end
-
 return {
-	dbg = dbg, entries = entries, keyOf = keyOf, tagText = tagText, countOf = countOf, leftEntries = leftEntries, settling = settling,
-	storedSettling = storedSettling, ownerCount = ownerCount,
+	dbg = dbg, entries = entries, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
+	ownerOf = ownerOf, settling = settling, storedSettling = storedSettling,
 }

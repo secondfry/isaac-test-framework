@@ -1,8 +1,7 @@
 -- What every settled look asserts whatever the scenario: ReHUD's entries against the engine, and one row per character.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
-local itemConfig, maxId, owned, wispsOf, isCharacter, countsText = engine.itemConfig, engine.maxId, engine.owned, engine.wispsOf, engine.isCharacter,
-	engine.countsText
+local ITEM_IDS, owned, wispsOf, isCharacter, countsText = engine.ITEM_IDS, engine.owned, engine.wispsOf, engine.isCharacter, engine.countsText
 local rehud = include("scripts.rehud")
 local dbg, entries, keyOf = rehud.dbg, rehud.entries, rehud.keyOf
 local holds = include("scripts.assert").holds
@@ -27,71 +26,122 @@ local function revivable(r, key, present)
 	end
 end
 
--- Invariants every settled look checks, whatever the scenario: (1) for each present character and item, ReHUD's entries match the
+local function entryTag(e) return "c" .. e.id .. " of " .. tostring(e.owner) end
+
+-- Each present character by key: the player, or false for a ghost.
+local function presentCharacters()
+	local present = {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		if isCharacter(p) then present[keyOf(p)] = not p:IsCoopGhost() and p end
+	end
+	return present
+end
+
+-- ReHUD's entries by owner and item: { all, clocked }.
+local function entriesByOwner()
+	local have = {}
+	for _, e in ipairs(entries()) do
+		have[e.owner] = have[e.owner] or {}
+		local h = have[e.owner][e.id] or { all = 0, clocked = 0 }
+		have[e.owner][e.id] = h
+		h.all, h.clocked = h.all + 1, h.clocked + (e.temporary and 1 or 0)
+	end
+	return have
+end
+
+-- Calls f(key, id, h, engine, clocks) for every item id of every present non-ghost character: its entries `h`, the engine's count
+-- and its wisp and Zodiac copies.
+local function eachHeld(present, have, f)
+	for key, p in pairs(present) do
+		if p then
+			local w, z = wispsOf(p), p:GetZodiacEffect()
+			for _, id in ipairs(ITEM_IDS) do
+				f(key, id, (have[key] or {})[id] or { all = 0, clocked = 0 }, p:GetCollectibleNum(id, false), (w[id] or 0) + (z == id and 1 or 0))
+			end
+		end
+	end
+end
+local function heldTag(key, id, h, engineCount) return "c" .. id .. " of " .. key .. ": " .. h.all .. " entries, engine " .. engineCount end
+
+-- (1): entries of an owner gone without being stored or left, then missing, stale and unclocked copies.
+local function engineCounts(present, have)
+	local r, counts = dbg().roster, {}
+	for _, e in ipairs(entries()) do
+		if present[e.owner] == nil and not r.isSwapped(e.owner) and not e.left then counts[#counts + 1] = entryTag(e) .. ": owner gone, neither stored nor left" end
+	end
+	eachHeld(present, have, function(key, id, h, engineCount, clocks)
+		local tag = heldTag(key, id, h, engineCount)
+		if h.all < engineCount then counts[#counts + 1] = tag .. ", missing"
+		elseif h.all > engineCount and engineCount == 0 then counts[#counts + 1] = tag .. ", stale" end
+		if h.clocked < clocks then counts[#counts + 1] = tag .. ", " .. h.clocked .. " clocked for " .. clocks .. " wisp/Zodiac copies" end
+	end)
+	return counts
+end
+
+-- (2)
+local function duplicates(present, have)
+	local dups = {}
+	eachHeld(present, have, function(key, id, h, engineCount)
+		if h.all > engineCount and engineCount > 0 then dups[#dups + 1] = heldTag(key, id, h, engineCount) .. ", duplicate" end
+	end)
+	return dups
+end
+
+-- (3) An Esau Jr. character stays stored until the run ends (user decision 2026-11-22): its copy may lie anywhere. Exempt only a row
+-- the harness itself saw stored by Esau Jr., not ReHUD's own esauJr flag.
+local function phantoms(present)
+	local r, jrStored, out = dbg().roster, {}, {}
+	for _, c in pairs(HARNESS.chars and HARNESS.chars.list or {}) do
+		if c.state == "stored" and c.storedBy == ESAU_JR then jrStored[c.key] = true end
+	end
+	for _, row in ipairs(r.serialize()) do
+		if row.swapped and not jrStored[row.key] and not revivable(r, row.key, present) then out[#out + 1] = tostring(row.key) .. " stored, nobody can swap it back" end
+	end
+	return out
+end
+
+-- (4)
+local function lefts()
+	local out = {}
+	for _, e in ipairs(entries()) do
+		if e.left then out[#out + 1] = entryTag(e) end
+	end
+	return out
+end
+
+-- (5)
+local function floors(ctx)
+	local rank, stageNow, out = {}, game:GetLevel():GetStage(), {}
+	for k = 1, stageNow do
+		if ctx.floors[k] then rank[ctx.floors[k]] = k end
+	end
+	for _, e in ipairs(entries()) do
+		if not rank[e.floor] then out[#out + 1] = entryTag(e) .. " on '" .. tostring(e.floor) .. "', not a floor up to stage " .. stageNow end
+	end
+	return out
+end
+
+-- Invariants every settled look asserts, whatever the scenario: (1) for each present character and item, ReHUD's entries match the
 -- engine's GetCollectibleNum(id, false) (ReHUD lists every copy: owned and innate without a clock, each wisp and the Zodiac copy with
 -- one), at least the wisps and Zodiac copy clocked, and no entry of an owner gone without being stored or left; (2) no duplicates past
 -- that count; (3) every stored form revivable; (4) no left entries unless the scenario sets `leftOk`; (5) no entry on a floor later
 -- than the current one. A ghost's list is frozen, so ghosts are left out of (1) and (2).
 -- shortcut: a 3 Dollar Bill grant shows only on ReHUD's 30-update scan, so a look within 30 updates of a re-grant would fail (1); every
 -- look after a grant follows `listed`, far inside the ~170-update interval. Wait for that scan in look if a scenario looks later.
-local function invariants(ctx, label)
-	local r, present, have = dbg().roster, {}, {}
-	for i = 0, game:GetNumPlayers() - 1 do
-		local p = Isaac.GetPlayer(i)
-		if isCharacter(p) then present[keyOf(p)] = not p:IsCoopGhost() and p end
-	end
-	local rank, stageNow = {}, game:GetLevel():GetStage()
-	for k = 1, stageNow do
-		if ctx.floors[k] then rank[ctx.floors[k]] = k end
-	end
-	local counts, dups, phantoms, lefts, floors = {}, {}, {}, {}, {}
-	for _, e in ipairs(entries()) do
-		local tag = "c" .. e.id .. " of " .. tostring(e.owner)
-		have[e.owner] = have[e.owner] or {}
-		local h = have[e.owner][e.id] or { all = 0, clocked = 0 }
-		have[e.owner][e.id] = h
-		h.all, h.clocked = h.all + 1, h.clocked + (e.temporary and 1 or 0)
-		if present[e.owner] == nil and not r.isSwapped(e.owner) and not e.left then counts[#counts + 1] = tag .. ": owner gone, neither stored nor left" end
-		if e.left then lefts[#lefts + 1] = tag end
-		if not rank[e.floor] then floors[#floors + 1] = tag .. " on '" .. tostring(e.floor) .. "', not a floor up to stage " .. stageNow end
-	end
-	for key, p in pairs(present) do
-		if p then
-			local w, z = wispsOf(p), p:GetZodiacEffect()
-			for id = 1, maxId do
-				if itemConfig:GetCollectible(id) then
-					local engineCount = p:GetCollectibleNum(id, false)
-					local h = (have[key] or {})[id] or { all = 0, clocked = 0 }
-					local tag = "c" .. id .. " of " .. key .. ": " .. h.all .. " entries, engine " .. engineCount
-					if h.all < engineCount then counts[#counts + 1] = tag .. ", missing"
-					elseif h.all > engineCount and engineCount == 0 then counts[#counts + 1] = tag .. ", stale"
-					elseif h.all > engineCount then dups[#dups + 1] = tag .. ", duplicate" end
-					local clocks = (w[id] or 0) + (z == id and 1 or 0)
-					if h.clocked < clocks then counts[#counts + 1] = tag .. ", " .. h.clocked .. " clocked for " .. clocks .. " wisp/Zodiac copies" end
-				end
-			end
-		end
-	end
-	-- An Esau Jr. character stays stored until the run ends (user decision 2026-11-22): its copy may lie anywhere. Exempt only a row the
-	-- harness itself saw stored by Esau Jr., not ReHUD's own esauJr flag.
-	local jrStored = {}
-	for _, c in pairs(HARNESS.chars and HARNESS.chars.list or {}) do
-		if c.state == "stored" and c.storedBy == ESAU_JR then jrStored[c.key] = true end
-	end
-	for _, row in ipairs(r.serialize()) do
-		if row.swapped and not jrStored[row.key] and not revivable(r, row.key, present) then phantoms[#phantoms + 1] = tostring(row.key) .. " stored, nobody can swap it back" end
-	end
-	holds(ctx, label, "engine counts", counts)
-	holds(ctx, label, "duplicates", dups)
-	holds(ctx, label, "phantom stored forms", phantoms)
-	holds(ctx, label, "left entries", ctx.leftOk and {} or lefts)
-	holds(ctx, label, "floors", floors)
+local function check(ctx, label)
+	local present, have = presentCharacters(), entriesByOwner()
+	holds(ctx, label, "engine counts", engineCounts(present, have))
+	holds(ctx, label, "duplicates", duplicates(present, have))
+	holds(ctx, label, "phantom stored forms", phantoms(present))
+	holds(ctx, label, "left entries", ctx.leftOk and {} or lefts())
+	holds(ctx, label, "floors", floors(ctx))
 end
 
--- One check: every remembered character not gone has its own row (a number no other character's key holds), a stored one is marked
+-- One assertion: every remembered character not gone has its own row (a number no other character's key holds), a stored one is marked
 -- stored and listed with exactly the copies it held when last live, and every ReHUD row is a character's. Live ones are the invariants'
 -- engine-count check. A ROWS line per character.
-local function charRows(ctx, label)
+local function characterNumbers(ctx, label)
 	local r, problems, byNumber = dbg().roster, {}, {}
 	local ids, keys = {}, {}
 	for id in pairs(HARNESS.chars.list) do ids[#ids + 1] = id end
@@ -127,4 +177,4 @@ local function charRows(ctx, label)
 	holds(ctx, label, "characters", problems)
 end
 
-return { invariants = invariants, charRows = charRows }
+return { check = check, characterNumbers = characterNumbers }

@@ -1,22 +1,22 @@
 -- Copies with a clock: item wisps, the Zodiac copy and 3 Dollar Bill grants.
 local P = include("scripts.log").P
 local wait = include("scripts.wait")
-local action, TIMEOUT = wait.action, wait.TIMEOUT
+local act, TIMEOUT = wait.act, wait.TIMEOUT
 local engine = include("scripts.game")
-local itemConfig, maxId, floorName, owned, wispsOf = engine.itemConfig, engine.maxId, engine.floorName, engine.owned, engine.wispsOf
-local countOf = include("scripts.rehud").countOf
+local ITEM_IDS, floorName, owned, wispsOf = engine.ITEM_IDS, engine.floorName, engine.owned, engine.wispsOf
+local countEntries = include("scripts.rehud").countEntries
 local expect = include("scripts.assert").expect
 
--- One item wisp more or fewer on player 0 (`act` adds or kills one), seen in its wisp count and in GetCollectibleNum(id, false) both.
+-- One item wisp more or fewer on player 0 (`apply` adds or kills one), seen in its wisp count and in GetCollectibleNum(id, false) both.
 -- The DONE line's update count answers how soon a killed wisp leaves the engine count (Q4).
-local function changeWisps(label, id, delta, act)
+local function changeWisps(label, id, delta, apply)
 	local function counts()
 		local p = Isaac.GetPlayer(0)
 		return wispsOf(p)[id] or 0, p:GetCollectibleNum(id, false)
 	end
-	return action(label .. " c" .. id, function()
+	return act(label .. " c" .. id, function()
 		local w, n = counts()
-		act(Isaac.GetPlayer(0))
+		apply(Isaac.GetPlayer(0))
 		return { w = w, n = n }
 	end, function(_, b)
 		local w, n = counts()
@@ -59,11 +59,11 @@ end
 -- 3 Dollar Bill's grant on player 0: an id held but not owned, not a wisp and not the Zodiac item, other than the last grant
 -- (kept as ctx.grantOld). Logs every such id, so one-at-a-time shows, and the DONE line the interval (Q6).
 -- shortcut: an owned id cannot be told from the owned copy, so a grant of one is missed (part of Q6 unanswered); compare counts with a pre-grant snapshot if that matters.
-local grant3DB = action("3 Dollar Bill grant", function(ctx) ctx.grantOld = ctx.grant end, function(ctx)
+local grant3DB = act("3 Dollar Bill grant", function(ctx) ctx.grantOld = ctx.grant end, function(ctx)
 	local p = Isaac.GetPlayer(0)
 	local w, z, found = wispsOf(p), p:GetZodiacEffect(), {}
-	for id = 1, maxId do
-		if itemConfig:GetCollectible(id) and id ~= z and id ~= ctx.grantOld and not w[id] and owned(p, id) == 0 and p:GetCollectibleNum(id, false) > 0 then found[#found + 1] = id end
+	for _, id in ipairs(ITEM_IDS) do
+		if id ~= z and id ~= ctx.grantOld and not w[id] and owned(p, id) == 0 and p:GetCollectibleNum(id, false) > 0 then found[#found + 1] = id end
 	end
 	if not found[1] then return false, "no new grant" end
 	ctx.grant = found[1]
@@ -71,8 +71,8 @@ local grant3DB = action("3 Dollar Bill grant", function(ctx) ctx.grantOld = ctx.
 	return true
 end, 600)
 -- ReHUD finds a 3 Dollar Bill grant only on its periodic scan (tracker.lua SCAN_INTERVAL 30).
-local listed = action("3 Dollar Bill grant listed", function() end, function(ctx)
-	local n = countOf(ctx.grant, nil, true)
+local listed = act("3 Dollar Bill grant listed", function() end, function(ctx)
+	local n = countEntries(function(e) return e.id == ctx.grant and e.temporary == true end)
 	return n == 1, "c" .. ctx.grant .. " has " .. n .. " clocked entries, want 1"
 end, 60)
 

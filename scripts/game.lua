@@ -4,7 +4,11 @@ local PRIMARY, SECONDARY = ids.PRIMARY, ids.SECONDARY
 
 local game = Game()
 local itemConfig = Isaac.GetItemConfig()
-local maxId = itemConfig:GetCollectibles().Size - 1
+-- Every collectible id the item config knows, ascending.
+local ITEM_IDS = {}
+for id = 1, itemConfig:GetCollectibles().Size - 1 do
+	if itemConfig:GetCollectible(id) then ITEM_IDS[#ITEM_IDS + 1] = id end
+end
 
 -- shortcut: copy of tracker.lua currentFloorName (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
 local function floorName()
@@ -24,10 +28,12 @@ local function findPlayer(pred)
 		if pred(p) then return p, i end
 	end
 end
-local function playerOfType(t) return findPlayer(function(p) return p:GetPlayerType() == t end) end
-local function playerBySeed(seed) return (findPlayer(function(p) return seedOf(p) == seed end)) end
+local function ofType(t) return findPlayer(function(p) return p:GetPlayerType() == t end) end
+local function bySeed(seed) return (findPlayer(function(p) return seedOf(p) == seed end)) end
 -- An entity lookup, not a kept entity: a removed player's methods crash natively (AGENTS.md).
-local function playerByHash(h) return (findPlayer(function(p) return GetPtrHash(p) == h end)) end
+local function byHash(h) return (findPlayer(function(p) return GetPtrHash(p) == h end)) end
+-- The first player of type `t` with a Parent: Strawman's Keeper, the summoned Esau.
+local function withParent(t) return (findPlayer(function(p) return p:GetPlayerType() == t and p.Parent end)) end
 
 local function owned(p, id) return p:GetCollectibleNum(id, true) end
 
@@ -57,7 +63,7 @@ end
 -- get rows (user decisions 2026-11-22); expose it on ReHUD.dbg if the copy drifts.
 local function isCharacter(p) return p.Variant == 0 and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B end
 
-local function playable()
+local function characterCount()
 	local n = 0
 	for i = 0, game:GetNumPlayers() - 1 do
 		if isCharacter(Isaac.GetPlayer(i)) then n = n + 1 end
@@ -71,14 +77,35 @@ local function seeds()
 	return table.concat(t, ",")
 end
 
--- id:owned/total for every item p holds; total is GetCollectibleNum(id, false), so wisps and the Zodiac copy count too.
-local function heldItems(p)
+-- Copies of every item p holds by id: GetCollectibleNum(id, false), so wisps and the Zodiac copy count too.
+local function itemCounts(p)
 	local t = {}
-	for id = 1, maxId do
-		local total = itemConfig:GetCollectible(id) and p:GetCollectibleNum(id, false) or 0
-		if total > 0 then t[#t + 1] = id .. ":" .. owned(p, id) .. "/" .. total end
+	for _, id in ipairs(ITEM_IDS) do
+		local n = p:GetCollectibleNum(id, false)
+		if n > 0 then t[id] = n end
 	end
+	return t
+end
+
+local function sortedIds(t)
+	local ids = {}
+	for id in pairs(t) do ids[#ids + 1] = id end
+	table.sort(ids)
+	return ids
+end
+
+-- id:owned/total for every item p holds.
+local function heldItems(p)
+	local t, counts = {}, itemCounts(p)
+	for _, id in ipairs(sortedIds(counts)) do t[#t + 1] = id .. ":" .. owned(p, id) .. "/" .. counts[id] end
 	return table.concat(t, " ")
+end
+
+-- `<id>x<copies>` for every id in an itemCounts table, or "-".
+local function countsText(t)
+	local out = {}
+	for _, id in ipairs(sortedIds(t)) do out[#out + 1] = id .. "x" .. t[id] end
+	return #out > 0 and table.concat(out, " ") or "-"
 end
 
 local function chargeOf(p, id, slot) return p and p:GetActiveItem(slot) == id and p:GetActiveCharge(slot) end
@@ -87,35 +114,9 @@ local function pedestals(id) return #Isaac.FindByType(EntityType.ENTITY_PICKUP, 
 
 local function slots(p) return "primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY) end
 
-local function itemCounts(p)
-	local t = {}
-	for id = 1, maxId do
-		if itemConfig:GetCollectible(id) then
-			local n = p:GetCollectibleNum(id, false)
-			if n > 0 then t[id] = n end
-		end
-	end
-	return t
-end
-
-local function countsText(t)
-	local ids, out = {}, {}
-	for id in pairs(t) do ids[#ids + 1] = id end
-	table.sort(ids)
-	for _, id in ipairs(ids) do out[#out + 1] = id .. "x" .. t[id] end
-	return #out > 0 and table.concat(out, " ") or "-"
-end
-
-local function helper(t)
-	for i = 0, game:GetNumPlayers() - 1 do
-		local p = Isaac.GetPlayer(i)
-		if p:GetPlayerType() == t and p.Parent then return p end
-	end
-end
-
 return {
-	itemConfig = itemConfig, maxId = maxId, floorName = floorName, seedOf = seedOf, findPlayer = findPlayer, playerOfType = playerOfType,
-	playerBySeed = playerBySeed, playerByHash = playerByHash, owned = owned, cards = cards, wispsOf = wispsOf, isCharacter = isCharacter,
-	playable = playable, seeds = seeds, heldItems = heldItems, chargeOf = chargeOf, pedestals = pedestals, slots = slots,
-	itemCounts = itemCounts, countsText = countsText, helper = helper,
+	itemConfig = itemConfig, ITEM_IDS = ITEM_IDS, floorName = floorName, seedOf = seedOf, findPlayer = findPlayer, ofType = ofType,
+	bySeed = bySeed, byHash = byHash, withParent = withParent, owned = owned, cards = cards, wispsOf = wispsOf, isCharacter = isCharacter,
+	characterCount = characterCount, seeds = seeds, heldItems = heldItems, chargeOf = chargeOf, pedestals = pedestals, slots = slots,
+	itemCounts = itemCounts, countsText = countsText,
 }

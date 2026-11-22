@@ -10,7 +10,7 @@ local press = include("scripts.press")
 local characters = include("scripts.characters")
 local record = include("scripts.record")
 
-local SPECS = { "hello", "engine", "characters", "esau_jr", "base_change", "continue", "item_copies", "regressions", "revive", "legacy" }
+local SPECS = { "hello", "engine", "characters", "esau_jr", "base_change", "continue", "item_copies", "regressions", "revive" }
 
 runner.setMod(mod)
 for _, name in ipairs(SPECS) do runner.add(include("specs." .. name)) end

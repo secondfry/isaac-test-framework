@@ -1,12 +1,11 @@
 """Temporary: the verdicts of the tests still in specs/legacy.lua and the checks of their own lines. Plan S4 moves each test's WANT line
 and checks into its spec's test_<spec>.py; the checks name tests by legacy_names.full, so they hold wherever a test plays."""
 import dry
-from legacy_names import FINAL, FINAL_MODE, OBSY, OBSY_LARGE, full, names
+from legacy_names import FINAL, FINAL_MODE, OBSY, OBSY_LARGE, full
 
 # Exact verdicts: a lost assertion or note shows. Each look adds 5 invariant assertions (a lookC 6). P2 counts 8 or 9 per Clicker use: 22
 # here (the stub's Clicker splits on its second use), any number in game.
 WANT = {
-    "legacy > probes": "PASS 10 assertions",
     "legacy > test3": "PASS 15 assertions",
     "legacy > birthright": "PASS 36 assertions",
     "legacy > P3": "PASS 30 assertions",
@@ -123,7 +122,6 @@ def test_legacy_lines(path):
     check_obsy(log)
     snaps = [s for s in log if s.startswith("PROBE SNAP ")]
     assert f"PROBE SNAP {full('obs esaujr cross')} | 1 Esau Jr. / lineup = A" in snaps, snaps[:3]
-    assert not any(s.startswith(f"PROBE SNAP {n} ") for n in names()["probes"] for s in snaps), "SNAP lines in a test without a snapshot"
     print("PASS SNAP lines for snapshot tests only:", len(snaps))
 
 

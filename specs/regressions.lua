@@ -17,7 +17,8 @@ local flip, esauJr, clicker = press.flip, press.esauJr, press.clicker
 local fixtures = include("scripts.fixtures")
 local FLIPPED, HOLDS_JR = fixtures.FLIPPED, fixtures.TLAZ_JR_FLOOR_2
 local ids = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.DEAD_T_LAZ
+local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ, PRIMARY, POCKET = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ,
+	ids.DEAD_T_LAZ, ids.PRIMARY, ids.POCKET
 
 local game = Game()
 local TAGS = { "regressions", "rehud", "rehud-2.8" }
@@ -76,7 +77,7 @@ local function mirrorMerged(ctx, label)
 	local p = Isaac.GetPlayer(0)
 	local key = keyOf(p)
 	P("INFO", ctx.name, "engine after ChangePlayerType(38): type", p:GetPlayerType(), "seed", seedOf(p), "key", key, "was", ctx.active, "stored", ctx.stored,
-		"pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
+		"pocket", p:GetActiveItem(POCKET), "players", game:GetNumPlayers())
 	expect(ctx, label .. ": player 0 keeps its seed", seedOf(p), ctx.activeSeed)
 	expectOne(ctx, label, 4, ctx.floors[1], key)
 	expectOne(ctx, label, 5, ctx.floors[2], key)
@@ -91,7 +92,7 @@ end
 local function engineInfo(ctx, what)
 	local p = Isaac.GetPlayer(0)
 	P("INFO", ctx.name, "engine " .. what .. ": type", p:GetPlayerType(), "seed", seedOf(p), "key", keyOf(p), "original", ctx.orig, "form", ctx.form, "dead", ctx.dead,
-		"primary", p:GetActiveItem(ActiveSlot.SLOT_PRIMARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET), "players", game:GetNumPlayers())
+		"primary", p:GetActiveItem(PRIMARY), "pocket", p:GetActiveItem(POCKET), "players", game:GetNumPlayers())
 end
 local function origStored(ctx, label)
 	expect(ctx, label .. ": Esau Jr. original stored", isSwapped(ctx.orig), true)

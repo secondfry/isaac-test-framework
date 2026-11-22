@@ -8,15 +8,15 @@ local rehud = include("scripts.rehud")
 local keyOf, leftEntries, number, isSwapped, rehudCount = rehud.keyOf, rehud.leftEntries, rehud.number, rehud.isSwapped, rehud.characterCount
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
-local steps_ = include("scripts.steps")
-local giveEsau, changeType, info, stepOff, onlyIf, holdsJr = steps_.giveEsau, steps_.changeType, steps_.info, steps_.stepOff, steps_.onlyIf,
-	steps_.holdsJr
+local steps = include("scripts.steps")
+local giveEsau, changeType, info, stepOff, onlyIf, holdsJr = steps.giveEsau, steps.changeType, steps.info, steps.stepOff, steps.onlyIf,
+	steps.holdsJr
 local manual = include("scripts.manual")
-local dropByHand, pickByHand, continued = manual.dropByHand, manual.pickByHand, manual.continued
+local dropByHand, pickByHand = manual.dropByHand, manual.pickByHand
 local assertions = include("scripts.assert")
 local expect, expectCount, oneC4, pre = assertions.expect, assertions.expectCount, assertions.oneC4, assertions.pre
 local record = include("scripts.record")
-local verdict, ids, slotsNow, pocketHeld, typeNow, playerCount, startAsserting = record.verdict, record.ids, record.slotsNow, record.pocketHeld,
+local verdict, idsInfo, slotsNow, pocketHeld, typeNow, playerCount, startAsserting = record.verdict, record.idsInfo, record.slotsNow, record.pocketHeld,
 	record.typeNow, record.playerCount, record.startAsserting
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
@@ -31,14 +31,14 @@ local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, re
 local fixtures = include("scripts.fixtures")
 local fixture, holding, TLAZ_JR, TLAZ_FLIPS = fixtures.fixture, fixtures.holdingJr, fixtures.TLAZ_JR, fixtures.TLAZ_FLIPS
 local snapshot = include("scripts.snapshot")
-local test, perCharacter = snapshot.test, snapshot.perCharacter
+local test, perCharacter, continued = snapshot.test, snapshot.perCharacter, snapshot.continued
 local characters = include("scripts.characters")
 local track, named, who, whoInfo, merged = characters.track, characters.named, characters.who, characters.whoInfo, characters.merged
-local enums = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, YUM_HEART, SCHOOLBAG = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.YUM_HEART,
-	enums.SCHOOLBAG
-local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, T_FORGOTTEN, ESAU, PRIMARY, SECONDARY = enums.T_LAZ, enums.DEAD_T_LAZ, enums.JACOB, enums.ISAAC,
-	enums.T_FORGOTTEN, enums.ESAU, enums.PRIMARY, enums.SECONDARY
+local ids = include("scripts.ids")
+local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, YUM_HEART, SCHOOLBAG = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.BIRTHRIGHT, ids.YUM_HEART, ids.SCHOOLBAG
+local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, T_FORGOTTEN, ESAU, PRIMARY, SECONDARY = ids.T_LAZ, ids.DEAD_T_LAZ, ids.JACOB, ids.ISAAC,
+	ids.T_FORGOTTEN, ids.ESAU, ids.PRIMARY, ids.SECONDARY
+local FORGOTTEN, SOUL, LAZARUS, LAZARUS_RISEN, T_JACOB, EDEN = ids.FORGOTTEN, ids.SOUL, ids.LAZARUS, ids.LAZARUS_RISEN, ids.T_JACOB, ids.EDEN
 
 local game = Game()
 
@@ -159,16 +159,16 @@ local tests = {
 	snapshotTest(STRICT, "Esau Jr. presses by Jacob", holding("Jacob", JACOB), charPresses()),
 	snapshotTest(STRICT, "Esau Jr. presses by Esau", { name = "Esau holding Esau Jr.", setup = { fresh(JACOB), give(4), giveEsau(ESAU_JR) } },
 		charPresses({ index = 1 }, nil, esauLoses)),
-	snapshotTest(DROP, "Esau Jr. presses by The Forgotten and The Soul", holding("The Forgotten", PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
+	snapshotTest(DROP, "Esau Jr. presses by The Forgotten and The Soul", holding("The Forgotten", FORGOTTEN), charPresses(nil, {
 		jrPair("Esau Jr. as Forgotten #1"), jrPair("Esau Jr. as Forgotten #2"),
-		{ "switch to the Soul", dropPress("switch to the Soul", function(p) return p:GetPlayerType() == PlayerType.PLAYER_THESOUL end,
-			"ChangePlayerType 17", function(p) p:ChangePlayerType(PlayerType.PLAYER_THESOUL) end) } })),
+		{ "switch to the Soul", dropPress("switch to the Soul", function(p) return p:GetPlayerType() == SOUL end,
+			"ChangePlayerType 17", function(p) p:ChangePlayerType(SOUL) end) } })),
 	snapshotTest(STRICT, "Esau Jr. presses by Tainted Forgotten", holding("Tainted Forgotten", T_FORGOTTEN), charPresses({ index = 0, any = true })),
-	snapshotTest(STRICT, "Esau Jr. presses by Lazarus Risen", holding("Lazarus", PlayerType.PLAYER_LAZARUS),
-		charPresses(nil, { { "ChangePlayerType 11", changeType(PlayerType.PLAYER_LAZARUS2) } })),
+	snapshotTest(STRICT, "Esau Jr. presses by Lazarus Risen", holding("Lazarus", LAZARUS),
+		charPresses(nil, { { "ChangePlayerType 11", changeType(LAZARUS_RISEN) } })),
 	-- Locked on save slot 1 (README): a restart that never gives the type ends the test with an INFO "character locked?" line.
-	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", PlayerType.PLAYER_JACOB_B), charPresses()),
-	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", PlayerType.PLAYER_EDEN), charPresses()),
+	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", T_JACOB), charPresses()),
+	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", EDEN), charPresses()),
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).
 	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = ASSERTING, fixture = fixture("Jacob holding Esau Jr. on floor 2",
 		{ fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, JACOB), steps = {
@@ -238,9 +238,9 @@ local tests = {
 		{ "Flip", verdict("Flip", flip("Flip")) }, { "give c5", give(5) },
 		{ "Flip back", verdict("Flip back", flip("Flip back")) }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) },
 		{ "Flip of the Esau Jr. form", verdict("Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form")) },
-		{ "Flip back to the form", verdict("Flip back to the form", flip("Flip back to the form")) }, { "ids of the form", ids("of the form") },
-		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(), { "ids after the original returned", ids("after the original returned") },
-		{ "Flip A (type 38)", verdict("Flip A (type 38)", flip("Flip A (type 38)")) }, { "ids after Flip A", ids("after Flip A") } }),
+		{ "Flip back to the form", verdict("Flip back to the form", flip("Flip back to the form")) }, { "ids of the form", idsInfo("of the form") },
+		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, jrAgain(), { "ids after the original returned", idsInfo("after the original returned") },
+		{ "Flip A (type 38)", verdict("Flip A (type 38)", flip("Flip A (type 38)")) }, { "ids after Flip A", idsInfo("after Flip A") } }),
 	snapshotTest(FINAL, "Tainted Lazarus loses Esau Jr. after a round trip, verdict per press", TLAZ_JR, { jrFirst(),
 		{ "Esau Jr. back to A", verdict("Esau Jr. back to A", esauJr("Esau Jr. back to A")) },
 		replaceEsauJr(), { "Esau Jr. after the loss", verdict("Esau Jr. after the loss", esauJr("Esau Jr. after the loss")) },

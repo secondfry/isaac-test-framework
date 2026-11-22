@@ -5,9 +5,9 @@ local addCard = include("scripts.steps").addCard
 local expect = include("scripts.assert").expect
 local press = include("scripts.press")
 local flip, esauJr, clicker = press.flip, press.esauJr, press.clicker
-local freshRun = include("scripts.fixtures").fresh
+local freshRun = include("scripts.fixtures").freshRun
 local ids = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ
+local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ, POCKET = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.POCKET
 
 local function maxCharges(ctx)
 	for _, c in ipairs({ { CLICKER, 6 }, { ESAU_JR, 1 }, { FLIP, 6 } }) do -- want: pre-REP+ items.xml
@@ -17,7 +17,7 @@ end
 
 -- REP+ Flip takes 4 though MaxCharges reads 6 (user, in game; run 3).
 local function pocketCharge(ctx)
-	local p, s = Isaac.GetPlayer(0), ActiveSlot.SLOT_POCKET
+	local p, s = Isaac.GetPlayer(0), POCKET
 	local function read() return p:GetActiveCharge(s) .. " + " .. p:GetBatteryCharge(s) end
 	expect(ctx, "pocket item", p:GetActiveItem(s), FLIP)
 	p:SetActiveCharge(6, s)

@@ -59,7 +59,7 @@ local TLAZ_FLIPS = fixture("Tainted Lazarus's Flip and Esau Jr. characters", { f
 	lookC("LJ"), flip("Flip LJ -> D"), who("D"), lookC("D back") }, DEAD_T_LAZ)
 
 return {
-	fixture = fixture, owns = owns, fresh = freshRun, holdingJr = holdingJr, jacobAndEsau = jacobAndEsau, TLAZ_FLIPS = TLAZ_FLIPS,
+	fixture = fixture, owns = owns, freshRun = freshRun, holdingJr = holdingJr, jacobAndEsau = jacobAndEsau, TLAZ_FLIPS = TLAZ_FLIPS,
 	RECON_CHARACTERS = RECON_CHARACTERS, character = character,
 	TLAZ_JR = holdingJr("Tainted Lazarus", T_LAZ),
 	TLAZ_JR_FLOOR_2 = fixture("Tainted Lazarus holding Esau Jr. on floor 2", { fresh(T_LAZ), give(4), give(ESAU_JR), stage(2) }, T_LAZ, ownsJr),

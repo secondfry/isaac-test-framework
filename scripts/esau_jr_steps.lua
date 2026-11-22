@@ -6,7 +6,8 @@ local seedOf, bySeed, owned, pedestals = engine.seedOf, engine.bySeed, engine.ow
 local give = include("scripts.console").give
 local presses = include("scripts.press")
 local press, flip, esauJr = presses.press, presses.flip, presses.esauJr
-local giveEsau = include("scripts.steps").giveEsau
+local steps = include("scripts.steps")
+local giveEsau, holdsJr = steps.giveEsau, steps.holdsJr
 local verdict = include("scripts.record").verdict
 local pre = include("scripts.assert").pre
 local ids = include("scripts.ids")
@@ -15,7 +16,7 @@ local ESAU_JR, CLICKER, D6, PRIMARY = ids.ESAU_JR, ids.CLICKER, ids.D6, ids.PRIM
 local function regiveEsauJr()
 	local g = give(ESAU_JR)
 	return function(ctx)
-		if not ctx.t and Isaac.GetPlayer(0):GetActiveItem(ActiveSlot.SLOT_PRIMARY) == ESAU_JR then return P("INFO", ctx.name, "Esau Jr. still in the active slot, no re-give") end
+		if not ctx.t and holdsJr() then return P("INFO", ctx.name, "Esau Jr. still in the active slot, no re-give") end
 		return g(ctx)
 	end
 end

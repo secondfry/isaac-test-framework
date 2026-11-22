@@ -9,7 +9,7 @@ local wisp, killWisp, engineWisps, zodiacOn, grant3DB, listed = copies.wisp, cop
 local assertions = include("scripts.assert")
 local expectCount, own = assertions.expectCount, assertions.own
 local look = include("scripts.settle").look
-local freshRun = include("scripts.fixtures").fresh
+local freshRun = include("scripts.fixtures").freshRun
 local ids = include("scripts.ids")
 local ISAAC, CAIN = ids.ISAAC, ids.CAIN
 

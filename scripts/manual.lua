@@ -9,8 +9,6 @@ local seeds, owned, pedestals, slots = engine.seeds, engine.owned, engine.pedest
 local ids = include("scripts.ids")
 local ESAU_JR, YUM_HEART, PRIMARY, PEDESTAL = ids.ESAU_JR, ids.YUM_HEART, ids.PRIMARY, ids.PEDESTAL
 
-local CONTINUE_STEP_LIMIT = 600
-
 -- The user exits to the menu and continues: a continued game with the same players (seeds) as before the exit; `soft` takes any
 -- players and logs them (obsy: what a continue does to a stored form is the question).
 local function exitAndContinue(soft)
@@ -29,8 +27,6 @@ local function exitAndContinue(soft)
 	end, CONTINUE_TIMEOUT) }
 end
 
-local continued = { "exit and Continue", exitAndContinue(true), nil, CONTINUE_STEP_LIMIT }
-
 -- The user walks onto the pedestal of item `target` by hand (e58d1b3), as a teleport never touched in game (lua-api-notes.md) and a
 -- scripted walk is not wanted; `start` once, then up to 450 updates for `done(p)`.
 local function walk(label, target, start, done)
@@ -48,4 +44,4 @@ local dropByHand = walk("YOU: walk onto the yum-heart pedestal", YUM_HEART, func
 end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 end)
 local pickByHand = walk("YOU: step off, then walk back onto the Esau Jr. pedestal", ESAU_JR, function() end, function(p) return owned(p, ESAU_JR) > 0 end)
 
-return { exitAndContinue = exitAndContinue, continued = continued, dropByHand = dropByHand, pickByHand = pickByHand }
+return { exitAndContinue = exitAndContinue, dropByHand = dropByHand, pickByHand = pickByHand }

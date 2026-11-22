@@ -6,17 +6,16 @@ local rehud = include("scripts.rehud")
 local entries, keyOf, countEntries, leftEntries, number, isSwapped = rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries,
 	rehud.number, rehud.isSwapped
 local wait = include("scripts.wait")
-local act, condition = wait.act, wait.condition
+local act = wait.act
 local console = include("scripts.console")
 local fresh, give, remove, stage, giveAnyone = console.fresh, console.give, console.remove, console.stage, console.giveAnyone
 local steps = include("scripts.steps")
-local giveEsau, addCard, giveType, useCard = steps.giveEsau, steps.addCard, steps.giveType, steps.useCard
-local continued = include("scripts.manual").continued
+local giveEsau, addCard, giveType, useCard, keeperJoins = steps.giveEsau, steps.addCard, steps.giveType, steps.useCard, steps.keeperJoins
 local assertions = include("scripts.assert")
 local expect, expectN, expectCount, oneC4, twoC4, birthrightOwners = assertions.expect, assertions.expectN, assertions.expectCount,
 	assertions.oneC4, assertions.twoC4, assertions.birthrightOwners
 local record = include("scripts.record")
-local verdict, ids, parentsInfo = record.verdict, record.ids, record.parentsInfo
+local verdict, idsInfo, parentsInfo = record.verdict, record.idsInfo, record.parentsInfo
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
 local press = include("scripts.press")
@@ -26,7 +25,7 @@ local jrPair, flipV = jrSteps.jrPair, jrSteps.flipV
 local fixtures = include("scripts.fixtures")
 local fixture = fixtures.fixture
 local snapshot = include("scripts.snapshot")
-local snapshotTest, perCharacter = snapshot.test, snapshot.perCharacter
+local snapshotTest, perCharacter, continued = snapshot.test, snapshot.perCharacter, snapshot.continued
 local named = include("scripts.characters").named
 local enums = include("scripts.ids")
 local FLIP, BIRTHRIGHT, STRAWMAN = enums.FLIP, enums.BIRTHRIGHT, enums.STRAWMAN
@@ -136,7 +135,7 @@ local tests = {
 	-- Strawman's Keeper (type 14, a Parent) has his own number; giveitem then goes to him (in-game 2026-11-22).
 	{ name = "Strawman's Keeper is a character with his own items", tags = REHUD_2_8, limit = 200,
 		fixture = { name = "Isaac with Strawman's Keeper", setup = { fresh(ISAAC), give(4), give(STRAWMAN),
-			condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end) }, done = keeperPresent }, steps = {
+			keeperJoins }, done = keeperPresent }, steps = {
 			named("Isaac"), named("Keeper", KEEPER),
 			lookC("Keeper", function(ctx, label) expect(ctx, label .. ": Keeper has a number", number(keyOf(withParent(KEEPER))) ~= nil, true) end),
 			giveAnyone(5), lookC("after giveitem c5", function(ctx, label)
@@ -161,17 +160,17 @@ local tests = {
 	snapshotTest("harness tag on Tainted Lazarus through Flip", REHUD_2_8, fixtures.TLAZ_C4, {
 		{ "Flip", verdict("Flip", flip("Flip")) }, { "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT),
 	snapshotTest("Strawman's Keeper killed", REHUD_2_8, { name = "Isaac with Strawman's Keeper holding c5", setup = { fresh(ISAAC), give(4),
-		give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), giveType(5, KEEPER) }, done = keeperPresent }, {
+		give(STRAWMAN), keeperJoins, giveType(5, KEEPER) }, done = keeperPresent }, {
 		{ "parents before the kill", parentsInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
 		{ "where its items went", keeperItems }, { "parents after the kill", parentsInfo("after the kill") } }, STRICT),
 	-- Which id tells the two Birthright twins apart and stays stable across Flip, Esau Jr. and Exit & Continue?
 	snapshotTest("ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue", { "characters", "rehud", "exit-continue" },
 		fixtures.TLAZ_JR_TWINS, {
-		{ "ids after Birthright", ids("after Birthright") },
-		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
-		{ "select type-29 twin", birthrightFlip, deadFirst }, jrPair("Esau Jr. #1"), { "ids after Esau Jr. #1", ids("after Esau Jr. #1") },
-		jrPair("Esau Jr. #2"), { "ids after Esau Jr. #2", ids("after Esau Jr. #2") }, continued, { "ids after Continue", ids("after Continue") },
-		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", ids("after Flip after Continue") } }, STRICT_CONTINUE),
+		{ "ids after Birthright", idsInfo("after Birthright") },
+		{ "Flip", flipV("Flip") }, { "ids after Flip", idsInfo("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", idsInfo("after Flip back") },
+		{ "select type-29 twin", birthrightFlip, deadFirst }, jrPair("Esau Jr. #1"), { "ids after Esau Jr. #1", idsInfo("after Esau Jr. #1") },
+		jrPair("Esau Jr. #2"), { "ids after Esau Jr. #2", idsInfo("after Esau Jr. #2") }, continued, { "ids after Continue", idsInfo("after Continue") },
+		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", idsInfo("after Flip after Continue") } }, STRICT_CONTINUE),
 }
 
 -- Recon (plan S5c): the characters items add, by UseCard (whether Soul of the Forgotten brings a Forgotten is plan open point 4), across
@@ -187,15 +186,15 @@ end
 perCharacter(tests, "characters", "Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue", RECON, fixtures.character,
 	function()
 		return { { "give Strawman", give(STRAWMAN) }, { "Soul of Jacob and Esau", useCard(enums.SOUL_JACOB) },
-			{ "Soul of the Forgotten", useCard(enums.SOUL_FORGOTTEN) }, { "ids before the exit", ids("before the exit") }, continued,
-			{ "ids after Continue", ids("after Continue") } }
+			{ "Soul of the Forgotten", useCard(enums.SOUL_FORGOTTEN) }, { "ids before the exit", idsInfo("before the exit") }, continued,
+			{ "ids after Continue", idsInfo("after Continue") } }
 	end, true)
 perCharacter(tests, "characters", "switch between body and soul", only(enums.FORGOTTEN, enums.T_FORGOTTEN), fixtures.character, function(c)
 	return { { "switch", dropOnce("switch", c.who) }, { "switch back", dropOnce("switch back", c.who) } }
 end)
 perCharacter(tests, "characters", "Birthright and Flip", only(enums.T_LAZ), fixtures.character, function()
-	return { { "give Birthright", give(BIRTHRIGHT, 2) }, { "ids after Birthright", ids("after Birthright") }, { "Flip", flipV("Flip") },
-		{ "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") } }
+	return { { "give Birthright", give(BIRTHRIGHT, 2) }, { "ids after Birthright", idsInfo("after Birthright") }, { "Flip", flipV("Flip") },
+		{ "ids after Flip", idsInfo("after Flip") }, { "Flip back", flipV("Flip back") } }
 end)
 
 return { name = "characters", tests = tests }

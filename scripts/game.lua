@@ -1,6 +1,6 @@
 -- Engine reads: the floor, the players and what they hold. A lookup finds an entity now; none is kept.
 local ids = include("scripts.ids")
-local PRIMARY, SECONDARY = ids.PRIMARY, ids.SECONDARY
+local PRIMARY, SECONDARY, T_SOUL = ids.PRIMARY, ids.SECONDARY, ids.T_SOUL
 
 local game = Game()
 local itemConfig = Isaac.GetItemConfig()
@@ -61,7 +61,7 @@ end
 
 -- shortcut: copy of ReHUD 2.8's character rule (main.lua isCharacter): Strawman's Keeper and Soul of Jacob and Esau's Esau, both with a Parent,
 -- get rows (user decisions 2026-11-22); expose it on ReHUD.dbg if the copy drifts.
-local function isCharacter(p) return p.Variant == 0 and p:GetPlayerType() ~= PlayerType.PLAYER_THESOUL_B end
+local function isCharacter(p) return p.Variant == 0 and p:GetPlayerType() ~= T_SOUL end
 
 local function characterCount()
 	local n = 0

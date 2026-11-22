@@ -81,6 +81,6 @@ end
 
 return {
 	present = present, entries = entries, characterCount = characterCount, number = number, isSwapped = isSwapped, isSettling = isSettling,
-	group = group, rows = rows, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
+	group = group, rows = rows, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
 	ownerOf = ownerOf, settling = settling, storedSettling = storedSettling,
 }

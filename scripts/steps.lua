@@ -1,10 +1,11 @@
 -- Steps that change the run by script: types, items and cards given by the API, a step off a pedestal, and guards around a step.
 local P = include("scripts.log").P
-local act = include("scripts.wait").act
+local wait = include("scripts.wait")
+local act, condition = wait.act, wait.condition
 local engine = include("scripts.game")
-local owned, cards, ofType = engine.owned, engine.cards, engine.ofType
+local owned, cards, ofType, withParent = engine.owned, engine.cards, engine.ofType, engine.withParent
 local ids = include("scripts.ids")
-local ESAU_JR, ESAU, PRIMARY = ids.ESAU_JR, ids.ESAU, ids.PRIMARY
+local ESAU_JR, ESAU, KEEPER, PRIMARY = ids.ESAU_JR, ids.ESAU, ids.KEEPER, ids.PRIMARY
 
 local game = Game()
 
@@ -88,7 +89,10 @@ local function onlyIf(what, cond, step)
 end
 local function holdsJr() return Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESAU_JR end
 
+-- Waits for Strawman's Keeper to join after Strawman is given.
+local keeperJoins = condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end)
+
 return {
-	addTo = addTo, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, useCard = useCard, addTrinket = addTrinket, holdsTrinket = holdsTrinket, info = info, stepOff = stepOff,
+	keeperJoins = keeperJoins, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, useCard = useCard, addTrinket = addTrinket, holdsTrinket = holdsTrinket, info = info, stepOff = stepOff,
 	onlyIf = onlyIf, holdsJr = holdsJr,
 }

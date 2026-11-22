@@ -1,22 +1,20 @@
 -- What Exit & Continue keeps: the stored twin, item copies, Esau Jr. characters and the temporary Esau. Each test asks the user for one
 -- Exit & Continue, so the runner plays them last.
-local withParent = include("scripts.game").withParent
 local rehud = include("scripts.rehud")
 local keyOf, storedSettling, isSettling = rehud.keyOf, rehud.storedSettling, rehud.isSettling
-local condition = include("scripts.wait").condition
 local console = include("scripts.console")
 local fresh, give, stage = console.fresh, console.give, console.stage
 local steps = include("scripts.steps")
-local changeType, addCard = steps.changeType, steps.addCard
+local changeType, addCard, keeperJoins = steps.changeType, steps.addCard, steps.keeperJoins
 local copies = include("scripts.copies")
 local wisp, engineWisps = copies.wisp, copies.engineWisps
 local manual = include("scripts.manual")
-local exitAndContinue, continued = manual.exitAndContinue, manual.continued
+local exitAndContinue = manual.exitAndContinue
 local assertions = include("scripts.assert")
 local expect, expectN, expectOne, expectCount, own, oneC4 = assertions.expect, assertions.expectN, assertions.expectOne,
 	assertions.expectCount, assertions.own, assertions.oneC4
 local record = include("scripts.record")
-local playerCount, parentsInfo, ids = record.playerCount, record.parentsInfo, record.ids
+local playerCount, parentsInfo, idsInfo = record.playerCount, record.parentsInfo, record.idsInfo
 local settle = include("scripts.settle")
 local look, settled = settle.look, settle.settled
 local press = include("scripts.press")
@@ -25,9 +23,9 @@ local jrSteps = include("scripts.esau_jr_steps")
 local jrPair, loseEsauJr = jrSteps.jrPair, jrSteps.loseEsauJr
 local fixtures = include("scripts.fixtures")
 local snapshot = include("scripts.snapshot")
-local snapshotTest, perCharacter = snapshot.test, snapshot.perCharacter
+local snapshotTest, perCharacter, continued = snapshot.test, snapshot.perCharacter, snapshot.continued
 local enums = include("scripts.ids")
-local ISAAC, CAIN, FLIP, ESAU_JR, KEEPER, STRAWMAN = enums.ISAAC, enums.CAIN, enums.FLIP, enums.ESAU_JR, enums.KEEPER, enums.STRAWMAN
+local ISAAC, CAIN, FLIP, ESAU_JR, STRAWMAN = enums.ISAAC, enums.CAIN, enums.FLIP, enums.ESAU_JR, enums.STRAWMAN
 
 local SNAPSHOT = { strict = true, limit = 1000 } -- 600 of a test's updates are the user's Exit & Continue
 local isaacJr = fixtures.holdingJr("Isaac", ISAAC)
@@ -72,7 +70,7 @@ local tests = {
 	snapshotTest("temporary Esau and Strawman's Keeper across Exit & Continue", { "continue", "rehud", "rehud-2.8", "exit-continue" },
 		fixtures.fixture("Isaac holding Soul of Jacob and Esau", { fresh(ISAAC), give(4), addCard(Card.CARD_SOUL_JACOB) }, ISAAC, fixtures.owns(4)),
 		{ { "Soul of Jacob and Esau", soulJE }, { "give Strawman", give(STRAWMAN) },
-			{ "Strawman Keeper", condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end) },
+			{ "Strawman Keeper", keeperJoins },
 			{ "settle", settled }, { "parents before the exit", parentsInfo("before the exit") }, continued,
 			{ "players after Continue", playerCount }, { "settle 2", settled }, { "parents after Continue", parentsInfo("after Continue") } }, SNAPSHOT),
 	-- The Flip comes a few updates after restart, so the twin is stored mid-settle (the 20ca1f1 path).
@@ -81,14 +79,14 @@ local tests = {
 	continueTest("Flip once settled, Exit & Continue, then ChangePlayerType", look("before Flip", oneC4)),
 	-- Copy kinds survive Exit & Continue, and Cain's saved innate items mean no second settle.
 	{ name = "item copies survive Exit & Continue", tags = { "continue", "rehud", "exit-continue", "new" },
-		fixture = fixtures.fresh(CAIN),
+		fixture = fixtures.freshRun(CAIN),
 		steps = { look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
 			function(ctx) expect(ctx, "no re-settle after continue", isSettling(keyOf(Isaac.GetPlayer(0))), false) end,
 			engineWisps("after continue", 4, 1), engineWisps("after continue", 46, 1), look("after continue", copyKinds) } },
 }
--- Recon: what Exit & Continue keeps of each character's ids (record.ids) and state.
+-- Recon: what Exit & Continue keeps of each character's ids (record.idsInfo) and state.
 perCharacter(tests, "continue", "start, then Exit & Continue", fixtures.RECON_CHARACTERS, fixtures.character, function()
-	return { { "ids before the exit", ids("before the exit") }, continued, { "ids after Continue", ids("after Continue") } }
+	return { { "ids before the exit", idsInfo("before the exit") }, continued, { "ids after Continue", idsInfo("after Continue") } }
 end, true)
 
 return { name = "continue", tests = tests }

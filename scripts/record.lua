@@ -9,8 +9,8 @@ local present, entries, tagText, storedSettling, keyOf, number, rosterRows = reh
 	rehud.keyOf, rehud.number, rehud.rows
 local info = include("scripts.steps").info
 local enums = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
-	enums.SECONDARY
+local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY, POCKET = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
+	enums.SECONDARY, enums.POCKET
 
 local game = Game()
 HARNESS.record = HARNESS.record or {}
@@ -51,11 +51,11 @@ local function traceLines()
 		local p, n = Isaac.GetPlayer(i), {}
 		for _, id in ipairs(TRACE_IDS) do n[#n + 1] = "c" .. id .. " " .. p:GetCollectibleNum(id, false) end
 		t[#t + 1] = "PLAYER " .. i .. " type " .. p:GetPlayerType() .. " seed " .. seedOf(p) .. " hash " .. GetPtrHash(p) .. " ctrl " .. p.ControllerIndex
-			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(ActiveSlot.SLOT_PRIMARY)
-			.. " secondary " .. p:GetActiveItem(ActiveSlot.SLOT_SECONDARY) .. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET)
+			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(PRIMARY)
+			.. " secondary " .. p:GetActiveItem(SECONDARY) .. " pocket " .. p:GetActiveItem(POCKET)
 		t[#t + 1] = "PLAYERX " .. i .. " variant " .. p.Variant .. " ghost " .. tostring(p:IsCoopGhost()) .. " Index " .. p.Index .. " tag " .. tagText(p)
-			.. " charge primary " .. p:GetActiveCharge(ActiveSlot.SLOT_PRIMARY) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_PRIMARY)
-			.. " pocket " .. p:GetActiveCharge(ActiveSlot.SLOT_POCKET) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_POCKET) .. " items " .. heldItems(p)
+			.. " charge primary " .. p:GetActiveCharge(PRIMARY) .. "+" .. p:GetBatteryCharge(PRIMARY)
+			.. " pocket " .. p:GetActiveCharge(POCKET) .. "+" .. p:GetBatteryCharge(POCKET) .. " items " .. heldItems(p)
 	end
 	t[#t + 1] = "COUNT players " .. game:GetNumPlayers() .. " c703 pedestals " .. pedestals(ESAU_JR)
 	if not present() then return t end
@@ -96,7 +96,7 @@ local function stopTiming() HARNESS.record.timing = nil end
 -- A finished test's trace and timing watches.
 local function stop() HARNESS.record.trace, HARNESS.record.timing = nil, nil end
 
-local pocketHeld = info("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(ActiveSlot.SLOT_POCKET) end)
+local pocketHeld = info("player 0 pocket active (711 = Flip)", function(p) return p:GetActiveItem(POCKET) end)
 local typeNow = info("player 0 type", function(p) return p:GetPlayerType() end)
 local playerCount = info("players in game", function() return game:GetNumPlayers() end)
 local storedSettlingNow = info("stored forms still settling", storedSettling)
@@ -149,12 +149,12 @@ local function timingSee(p)
 			elseif frame ~= t.logged then -- MC_POST_PLAYER_UPDATE runs twice per game frame
 				t.logged = frame
 				P("INFO", HARNESS.session.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
-					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
+					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(POCKET))
 				local trace = HARNESS.record.trace
 				if trace and not trace.asserting then -- relative frames only: a snapshot compares across sessions
 					snap(HARNESS.session.ctx, trace.step .. " / TIMING " .. t.label .. " +" .. (frame - t.first), "index " .. t.index .. " type " .. p:GetPlayerType()
 						.. " c703 " .. owned(p, ESAU_JR) .. " primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY)
-						.. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET))
+						.. " pocket " .. p:GetActiveItem(POCKET))
 				end
 			end
 		end
@@ -216,7 +216,7 @@ end
 
 -- Every vanilla per-entity id of each player, each read pcall'd; twins as the GetPlayer index whose GetPtrHash matches
 -- (no method is called on a returned twin but GetPtrHash).
-local function ids(label)
+local function idsInfo(label)
 	return function(ctx)
 		local index = {}
 		for i = 0, game:GetNumPlayers() - 1 do index[GetPtrHash(Isaac.GetPlayer(i))] = i end
@@ -309,6 +309,6 @@ end
 return {
 	logState = logState, update = update, startAsserting = startAsserting, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
 	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
-	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, parentsInfo = parentsInfo, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
+	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, parentsInfo = parentsInfo, idsInfo = idsInfo, innerLine = innerLine, innerWatch = innerWatch,
 	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep, try = try,
 }

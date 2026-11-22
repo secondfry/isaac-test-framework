@@ -1,5 +1,6 @@
 -- Snapshot tests: a fixture's setup and a settle wait, the trace, then numbered steps, each one's game state logged (SNAP) after it.
 local settled = include("scripts.settle").settled
+local exitAndContinue = include("scripts.manual").exitAndContinue
 
 -- A strict test's step limit and test limit in updates, setup and settle waits included: twelve 445-update tests fit three minutes
 -- (README budgets, tests/test_runner.py worst cases).
@@ -14,6 +15,9 @@ local function step(label, s, strict, when, limit)
 end
 
 local function always() return true end
+
+-- A snapshot test's Exit & Continue step: any players after it are data, and it gives up after 600 updates of play.
+local continued = { "exit and Continue", exitAndContinue(true), nil, 600 }
 
 -- A snapshot test from `fixture` ({ name, setup, done }, setup a flat step list, done optional), then `steps` as { label, step, when,
 -- limit } pairs (or lists of them), numbered, then a last settle wait. A missed step is logged and skipped; `opts.strict`: it ends the
@@ -44,4 +48,4 @@ local function perCharacter(tests, spec, name, characters, fixture, steps, conti
 	end
 end
 
-return { test = test, perCharacter = perCharacter }
+return { test = test, perCharacter = perCharacter, continued = continued }

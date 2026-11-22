@@ -6,8 +6,8 @@ local engine = include("scripts.game")
 local itemConfig, seedOf, cards, heldItems, chargeOf, byHash, slots = engine.itemConfig, engine.seedOf, engine.cards, engine.heldItems,
 	engine.chargeOf, engine.byHash, engine.slots
 local ids = include("scripts.ids")
-local FLIP, ESAU_JR, CLICKER, DEAD_T_LAZ, T_FORGOTTEN, PRIMARY, SECONDARY = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.DEAD_T_LAZ, ids.T_FORGOTTEN,
-	ids.PRIMARY, ids.SECONDARY
+local FLIP, ESAU_JR, CLICKER, DEAD_T_LAZ, T_FORGOTTEN, PRIMARY, SECONDARY, POCKET = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.DEAD_T_LAZ,
+	ids.T_FORGOTTEN, ids.PRIMARY, ids.SECONDARY, ids.POCKET
 
 local game = Game()
 -- The press in flight (oneShot, full, watch...), the Clicker veto, and the triggered and pressed polls answered.
@@ -112,7 +112,7 @@ local function prime(p, id, slot, b, H, label)
 	if p:GetActiveItem(slot) ~= id then error(label .. ": c" .. id .. " not in slot " .. slot) end
 	-- ItemConfig MaxCharges reads 6 for Flip, but REP+ Flip takes 4, and SetActiveCharge(6, 2) gave 4 + 2 battery (user, in game);
 	-- FullCharge without force fills the first bar only (run 3: charge 4, battery 0).
-	if slot == ActiveSlot.SLOT_POCKET then p:FullCharge(slot)
+	if slot == POCKET then p:FullCharge(slot)
 	else p:SetActiveCharge(itemConfig:GetCollectible(id).MaxCharges, slot) end
 	b.charge = p:GetActiveCharge(slot)
 	-- Only active slots: watchSee reads GetActiveItem(slot), which a "card" slot would make throw in MC_INPUT_ACTION.
@@ -142,7 +142,7 @@ end
 -- and ACTION_PILLCARD both, as which button and entity use a second player's or Tainted Forgotten's active is unknown.
 local function press(label, id, slot, count, ceiling, who)
 	local index = who and who.index or 0
-	local button = slot == ActiveSlot.SLOT_PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
+	local button = slot == PRIMARY and ButtonAction.ACTION_ITEM or ButtonAction.ACTION_PILLCARD
 	if who then button = { [ButtonAction.ACTION_ITEM] = true, [ButtonAction.ACTION_PILLCARD] = true } end
 	return act(label, function(ctx)
 		local p, H = Isaac.GetPlayer(index), HARNESS.press
@@ -152,7 +152,7 @@ local function press(label, id, slot, count, ceiling, who)
 		if who and who.any then H.pressHash = false elseif who then H.pressHash = GetPtrHash(p) end
 		-- shortcut: the full press answers both triggered polls of its update, safe only while the pocket holds no card (a card reads
 		-- the first, Flip the second); Flip's charge of 4 is spent by one use, so it cannot flip twice. Revisit for a card beside Flip.
-		b.seed, b.button, b.full, b.index, b.hash = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET or who ~= nil, index, GetPtrHash(p)
+		b.seed, b.button, b.full, b.index, b.hash = seedOf(p), button, slot == POCKET or who ~= nil, index, GetPtrHash(p)
 		-- Only a recon test takes a same-seed new form as a press (see below); one with assertions (F, G trace too) needs a new character.
 		local trace = HARNESS.record.trace
 		if trace and not trace.asserting then b.items = heldItems(p) end
@@ -193,12 +193,12 @@ local function press(label, id, slot, count, ceiling, who)
 	end, ceiling)
 end
 
-local function flip(label) return press(label, FLIP, ActiveSlot.SLOT_POCKET) end
-local function esauJr(label) return press(label, ESAU_JR, ActiveSlot.SLOT_PRIMARY) end
+local function flip(label) return press(label, FLIP, POCKET) end
+local function esauJr(label) return press(label, ESAU_JR, PRIMARY) end
 -- On Isaac, not beside Flip: a card beside a pocket active sits in slot 1 (run 5) and is untested with either press.
 local soulJE = press("Soul of Jacob and Esau", Card.CARD_SOUL_JACOB, "card", 2)
 
-local clicker = press("Clicker", CLICKER, ActiveSlot.SLOT_PRIMARY)
+local clicker = press("Clicker", CLICKER, PRIMARY)
 
 -- Clicker's callbacks, logged in a recon test that ends at its first missing step (obsx, obsy).
 local function clickerCallback(name, p, slot)
@@ -340,7 +340,7 @@ end
 
 return {
 	onUse = onUse, onPlayerUpdate = onPlayerUpdate, onInput = onInput, onVetoPre = onVetoPre, onClickerUse = onClickerUse,
-	onVetoUpdate = onVetoUpdate, endPress = endPress, teardown = teardown, press = press, flip = flip, esauJr = esauJr, soulJE = soulJE,
+	onVetoUpdate = onVetoUpdate, teardown = teardown, press = press, flip = flip, esauJr = esauJr, soulJE = soulJE,
 	clicker = clicker, cancelledClicker = cancelledClicker, clickerWithin60 = clickerWithin60, birthrightFlip = birthrightFlip, dropPress = dropPress,
 	toSlot = toSlot, dropOnce = dropOnce, deadFirst = deadFirst, swapCopies = swapCopies,
 }

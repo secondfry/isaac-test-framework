@@ -148,6 +148,8 @@ def test_all(path):
     assert f"PROBE SNAP {SPEC}obs esaujr cross | 1 Esau Jr. / lineup = A" in snaps, snaps[:3]
     assert not any(s.startswith(f"PROBE SNAP {SPEC}probes ") for s in snaps), "SNAP lines in a test without a snapshot"
     print("PASS SNAP lines for snapshot tests only:", len(snaps))
+    assert dry.report(log) == (0, "ALL PASS"), dry.report(log)
+    print("PASS report.py on the dry session: ALL PASS")
 
 
 def test_tlaz_roll_29(path):

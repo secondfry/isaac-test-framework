@@ -40,10 +40,15 @@ def test_wrong_floor(path):
 
 def test_invariants(path):
     for flag, mode, why, names in INVARIANT_MODES:
-        got = legacy.finished(dry.run(path, mode=mode, **{flag: True}), flag)
+        log = dry.run(path, mode=mode, **{flag: True})
+        got = legacy.finished(log, flag)
         hit = [n for n in SCENARIOS if got[n].startswith("FAIL") and why in got[n]]
         assert hit == names, f"{flag} ({mode}): invariant fired in {hit}"
         print(f"PASS {flag} ({mode}) fails the invariant in {len(hit)} tests")
+        if flag == "missCopy":
+            code, verdict = dry.report(log)
+            assert code == 1 and verdict.startswith(f"NEEDS ANALYSIS: {legacy.SPEC}test3 FAIL;"), (code, verdict)
+            print("PASS report.py on a failing session:", verdict[:60])
 
 
 TESTS = [test_wrong_floor, test_invariants]

@@ -7,6 +7,7 @@ import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPORT = os.path.join(HERE, "..", "tools", "report.py")
 STUB_FILES = ["api.lua", "players.lua", "characters.lua", "input.lua", "console.lua", "rehud.lua"]  # load order: rehud.lua registers its update first
 RESULT = re.compile(r"^PROBE RESULT (.+?) (PASS \d+ assertions|FAIL |RECORDED|SKIP )")
 
@@ -123,16 +124,13 @@ def segment(log, name):
     return log[i:next(k for k in range(i, len(log)) if log[k].startswith(f"PROBE RESULT {name} ")) + 1]
 
 
-def run_tool(script, log):
-    """A tools/ script on these lines (a list) or on a file path: (exit code, stdout lines, stderr)."""
-    tmp = isinstance(log, list)
-    if tmp:
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
-            f.write("\n".join(log))
-        log = f.name
-    try:
-        p = subprocess.run([sys.executable, "-B", "-I", script, log], capture_output=True, text=True)
-    finally:
-        if tmp:
-            os.remove(log)
-    return p.returncode, p.stdout.splitlines(), p.stderr
+def report(log):
+    """tools/report.py on these lines: (exit code, verdict line). Its traces, report.json and snapshot folder are a temp folder's, so a dry
+    log is never compared with a played session's snapshots."""
+    with tempfile.TemporaryDirectory() as out:
+        path = os.path.join(out, "log.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(log) + "\n")
+        p = subprocess.run([sys.executable, "-B", "-I", REPORT, path, "--out", out, "--specs", out], capture_output=True, text=True)
+    assert not p.stderr, p.stderr
+    return p.returncode, p.stdout.splitlines()[-1]

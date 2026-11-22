@@ -21,7 +21,7 @@ def test_lines(spec, name, verdict, snaps=(), body=()):
 
 def session(*tests, update="no", engine=True, total=None, done=True):
     head = [ENGINE] if engine else []
-    start = probe(f"HARNESS START {total or len(tests)} tests, tags 'hello', update snapshots {update}, mod data 'tags hello'")
+    start = probe(f"HARNESS START {total or len(tests)} tests, tags 'tags hello', update snapshots {update}, mod data 'tags hello\\r\\nSTUCK 1 x'")
     return head + start + [line for t in tests for line in t] + (probe("HARNESS DONE") if done else [])
 
 
@@ -53,14 +53,15 @@ SNAPPED = test_lines("hello", "fresh run", "RECORDED", snaps=[("0 start / lineup
 
 def test_verdicts():
     specs = tempfile.mkdtemp()
-    skip = probe("RESULT hello > Clicker on Isaac SKIP not picked (tags 'hello')")
+    skip = probe("RESULT hello > Clicker on Isaac SKIP not tagged (tags 'tags hello')")
     code, out, _, _ = run(session(PASSING, skip), specs)
     assert (code, out[-1]) == (0, "ALL PASS"), out
     assert "hello > fresh Isaac: PASS 3 assertions" in out, out
-    failing = test_lines("hello", "fresh Isaac", "FAIL c703 owned 0, want 1", body=probe("INFO fresh Isaac step 1: x", "ASSERT FAIL c703 owned 0"))
+    failing = test_lines("hello", "fresh Isaac", "FAIL c703 owned 0, want 1",
+                         body=probe("INFO hello > fresh Isaac step 1: x", "ASSERT FAIL hello > fresh Isaac c703 owned 0"))
     code, out, _, _ = run(session(failing), specs)
     assert (code, out[-1]) == (1, "NEEDS ANALYSIS: hello > fresh Isaac FAIL"), out
-    assert "  ASSERT FAIL c703 owned 0" in out and "  info step 1: x" in out, out
+    assert "  ASSERT FAIL hello > fresh Isaac c703 owned 0" in out and "  info step 1: x" in out, out
     explained = test_lines("base_change", "P2", "PASS 61 assertions; unreached: no split in 20 Clicker uses")
     odd = test_lines("base_change", "P3", "PASS 2 assertions; unreached: the Flip; late Continue mid-test")
     code, out, _, _ = run(session(explained, odd), specs)
@@ -134,15 +135,15 @@ def test_guard():
 
 def test_json():
     specs = tempfile.mkdtemp()
-    torn = test_lines("hello", "fresh Isaac", "PASS 3 assertions") + probe("TEARDOWN FAIL hello > fresh Isaac: endPress: boom")
+    torn = test_lines("hello", "fresh Isaac", "PASS 3 assertions") + probe("TEARDOWN FAIL hello > fresh Isaac endPress: boom")
     code, out, data, _ = run(session(torn, SNAPPED), specs)
     assert code == 1 and out[-1] == "NEEDS ANALYSIS: hello > fresh Isaac teardown failed", out
     assert set(data) == {"session", "tests", "verdict", "reasons"}, data
     assert set(data["session"]) == {"version", "tags", "update", "guard", "start", "done"}, data["session"]
-    assert data["session"]["version"] == ENGINE[len("[INFO] - "):] and data["session"]["tags"] == "hello", data["session"]
+    assert data["session"]["version"] == ENGINE[len("[INFO] - "):] and data["session"]["tags"] == "tags hello", data["session"]
     t = data["tests"][0]
     assert set(t) == {"spec", "name", "tags", "status", "assertions", "failures", "unreached", "snapshot", "teardown", "trace", "updates"}, t
-    assert (t["status"], t["assertions"], t["failures"], t["teardown"]) == ("PASS", 3, [], ["TEARDOWN FAIL hello > fresh Isaac: endPress: boom"]), t
+    assert (t["status"], t["assertions"], t["failures"], t["teardown"]) == ("PASS", 3, [], ["TEARDOWN FAIL hello > fresh Isaac endPress: boom"]), t
     assert data["verdict"] == "NEEDS ANALYSIS" and data["reasons"] == ["hello > fresh Isaac teardown failed"], data
     print("PASS report.json fields, teardown failures kept apart from the verdict")
 
@@ -164,7 +165,7 @@ def test_timeline():
 def test_cp1251():
     # -I would drop PYTHONIOENCODING; a console on cp1251 cannot encode this line (B5)
     specs = tempfile.mkdtemp()
-    log = session(test_lines("hello", "fresh Isaac", "PASS 1 assertions", body=probe("INFO fresh Isaac floor 地下室 ✓")))
+    log = session(test_lines("hello", "fresh Isaac", "PASS 1 assertions", body=probe("INFO hello > fresh Isaac floor 地下室 ✓")))
     code, out, _, _ = run(log, specs, env={**os.environ, "PYTHONIOENCODING": "cp1251"}, isolated=False)
     assert (code, out[-1]) == (0, "ALL PASS"), out
     assert "  info floor ??? ?" in out, out

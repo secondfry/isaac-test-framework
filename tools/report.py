@@ -212,7 +212,8 @@ def fold_infos(t, seg):
         if not line.startswith("INFO "):
             out.append(line)
             continue
-        text = next((line[len(p):] for p in (f"INFO {t.key} ", f"INFO {t.name} ") if line.startswith(p)), line[5:])
+        own = f"INFO {t.key} "
+        text = line[len(own):] if line.startswith(own) else line[5:]
         head, sep, tail = text.partition(": ")
         key = fold_digits(head) + sep + tail if sep else text
         first, n = infos.get(key, (text, 0))

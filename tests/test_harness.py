@@ -105,9 +105,11 @@ PEDESTAL = {"yum-heart": 45, "Esau Jr.": 703}  # the fake user's target, by the 
 
 
 def load(lua, path):
-    """The stub, then the mod's main.lua at `path`."""
+    """The stub, the game's include() over the mod folder (each call runs the file again), then the mod's main.lua at `path`."""
     with open(os.path.join(HERE, "stub.lua"), encoding="utf-8") as f:
         lua.execute(f.read())
+    root = os.path.dirname(os.path.abspath(path)).replace("\\", "/") + "/"
+    lua.execute("local root = ... function include(name) return dofile(root .. name:gsub('%.', '/') .. '.lua') end", root)
     with open(path, encoding="utf-8") as f:
         lua.execute(f.read())
 

@@ -1,0 +1,49 @@
+-- Manual steps: what the user does by hand (Exit & Continue, walking onto a pedestal), each waiting for its effect.
+local P = include("scripts.log").P
+local wait = include("scripts.wait")
+local action, CONTINUE_TIMEOUT = wait.action, wait.CONTINUE_TIMEOUT
+local engine = include("scripts.game")
+local seeds, owned, pedestals, slots = engine.seeds, engine.owned, engine.pedestals, engine.slots
+local ids = include("scripts.ids")
+local ESAU_JR, YUM_HEART, PRIMARY, PEDESTAL = ids.ESAU_JR, ids.YUM_HEART, ids.PRIMARY, ids.PEDESTAL
+
+local CONTINUE_STEP_LIMIT = 600
+
+-- The user exits to the menu and continues: a continued game with the same players (seeds) as before the exit; `soft` takes any
+-- players and logs them (obsy: what a continue does to a stored form is the question).
+local function exitAndContinue(soft)
+	return action("exit to the menu and Continue now", function()
+		HARNESS.expectStart = "continue"
+		return { gen = HARNESS.gen, seeds = seeds() }
+	end, function(ctx, b)
+		local H = HARNESS
+		if H.gen == b.gen then
+			if ctx.t % 300 == 0 then P("ACTION exit to the menu and Continue now") end
+			return false, "no Continue"
+		end
+		if not H.continued then error("a new run started, not a Continue") end
+		if soft then P("INFO", ctx.name, "after Continue: player seeds", seeds(), "before the exit", b.seeds) return true end
+		return seeds() == b.seeds, "players " .. seeds() .. ", want " .. b.seeds
+	end, CONTINUE_TIMEOUT)
+end
+
+local continued = { "exit and Continue", exitAndContinue(true), nil, CONTINUE_STEP_LIMIT }
+
+-- The user's own step: the user walks onto pedestals by hand (e58d1b3), as a teleport never touched in game (lua-api-notes.md) and a
+-- scripted walk is not wanted; `act` once, then up to 450 updates for `done(p)`, the label on its own screen line.
+local function handStep(label, act, done)
+	return action(label, act, function(ctx)
+		local p = Isaac.GetPlayer(0)
+		if not done(p) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) end
+		P("INFO", ctx.name, label, "after", ctx.t, "updates |", slots(p), "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART))
+		return true
+	end, 450)
+end
+local dropByHand = handStep("YOU: walk onto the yum-heart pedestal", function()
+	local p = Isaac.GetPlayer(0)
+	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
+	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, p.Position + Vector(80, 0), Vector(0, 0), nil)
+end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 end)
+local pickByHand = handStep("YOU: step off, then walk back onto the Esau Jr. pedestal", function() end, function(p) return owned(p, ESAU_JR) > 0 end)
+
+return { exitAndContinue = exitAndContinue, continued = continued, dropByHand = dropByHand, pickByHand = pickByHand }

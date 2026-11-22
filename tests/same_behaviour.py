@@ -42,6 +42,9 @@ WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:li
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
 ENTRY = re.compile(r"^(PROBE (?:OBS u\d+ after .*?: )?ENTRY )\d+ ")
+# Runs whose HEAD logs differ between runs of HEAD itself beyond ENTRY order: only their RESULT lines are compared. Untagged keys share a
+# seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs).
+VOLATILE = {f"untagged ({dry.FINAL_MODE})"}
 
 
 def show(path):
@@ -100,6 +103,8 @@ def main(path):
     failed = 0
     for k, (name, _) in enumerate(CONFIGS):
         base, new = logs[2 * k], logs[2 * k + 1]
+        if name in VOLATILE:
+            base, new = ([s for s in log if s.startswith("PROBE RESULT ")] for log in (base, new))
         i = first_difference(base, new)
         if i is None:
             print(f"SAME {name}: {len(new)} lines")

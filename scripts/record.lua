@@ -2,10 +2,10 @@
 -- and timing, ids and Inner Eye lines. HARNESS.record holds the trace and the timing watches.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
-local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots = engine.ITEM_IDS, engine.floorName, engine.seedOf, engine.owned,
-	engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots
+local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots, findPlayer = engine.ITEM_IDS, engine.floorName, engine.seedOf,
+	engine.owned, engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots, engine.findPlayer
 local rehud = include("scripts.rehud")
-local dbg, entries, tagText, storedSettling = rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling
+local dbg, entries, tagText, storedSettling, keyOf = rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling, rehud.keyOf
 local info = include("scripts.steps").info
 local enums = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
@@ -80,9 +80,8 @@ end
 local function start() HARNESS.record.trace = { u = 0, step = "start" } end
 -- A trace in a test with assertions: its presses keep the checked swap rule.
 local function startChecked() HARNESS.record.trace = { u = 0, step = "start", checked = true } end
--- A fixture test's trace starts once its fixture is done.
-local function onFixtureDone(test)
-	if not test.traceUpdates then return end
+-- A traceUpdates test's trace starts once its fixture is done.
+local function onTraceStarts(test)
 	if test.snapshot then start() else startChecked() end
 end
 -- Later TRACE lines say they follow step `tag`.
@@ -100,22 +99,32 @@ local typeNow = info("player 0 type", function(p) return p:GetPlayerType() end)
 local playerCount = info("players in game", function() return game:GetNumPlayers() end)
 local storedSettlingNow = info("stored forms still settling", storedSettling)
 
--- Seeds as labels A, B, C... in first-seen order within the scenario.
-local function tagOf(ctx, seed)
-	local t = ctx.tags or { n = 0 }
-	ctx.tags = t
-	if not t[seed] then t.n = t.n + 1; t[seed] = string.char(64 + t.n) end
-	return t[seed]
+-- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions. `kind`'s values get labels in
+-- first-seen order within the test: entities (by GetPtrHash) A, B..., other kinds kind1, kind2...
+local function labelOf(ctx, kind, value)
+	if value == nil then return "none" end
+	ctx.snapLabels = ctx.snapLabels or {}
+	local t = ctx.snapLabels[kind] or { n = 0 }
+	ctx.snapLabels[kind] = t
+	if not t[value] then
+		t.n = t.n + 1
+		t[value] = kind ~= "entity" and (kind .. t.n) or t.n <= 26 and string.char(64 + t.n) or ("E" .. t.n)
+	end
+	return t[value]
 end
+-- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (lua-api-notes.md).
+local function label(ctx, e) return e and labelOf(ctx, "entity", GetPtrHash(e)) or "none" end
 
--- Every GetPlayer index as index:label(type); a seed first seen here also shows its value.
+-- Every GetPlayer index as index:label(type), each character labelled by its entity as the snapshot labels it (bug 7: seeds are shared);
+-- an entity first seen in a lineup also shows its seed.
 local function lineup(ctx)
+	ctx.lineupSeen = ctx.lineupSeen or {}
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
-		local s = seedOf(p)
-		local new = not (ctx.tags and ctx.tags[s])
-		t[#t + 1] = i .. ":" .. tagOf(ctx, s) .. "(t" .. p:GetPlayerType() .. ")" .. (new and ("=" .. s) or "")
+		local h = GetPtrHash(p)
+		t[#t + 1] = i .. ":" .. label(ctx, p) .. "(t" .. p:GetPlayerType() .. ")" .. (ctx.lineupSeen[h] and "" or ("=" .. seedOf(p)))
+		ctx.lineupSeen[h] = true
 	end
 	return table.concat(t, " ")
 end
@@ -143,19 +152,20 @@ local function timingSee(p)
 end
 local function onPlayerUpdate(_, p) timingSee(p) end
 
--- A swap step plus its verdict line: who holds `index` after it (by label, new or returned) and the whole lineup before and after.
--- `timed` also starts timingSee.
-local function verdict(label, step, index, timed)
+-- A swap step plus its verdict line: who holds `index` after it (by entity label, new or returned) and the whole lineup before and
+-- after. `timed` also starts timingSee.
+local function verdict(press, step, index, timed)
 	index = index or 0
 	return function(ctx)
 		if not ctx.t then
-			ctx.vBefore, ctx.vSeed, ctx.vType, ctx.vSeeds = lineup(ctx), seedOf(Isaac.GetPlayer(index)), Isaac.GetPlayer(index):GetPlayerType(), {}
-			for i = 0, game:GetNumPlayers() - 1 do ctx.vSeeds[seedOf(Isaac.GetPlayer(i))] = i end
+			local presser = Isaac.GetPlayer(index)
+			ctx.vBefore, ctx.vHash, ctx.vType, ctx.vAt = lineup(ctx), GetPtrHash(presser), presser:GetPlayerType(), {}
+			for i = 0, game:GetNumPlayers() - 1 do ctx.vAt[GetPtrHash(Isaac.GetPlayer(i))] = i end
 			if timed then
 				local R = HARNESS.record
 				R.timing = R.timing or {}
-				table.insert(R.timing, { index = index, seed = ctx.vSeed, label = label })
-				P("INFO", ctx.name, "TIMING", label, "pressed at frame", game:GetFrameCount())
+				table.insert(R.timing, { index = index, seed = seedOf(presser), label = press })
+				P("INFO", ctx.name, "TIMING", press, "pressed at frame", game:GetFrameCount())
 			end
 		end
 		local r = step(ctx)
@@ -166,21 +176,33 @@ local function verdict(label, step, index, timed)
 		end
 		if r == "again" then return r end
 		local p = Isaac.GetPlayer(index)
-		local s = p and seedOf(p)
-		local known = s and ctx.tags[s]
+		local h = p and GetPtrHash(p)
+		local known = h and ctx.lineupSeen[h]
 		local after = lineup(ctx)
 		local what
 		if not p then what = "nobody"
-		elseif s == ctx.vSeed then
+		elseif h == ctx.vHash then
 			local t = p:GetPlayerType()
 			what = "unchanged" .. (t ~= ctx.vType and (" (t" .. ctx.vType .. "->" .. t .. ")") or "")
-		elseif ctx.vSeeds[s] then what = tagOf(ctx, s) .. " moved from " .. ctx.vSeeds[s] -- a Birthright Flip swaps the twins' indices
-		else what = tagOf(ctx, s) .. (known and " returned" or " new") end
-		P("INFO", ctx.name, "VERDICT", label, "index", index, tagOf(ctx, ctx.vSeed), "->", what, "|", ctx.vBefore, "->", after)
+		elseif ctx.vAt[h] then what = label(ctx, p) .. " moved from " .. ctx.vAt[h] -- a Birthright Flip swaps the twins' indices
+		else what = label(ctx, p) .. (known and " returned" or " new") end
+		P("INFO", ctx.name, "VERDICT", press, "index", index, labelOf(ctx, "entity", ctx.vHash), "->", what, "|", ctx.vBefore, "->", after)
 	end
 end
 
 local slotsNow = info("player 0 slots", slots)
+
+-- Each player's Parent (as a GetPlayer index), ControllerIndex and ReHUD key and number: which character a temporary one's number follows.
+local function helpersInfo(what)
+	return function(ctx)
+		for i = 0, game:GetNumPlayers() - 1 do
+			local p = Isaac.GetPlayer(i)
+			local parent = p.Parent and select(2, findPlayer(function(q) return GetPtrHash(q) == GetPtrHash(p.Parent) end))
+			P("INFO", ctx.name, "HELPERS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
+				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(dbg().roster.number(keyOf(p))))
+		end
+	end
+end
 
 -- Every vanilla per-entity id of each player, each read pcall'd; twins as the GetPlayer index whose GetPtrHash matches
 -- (no method is called on a returned twin but GetPtrHash).
@@ -224,22 +246,6 @@ local function innerWatch(ctx)
 end
 local function innerOn(ctx) ctx.innerWatch = true end
 local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER " .. what, innerLine()) end end
-
--- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions. `kind`'s values get labels in
--- first-seen order within the test: entities (by GetPtrHash) A, B..., other kinds kind1, kind2...
-local function labelOf(ctx, kind, value)
-	if value == nil then return "none" end
-	ctx.snapLabels = ctx.snapLabels or {}
-	local t = ctx.snapLabels[kind] or { n = 0 }
-	ctx.snapLabels[kind] = t
-	if not t[value] then
-		t.n = t.n + 1
-		t[value] = kind ~= "entity" and (kind .. t.n) or t.n <= 26 and string.char(64 + t.n) or ("E" .. t.n)
-	end
-	return t[value]
-end
--- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (lua-api-notes.md).
-local function label(ctx, e) return e and labelOf(ctx, "entity", GetPtrHash(e)) or "none" end
 
 local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
 
@@ -285,8 +291,8 @@ local function snapStep(ctx, step, reached)
 end
 
 return {
-	logState = logState, update = update, start = start, startChecked = startChecked, onFixtureDone = onFixtureDone, stepBegins = stepBegins,
+	logState = logState, update = update, startChecked = startChecked, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
 	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
-	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
+	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, helpersInfo = helpersInfo, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
 	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep,
 }

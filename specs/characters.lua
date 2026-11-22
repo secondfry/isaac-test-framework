@@ -1,7 +1,7 @@
 -- Characters added for a while, duos and Birthright (plan S4).
 local P = include("scripts.log").P
 local engine = include("scripts.game")
-local ofType, owned, withParent, findPlayer, heldItems = engine.ofType, engine.owned, engine.withParent, engine.findPlayer, engine.heldItems
+local ofType, owned, withParent, heldItems = engine.ofType, engine.owned, engine.withParent, engine.heldItems
 local rehud = include("scripts.rehud")
 local dbg, entries, keyOf, countEntries, leftEntries = rehud.dbg, rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries
 local wait = include("scripts.wait")
@@ -15,58 +15,25 @@ local assertions = include("scripts.assert")
 local expect, expectN, expectCount, oneC4, twoC4, birthrightOwners = assertions.expect, assertions.expectN, assertions.expectCount,
 	assertions.oneC4, assertions.twoC4, assertions.birthrightOwners
 local record = include("scripts.record")
-local verdict, ids, startRecord = record.verdict, record.ids, record.start
+local verdict, ids, helpersInfo = record.verdict, record.ids, record.helpersInfo
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
 local press = include("scripts.press")
 local flip, soulJE, birthrightFlip, deadFirst = press.flip, press.soulJE, press.birthrightFlip, press.deadFirst
 local jrSteps = include("scripts.esau_jr_steps")
 local jrPair, flipV = jrSteps.jrPair, jrSteps.flipV
-local tlazFlipped = include("scripts.fixtures").tlazFlipped
+local fixtures = include("scripts.fixtures")
+local fixture = fixtures.fixture
+local snapshotTest = include("scripts.snapshot").test
 local named = include("scripts.characters").named
 local enums = include("scripts.ids")
-local FLIP, ESAU_JR, BIRTHRIGHT, STRAWMAN = enums.FLIP, enums.ESAU_JR, enums.BIRTHRIGHT, enums.STRAWMAN
-local T_LAZ, DEAD_T_LAZ, ISAAC, KEEPER, ESAU = enums.T_LAZ, enums.DEAD_T_LAZ, enums.ISAAC, enums.KEEPER, enums.ESAU
+local FLIP, BIRTHRIGHT, STRAWMAN = enums.FLIP, enums.BIRTHRIGHT, enums.STRAWMAN
+local ISAAC, DEAD_T_LAZ, KEEPER, ESAU = enums.ISAAC, enums.DEAD_T_LAZ, enums.KEEPER, enums.ESAU
 
 local game = Game()
 
--- A fixture's done: player 0 is of type `t`.
-local function playerIs(t)
-	return function()
-		local got = Isaac.GetPlayer(0):GetPlayerType()
-		return got == t, "player 0 is type " .. got
-	end
-end
 local function keeperPresent() return withParent(KEEPER) ~= nil, "no Strawman Keeper" end
-
--- shortcut: STEP_LIMIT, soft and snapshotTest copy legacy.lua's obs and obsScenario (strict only); move them to a shared module once
--- the other specs' snapshot tests need them too (S4 merge).
-local STEP_LIMIT, TEST_LIMIT, CONTINUE_TEST_LIMIT = 120, 445, 1000
-
--- A snapshot test's step: tags later TRACE lines with `label`; its error, or its limit passed, logs "never happened" and ends the test.
-local function soft(label, step, when, limit)
-	local manualStep = type(step) == "table" and step
-	return { label = label, run = manualStep and manualStep.run or step, manual = manualStep and manualStep.manual or nil, when = when,
-		limit = limit or STEP_LIMIT }
-end
-
--- A snapshot test: its fixture's `setup` steps and a settle wait, then the trace, then `stepPairs` ({ label, step, when, limit } or
--- lists of them), each soft and numbered, then a last settle wait.
-local function snapshotTest(name, tags, setup, done, stepPairs, limit)
-	local fixtureSteps, all, n = {}, { startRecord }, 0
-	for _, s in ipairs(setup) do fixtureSteps[#fixtureSteps + 1] = soft("setup " .. (#fixtureSteps + 1), s) end
-	fixtureSteps[#fixtureSteps + 1] = soft("setup settle", settled)
-	local list = { table.unpack(stepPairs) }
-	list[#list + 1] = { "settle", settled }
-	for _, s in ipairs(list) do
-		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
-			n = n + 1
-			all[#all + 1] = soft(n .. " " .. pair[1], pair[2], pair[3], pair[4])
-		end
-	end
-	return { name = name, tags = tags, fixture = { name = name, setup = fixtureSteps, done = done }, steps = all, snapshot = true,
-		onStepError = "end", limit = limit or TEST_LIMIT }
-end
+local STRICT, STRICT_CONTINUE = { strict = true }, { strict = true, limit = 1000 } -- 600 of the latter's updates are the user's Exit & Continue
 
 -- Soul of Jacob and Esau's Esau after a room change: logs the transition, the room once it changes, every 10 updates while he stays,
 -- and when he goes; still present after 150 updates, a note.
@@ -107,18 +74,6 @@ local function esauLeaves(ctx)
 	return "again"
 end
 
--- Each player's Parent (as a GetPlayer index), ControllerIndex and ReHUD key and number: which character a temporary one's number follows.
-local function helpersInfo(what)
-	return function(ctx)
-		for i = 0, game:GetNumPlayers() - 1 do
-			local p = Isaac.GetPlayer(i)
-			local parent = p.Parent and select(2, findPlayer(function(q) return GetPtrHash(q) == GetPtrHash(p.Parent) end))
-			P("INFO", ctx.name, "HELPERS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
-				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(dbg().roster.number(keyOf(p))))
-		end
-	end
-end
-
 -- The Keeper killed: whether it leaves GetPlayer, and where ReHUD puts its items (ReHUD reads it as a merge, roster.lua shortcut).
 local killKeeper = act("Kill the Strawman Keeper", function(ctx)
 	local k = withParent(KEEPER)
@@ -142,14 +97,14 @@ local REHUD_2_8 = { "characters", "rehud", "rehud-2.8" }
 
 return { name = "characters", tests = {
 	{ name = "Birthright twins keep their items through two Flips and a new floor", tags = CHECKED,
-		fixture = { name = "Tainted Lazarus flipped", setup = tlazFlipped(), done = playerIs(DEAD_T_LAZ) }, steps = {
+		fixture = fixtures.FLIPPED, steps = {
 			give(BIRTHRIGHT, 2), look("after Birthright", birthrightOwners),
 			flip("Flip 1 of 2"), look("after Flip 1", birthrightOwners), flip("Flip 2 of 2"), look("after two Flips", birthrightOwners),
 			stage(3), look("on stage 3", birthrightOwners),
 		} },
 	-- Run 7: Dead Tainted Lazarus, number 1, holds c711 from Basement II.
 	{ name = "removing Birthright stores Dead Tainted Lazarus, and Flip brings him back", tags = CHECKED,
-		fixture = { name = "Tainted Lazarus on floor 2", setup = { fresh(T_LAZ), give(4), stage(2) }, done = playerIs(T_LAZ) }, steps = {
+		fixture = fixtures.TLAZ_C4_FLOOR_2, steps = {
 			look("after c4", oneC4),
 			give(BIRTHRIGHT, 2), look("after Birthright", function(ctx, label)
 				oneC4(ctx, label)
@@ -169,7 +124,7 @@ return { name = "characters", tests = {
 			end),
 		} },
 	{ name = "temporary Esau from Soul of Jacob and Esau keeps his own items", tags = CHECKED,
-		fixture = { name = "Isaac with two c4 on floor 2", setup = { fresh(ISAAC), give(4), give(4), stage(2) }, done = playerIs(ISAAC) }, steps = {
+		fixture = fixture("Isaac with two c4 on floor 2", { fresh(ISAAC), give(4), give(4), stage(2) }, ISAAC), steps = {
 			look("before Soul of Jacob and Esau", twoC4),
 			addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
 			-- ReHUD 2.8 lists the summoned Esau (user decision 2026-11-22): his c1 under him.
@@ -191,8 +146,7 @@ return { name = "characters", tests = {
 		} },
 	-- The summoned Esau (type 20, a Parent) has a number while present and none once he is gone; whether a room change takes him is recorded.
 	{ name = "temporary Esau has a number until he leaves", tags = REHUD_2_8, limit = 350,
-		fixture = { name = "Isaac holding Soul of Jacob and Esau", setup = { fresh(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB) },
-			done = playerIs(ISAAC) }, steps = {
+		fixture = fixture("Isaac holding Soul of Jacob and Esau", { fresh(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB) }, ISAAC), steps = {
 			soulJE, named("Esau", ESAU),
 			lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", dbg().roster.number(keyOf(withParent(ESAU))) ~= nil, true) end),
 			esauLeaves, lookC("after Esau left", function(ctx, label)
@@ -202,18 +156,18 @@ return { name = "characters", tests = {
 			end),
 		} },
 	-- Review question (2026-11-22): the harness's GetData tag through Flip.
-	snapshotTest("harness tag on Tainted Lazarus through Flip", REHUD_2_8, { fresh(T_LAZ), give(4) }, playerIs(T_LAZ), {
-		{ "Flip", verdict("Flip", flip("Flip")) }, { "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }),
-	snapshotTest("Strawman's Keeper killed", REHUD_2_8, { fresh(ISAAC), give(4), give(STRAWMAN),
-		condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), giveType(5, KEEPER) }, keeperPresent, {
+	snapshotTest("harness tag on Tainted Lazarus through Flip", REHUD_2_8, fixtures.TLAZ_C4, {
+		{ "Flip", verdict("Flip", flip("Flip")) }, { "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT),
+	snapshotTest("Strawman's Keeper killed", REHUD_2_8, { name = "Isaac with Strawman's Keeper holding c5", setup = { fresh(ISAAC), give(4),
+		give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), giveType(5, KEEPER) }, done = keeperPresent }, {
 		{ "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
-		{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }),
+		{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT),
 	-- Which id tells the two Birthright twins apart and stays stable across Flip, Esau Jr. and Exit & Continue?
 	snapshotTest("ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue", { "characters", "rehud", "obs", "obsy-b", "exit-continue" },
-		{ fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) }, playerIs(T_LAZ), {
+		fixtures.TLAZ_JR_TWINS, {
 		{ "ids after Birthright", ids("after Birthright") },
 		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },
 		{ "select type-29 twin", birthrightFlip, deadFirst }, jrPair("Esau Jr. #1"), { "ids after Esau Jr. #1", ids("after Esau Jr. #1") },
 		jrPair("Esau Jr. #2"), { "ids after Esau Jr. #2", ids("after Esau Jr. #2") }, continued, { "ids after Continue", ids("after Continue") },
-		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", ids("after Flip after Continue") } }, CONTINUE_TEST_LIMIT),
+		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", ids("after Flip after Continue") } }, STRICT_CONTINUE),
 } }

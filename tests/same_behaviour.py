@@ -76,18 +76,21 @@ BOTH = [
 DROP = [("D4", r"^PROBE SNAP ")]  # snapshot lines are new
 NEW_SIDE = [("S4.0 tags", r"^(PROBE TEST START .*?) \| tags .*$", r"\1")]  # TEST START names the test's tags for report.json
 MASKS = [
-    # its look is built once, not by a step: G's frames and trace updates come one update sooner
+    # its look is built once, not by a step: G's frames and trace updates come one update sooner (measured: 23 TRACE and 2 INNER frame lines)
     ("D6", "final G Jacob and Esau Clicker split", r"frame \d+|TRACE u\d+"),
     *(a for a in MODULE_ALLOW if a[2] is not None),
 ]
 UNCOMPARED = {a[1] for a in MODULE_ALLOW if a[2] is None}
+# A trace started before its test's restart first records the previous test's run, which moving tests changed: those TRACE lines,
+# before the test's first GAME START, are dropped in both (measured: final F's lines after it match).
+PRE_RUN = [("D2", "final F Flip partners")]
 # D7 moves tests: FIRST rewrites a test's first ACTION line in both (its restart names the type the test before it left); OUTSIDE drops
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
 FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
 # The session's first run is first seen before the first test starts: HEAD logged no test name there (nil), now the first test's.
 OUTSIDE_NAME = [("CHAR name", r"^PROBE INFO .*? CHAR (\d+) first seen ", r"PROBE INFO <first test> CHAR \1 first seen ")]
-ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME + [a for a in MODULE_ALLOW if a[2] is None]
+ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME + PRE_RUN + [a for a in MODULE_ALLOW if a[2] is None]
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -96,8 +99,10 @@ PASSED = re.compile(r"^PROBE RESULT (.*) PASS (\d+) assertions")
 START = re.compile(r"^PROBE TEST START (.*)$")
 SKIPPED = re.compile(r"^PROBE RESULT (.*) SKIP$")  # as BOTH leaves a SKIP
 # Runs whose HEAD logs differ between runs of HEAD itself beyond ENTRY order: only their RESULT lines are compared. Untagged keys share a
-# seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs).
-VOLATILE = {f"untagged ({FINAL_MODE})"}
+# seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs). D2: with commands run every
+# 200 updates, a test's progress depends on where the session's update count stands when it starts, which moving tests between specs
+# and SKIPs taking no update changed (measured: obsx Clicker with Birthright reaches another step by its test limit).
+VOLATILE = {f"untagged ({FINAL_MODE})", "obsx slow render"}
 # The new stub's run start (tests/stub/api.lua startRun, rehud.lua resetFakeReHUD), patched into HEAD's stub.lua as it loads.
 BASE_RUN = "  if not cont then\n"
 BASE_RESET = BASE_RUN + "    seedN, frame, settle = 100, 0, {}\n"
@@ -159,8 +164,12 @@ def by_test(log):
     masks = {}
     for _, test, regex in MASKS:
         masks.setdefault(test, []).append(re.compile(regex))
+    pre_run = {test for _, test in PRE_RUN}
     for name, segments in tests.items():
         for k, seg in enumerate(segments):
+            if name in pre_run:
+                start = next((i for i, s in enumerate(seg) if s.startswith("PROBE GAME START")), len(seg))
+                seg = [s for i, s in enumerate(seg) if i >= start or not s.startswith("PROBE TRACE ")]
             for m in masks.get(name, []):
                 seg = [m.sub("<allowed>", s) for s in seg]
             first = next((i for i, s in enumerate(seg) if s.startswith("PROBE ACTION ")), None)

@@ -13,8 +13,16 @@ WANT = {
     "regressions > r1": "PASS 27 assertions",
     "regressions > r1 mirror": "PASS 18 assertions",
 }
-# The fixture's done poll and fixtureDone step take two updates before the first look, so its settle wait ends two updates sooner.
-ALLOW = [("D2", "S3", r"(?<=^PROBE SETTLED before Clicker after )\d+"), ("D2", "r1", r"(?<=^PROBE SETTLED before after )\d+")]
+
+
+def test_regressions_lines(path):
+    mode = "tags regressions"
+    log = dry.run(path, mode=mode)
+    dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
+    # A press that brings back a character on the presser's seed is the presser's stored drop, not the returned one's charge
+    swaps = [s for s in dry.segment(log, f"regressions > {P4C[1]}") if s.startswith("PROBE SWAP Flip of the form ")]
+    assert swaps and all(" spent stored presser charge, " in s for s in swaps), swaps
+    print(f"PASS {mode}: verdicts, the Esau Jr. character's Flip spends its stored drop")
 
 
 def test_tlaz_roll_29(path):
@@ -24,4 +32,4 @@ def test_tlaz_roll_29(path):
     print("PASS Clicker rolling 29:", got["regressions > S3"])
 
 
-TESTS = [test_tlaz_roll_29]
+TESTS = [test_regressions_lines, test_tlaz_roll_29]

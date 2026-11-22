@@ -12,8 +12,6 @@ WANT = {
     f"item_copies > {BILL}": "PASS 17 assertions",
     f"item_copies > {S2}": "PASS 29 assertions",
 }
-# D2: the fresh run is a fixture now, whose setup and done poll take 2 updates before the first look, so it settles 2 updates sooner
-ALLOW = [("D2", old, r"SETTLED start after \d+ updates") for old in ("S1", "S2")]
 
 
 def test_item_copies(path):

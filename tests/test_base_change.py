@@ -27,10 +27,10 @@ WANT = {
     f"{SPEC} > {NAMES['obsx merge 38 to 29 then Flip'][0]}": "RECORDED",
     f"{SPEC} > {NAMES['obsx merge 29 to 38 then Esau Jr.'][0]}": "RECORDED",
 }
-# The plan's first fired assertion, "a vetoed Clicker fires no MC_USE_ITEM", adds an INFO line and turns RECORDED into PASS; a fixture's
-# done poll and its trace start take an update each, so test3's first look waits two updates less for ReHUD's settle.
+# The plan's first fired assertion, "a vetoed Clicker fires no MC_USE_ITEM", adds an INFO line and turns RECORDED into PASS. D2: the
+# fixture's done poll is a step, so a failed step's index is one higher (press ignored, no spend).
 ALLOW = [("plan fired", "obsx cancelled Clicker", None), ("plan fired", "obsx cancelled Clicker then change", None),
-         ("plan fixture", "test3", r"SETTLED before ChangePlayerType after \d+ updates")]
+         ("D2", "P2", r"(?<=error in step )\d+")]
 
 
 def test_base_change_lines(path):

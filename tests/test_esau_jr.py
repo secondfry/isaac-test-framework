@@ -48,12 +48,13 @@ CHECKED = {  # the tests with assertions, by old name: their PASS counts (every 
 }
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
 WANT = {f"esau_jr > {new}": f"PASS {CHECKED[old]} assertions" if old in CHECKED else "RECORDED" for old, news in NAMES.items() for new in news}
-# D2: a checked test's fixture poll and done step add two updates before its steps, so ReHUD's settle count at its first look (and, in
-# final B, at the stored Isaac's return) and final F's trace update numbers shift; the snapshot tests' fixtures wait for the settle in
-# place of the old settle step, so their lines stay the same.
+# Bug 7: VERDICT lines label characters by entity (GetPtrHash), not seed. D2: the fixture's done poll is a step, so a failed step's index
+# is one higher (press ignored, no spend). Final F's trace starts in its setup, before the restart, so its first lines record the
+# previous test's run, which the moves changed: same_behaviour drops them (PRE_RUN).
 ALLOW = [
-    *(("D2", old, r"after \d+ updates stored settling.*$") for old in ("P4a", "S4", "final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up")),
-    ("D2", "final F Flip partners", r"TRACE u\d+"),
+    *(("bug 7", old, r"(?<= VERDICT ).*$") for old in ("obsy a Dead form after A lost", "final I Birthright twins Esau Jr.", "final L flipped cross",
+                                                       "final M original loses Esau Jr.")),
+    *(("D2", old, r"(?<=error in step )\d+") for old in ("P4a", "S4", "final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up")),
 ]
 OBSY = [NAMES[old][0] for old in NAMES if old.startswith("obsy ")]
 MODE = "tags esau_jr"  # every test here, final F (opt-in) included
@@ -63,23 +64,10 @@ def test_esau_jr(path):
     log = dry.run(path, mode=MODE)
     dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
 
-    def infos(test):
-        prefix = f"PROBE INFO esau_jr > {test} "
-        return [s[len(prefix):] for s in log if s.startswith(prefix)]
-    info = {test: infos(test) for test in OBSY}
+    info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in OBSY])
 
     def has(test, text):
-        return any(text in s for s in info[test])
-    for test in OBSY:  # every obsy test reaches its last press and names who holds the pressed index
-        assert has(test, "VERDICT ") and not has(test, "never happened"), test
-    for test in OBSY:  # each Esau Jr. press logs its character's first update
-        for v in (s for s in info[test] if s.startswith("VERDICT Esau Jr.")):
-            if " -> unchanged" in v:  # a fresh copy's character on the presser's seed: its TIMING watch is dropped (same-seed press)
-                continue
-            label = v[len("VERDICT "):].split(" index ")[0]
-            assert has(test, f"TIMING {label} frame ") and has(test, f"TIMING {label} pressed at frame "), v
-    timing = [(test, s.split(" index ")[0]) for test in OBSY for s in info[test] if s.startswith("TIMING ") and " frame " in s and " pressed at " not in s]
-    assert timing and len(timing) == len(set(timing)), "a TIMING frame logged twice"
+        return any(text in s for s in info[f"esau_jr > {test}"])
     by_esau = "Esau Jr. presses by Esau"
     assert has(by_esau, "VERDICT Esau Jr. #1 index 1 B -> C new | 0:A(t19)=")
     assert has(by_esau, "index 1 type ") and has(by_esau, " primary 105 c703 owned 0")

@@ -174,6 +174,29 @@ def expect_results(got, label, want, why=None, names=()):
             assert got[name] == want[name], f"{label}: {name}: {got[name]}"
 
 
+def infos(log, name):
+    """The INFO lines of test `name` (its full name), after its `PROBE INFO <name> `."""
+    prefix = f"PROBE INFO {name} "
+    return [s[len(prefix):] for s in log if s.startswith(prefix)]
+
+
+def check_verdicts(log, names):
+    """Each test in `names` (full names) reaches its last press and names who holds the pressed index (VERDICT), each Esau Jr. press
+    logs its character's first updates (TIMING) unless it kept the presser's seed (its watch is dropped), and no TIMING frame is
+    logged twice. Returns each test's INFO lines."""
+    info = {name: infos(log, name) for name in names}
+    for name, lines in info.items():
+        assert any(s.startswith("VERDICT ") for s in lines) and not any("never happened" in s for s in lines), name
+        for v in (s for s in lines if s.startswith("VERDICT Esau Jr.")):
+            label = v[len("VERDICT "):].split(" index ")[0]
+            if any(s.startswith(f"{label} ") and " same seed " in s for s in lines):
+                continue
+            assert any(s.startswith(f"TIMING {label} frame ") for s in lines) and any(s.startswith(f"TIMING {label} pressed at frame ") for s in lines), v
+    timing = [(name, s.split(" index ")[0]) for name, lines in info.items() for s in lines if s.startswith("TIMING ") and " pressed at " not in s]
+    assert timing and len(timing) == len(set(timing)), "a TIMING frame logged twice"
+    return info
+
+
 def segment(log, name):
     """The lines of test `name` (its full name), TEST START to RESULT."""
     i = next(k for k, s in enumerate(log) if s.startswith(f"PROBE TEST START {name} | tags "))

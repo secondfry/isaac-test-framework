@@ -5,8 +5,7 @@ local engine = include("scripts.game")
 local seedOf, ofType, owned, slots, itemCounts, countsText = engine.seedOf, engine.ofType, engine.owned, engine.slots, engine.itemCounts,
 	engine.countsText
 local rehud = include("scripts.rehud")
-local dbg, keyOf, leftEntries, settling = rehud.dbg, rehud.keyOf, rehud.leftEntries, rehud.settling
-local stuck = include("scripts.runner").stuck
+local dbg, keyOf, leftEntries = rehud.dbg, rehud.keyOf, rehud.leftEntries
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
 local steps_ = include("scripts.steps")
@@ -30,7 +29,8 @@ local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, re
 	jrSteps.rememberOriginal, jrSteps.rememberForm, jrSteps.controlPresses, jrSteps.replaceEsauJr, jrSteps.useClickerEffect, jrSteps.jrPair,
 	jrSteps.flipV, jrSteps.charPresses, jrSteps.esauLoses
 local fixtures = include("scripts.fixtures")
-local jrSetup, tlazJr, tlazFlips = fixtures.jrSetup, fixtures.tlazJr, fixtures.tlazFlips
+local fixture, holding, TLAZ_JR, TLAZ_FLIPS = fixtures.fixture, fixtures.holdingJr, fixtures.TLAZ_JR, fixtures.TLAZ_FLIPS
+local test = include("scripts.snapshot").test
 local characters = include("scripts.characters")
 local track, named, who, whoInfo, merged = characters.track, characters.named, characters.who, characters.whoInfo, characters.merged
 local enums = include("scripts.ids")
@@ -41,58 +41,14 @@ local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, T_FORGOTTEN, ESAU, PRIMARY, SECONDARY = e
 
 local game = Game()
 
--- A checked test's fixture is done once player 0 is of type `t`.
-local function typeIs(t)
-	return function()
-		local got = Isaac.GetPlayer(0):GetPlayerType()
-		return got == t, "player 0 is type " .. got .. ", want " .. t
-	end
-end
-
--- A snapshot test's fixture is done once ReHUD has settled, capped at 120 updates (settle.settled's wait, so its trace starts settled).
--- shortcut: settle.settled's poll in fixture form; move it to settle.lua once another spec needs it.
-local function settledDone(ctx)
-	ctx.settle = (ctx.settle or 0) + 1
-	local busy = settling()
-	if busy and ctx.settle < 120 then stuck(ctx, ctx.settle, "settle") return false, "ReHUD still settling " .. busy end
-	P("INFO", ctx.name, "settle wait ended after", ctx.settle, "updates", busy and ("still settling " .. busy) or "settled")
-	ctx.settle = nil
-	return true
-end
-
 -- Snapshot test kinds: their tags, and whether a step is strict (obsx, obsy, final I-M): it has a limit, and its miss ends the test, so
--- later presses cannot run on the wrong setup; a soft one (obs) is logged and skipped. A strict test stops at 445 updates, setup
--- included (README budgets).
-local STEP_LIMIT, TEST_LIMIT = 120, 445
+-- later presses cannot run on the wrong setup; a soft one (obs) is logged and skipped.
 local SOFT = { tags = { "esau_jr", "rehud", "obs" } }
 local OBSX = { tags = { "esau_jr", "rehud", "obs", "obsx" }, strict = true }
 local OBSY_A = { tags = { "esau_jr", "rehud", "obs", "obsy-a" }, strict = true }
 local OBSY_B = { tags = { "esau_jr", "rehud", "obs", "obsy-b" }, strict = true }
 local FINAL = { tags = { "esau_jr", "rehud", "rehud-2.8" }, strict = true }
-
--- A snapshot test's step: tags later TRACE lines with `label`, unique within its test.
-local function soft(kind, label, step, when, limit)
-	return { label = label, run = step, when = when, limit = kind.strict and (limit or STEP_LIMIT) or nil }
-end
-
--- A snapshot test: fixture `f` ({ name, setup }, setup a flat list; a strict test's setup steps labelled "setup <n>") until ReHUD settles, the trace,
--- then `steps` as { label, step, when, limit } pairs (or lists of pairs), each numbered, and a last settle wait.
-local function snapshotTest(kind, name, f, steps)
-	local setup, list = {}, {}
-	for i, s in ipairs(f.setup) do setup[i] = kind.strict and soft(kind, "setup " .. i, s) or s end
-	local all = { table.unpack(steps) }
-	all[#all + 1] = { "settle", settled }
-	for _, s in ipairs(all) do
-		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
-			list[#list + 1] = soft(kind, (#list + 1) .. " " .. pair[1], pair[2], pair[3], pair[4])
-		end
-	end
-	return { name = name, tags = kind.tags, fixture = { name = f.name, setup = setup, done = settledDone }, steps = list, snapshot = true,
-		traceUpdates = true, onStepError = kind.strict and "end" or "skip", limit = kind.strict and TEST_LIMIT or nil }
-end
-
-local function holding(character, t) return { name = character .. " holding Esau Jr.", setup = jrSetup(t) } end
-local TLAZ_JR = { name = "Tainted Lazarus holding Esau Jr.", setup = tlazJr() }
+local function snapshotTest(kind, name, f, steps) return test(name, kind.tags, f, steps, kind) end
 
 -- Jacob's c4 and Esau's c5, both from floor 1, each under its owner.
 local function jeCopies(ctx, label)
@@ -129,7 +85,7 @@ local CHECKED_FINAL = { "esau_jr", "rehud", "rehud-2.8" }
 
 local tests = {
 	{ name = "Tainted Lazarus keeps one c4 through two Esau Jr. presses", tags = CHECKED,
-		fixture = { name = "Tainted Lazarus holding Esau Jr. on floor 2", setup = { tlazJr(), stage(2) }, done = typeIs(T_LAZ) }, steps = {
+		fixture = fixtures.TLAZ_JR_FLOOR_2, steps = {
 		look("after c4", oneC4), esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
 	} },
 	snapshotTest(SOFT, "Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back", TLAZ_JR,
@@ -213,8 +169,8 @@ local tests = {
 	snapshotTest(OBSY_B, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", PlayerType.PLAYER_JACOB_B), charPresses()),
 	snapshotTest(OBSY_B, "Esau Jr. presses by Eden", holding("Eden", PlayerType.PLAYER_EDEN), charPresses()),
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).
-	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = CHECKED, fixture = { name = "Jacob holding Esau Jr. on floor 2",
-		setup = { fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, done = typeIs(JACOB) }, steps = {
+	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = CHECKED, fixture = fixture("Jacob holding Esau Jr. on floor 2",
+		{ fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, JACOB), steps = {
 		look("start", function(ctx, label)
 			ctx.jacob, ctx.esau = keyOf(Isaac.GetPlayer(0)), keyOf(ofType(ESAU))
 			jeCopies(ctx, label)
@@ -237,8 +193,7 @@ local tests = {
 		end),
 	} },
 	-- Two copies, each keeping the character it last swapped out; Schoolbag holds both on A.
-	{ name = "two Esau Jr. copies each bring back their own character", tags = CHECKED_FINAL, limit = 350,
-		fixture = { name = "Isaac holding Esau Jr.", setup = jrSetup(ISAAC), done = typeIs(ISAAC) }, steps = {
+	{ name = "two Esau Jr. copies each bring back their own character", tags = CHECKED_FINAL, limit = 350, fixture = holding("Isaac", ISAAC), steps = {
 		named("Isaac"), lookC("start"),
 		esauJr("copy 1: Isaac -> A"), named("A"), give(5), give(SCHOOLBAG), give(ESAU_JR), info("A's slots", slots), lookC("A with two copies"),
 		esauJr("copy 2: A -> B"), named("B"), give(6), lookC("B"),
@@ -249,14 +204,14 @@ local tests = {
 	} },
 	-- A drops Esau Jr. on a pedestal and takes it back; its press brings Isaac back (console 2026-11-22).
 	{ name = "Esau Jr. dropped and picked up brings Isaac back", tags = { "esau_jr", "rehud", "rehud-2.8", "walk" }, limit = 1100,
-		fixture = { name = "Isaac holding Esau Jr.", setup = jrSetup(ISAAC), done = typeIs(ISAAC) }, steps = {
+		fixture = holding("Isaac", ISAAC), steps = {
 		named("Isaac"), esauJr("Isaac -> A"), named("A"), give(5), lookC("A"),
 		dropByHand, lookC("Esau Jr. on the pedestal"), pickByHand, stepOff, lookC("Esau Jr. picked back up"),
 		esauJr("A presses the picked-up copy"), who("Isaac"), lookC("Isaac back"),
 	} },
 	-- LJ shares D's seed; each keeps its own character number and items through Flips and presses.
 	{ name = "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses", tags = CHECKED_FINAL, limit = 350,
-		fixture = { name = "Tainted Lazarus's Flip and Esau Jr. characters", setup = tlazFlips(), done = typeIs(DEAD_T_LAZ) }, steps = {
+		fixture = TLAZ_FLIPS, steps = {
 		flip("Flip by D"), whoInfo("Flip by D"), lookC("after Flip by D"),
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. by player 0")), whoInfo("Esau Jr. by player 0"), lookC("after Esau Jr."),
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. again")), whoInfo("Esau Jr. again"), lookC("after Esau Jr. again"),
@@ -264,15 +219,14 @@ local tests = {
 	-- Recon: Flip twins change after Esau Jr. (LJ <-> D, then DJ <-> LJ), then Clicker out of the live character; ReHUD sets each twin
 	-- once (roster.lua partnerOf), so a failure here is expected. TRACE lines log the engine and ReHUD every update, setup included.
 	{ name = "Flip twins change after Esau Jr., then Clicker", tags = { "esau_jr", "rehud", "rehud-2.8", "opt-in" }, limit = 450,
-		fixture = { name = "Tainted Lazarus's Flip and Esau Jr. characters, traced", setup = { startChecked, tlazFlips() }, done = typeIs(DEAD_T_LAZ) }, steps = {
+		fixture = fixture(TLAZ_FLIPS.name .. ", traced", { startChecked, TLAZ_FLIPS.setup }, DEAD_T_LAZ), steps = {
 		give(ESAU_JR), esauJr("Esau Jr. D -> DJ"), named("DJ"), give(7), lookC("DJ"),
 		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
 		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),
 	} },
 	-- Recon: cf965b0 counts a newcomer holding Esau Jr. of the index's previous type as a swap even when the player count drops, and
 	-- stores a vanished character whose twin is stored; this logs what the engine does to the twins.
-	snapshotTest(FINAL, "Esau Jr. and Flip with Birthright twins",
-		{ name = "Tainted Lazarus holding Esau Jr. and Birthright twins", setup = { fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT, 2) } }, {
+	snapshotTest(FINAL, "Esau Jr. and Flip with Birthright twins", fixtures.TLAZ_JR_TWINS, {
 		{ "players", playerCount }, { "Esau Jr.", verdict("Esau Jr.", esauJr("Esau Jr.")) }, { "players after Esau Jr.", playerCount }, { "settle", settled },
 		{ "Esau Jr. back", verdict("Esau Jr. back", esauJr("Esau Jr. back")) }, { "players after Esau Jr. back", playerCount }, { "settle 2", settled },
 		{ "Flip", verdict("Flip", flip("Flip")) }, { "players after Flip", playerCount } }),

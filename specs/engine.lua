@@ -1,19 +1,13 @@
 -- Engine facts the presses rely on, as assertions, so a game patch that changes one fails here first.
 local itemConfig = include("scripts.game").itemConfig
-local console = include("scripts.console")
-local fresh, give = console.fresh, console.give
+local give = include("scripts.console").give
 local addCard = include("scripts.steps").addCard
 local expect = include("scripts.assert").expect
 local press = include("scripts.press")
 local flip, esauJr, clicker = press.flip, press.esauJr, press.clicker
+local freshRun = include("scripts.fixtures").fresh
 local ids = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ
-
--- shortcut: a fresh run of type `t` without a fixed seed (console.fresh is restart only until plan S7); move to fixtures.lua once other specs need it.
-local function freshRun(t)
-	return { name = "fresh type " .. t, setup = { fresh(t) },
-		done = function() return Isaac.GetPlayer(0):GetPlayerType() == t, "player 0 is not type " .. t end }
-end
 
 local function maxCharges(ctx)
 	for _, c in ipairs({ { CLICKER, 6 }, { ESAU_JR, 1 }, { FLIP, 6 } }) do -- want: pre-REP+ items.xml

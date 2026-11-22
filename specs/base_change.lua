@@ -21,52 +21,15 @@ local flip, esauJr, clicker, cancelledClicker = press.flip, press.esauJr, press.
 local jrSteps = include("scripts.esau_jr_steps")
 local jrFirst, jrAgain, giveClicker = jrSteps.jrFirst, jrSteps.jrAgain, jrSteps.giveClicker
 local fixtures = include("scripts.fixtures")
+local FLIPPED, TLAZ_JR, TLAZ_C4, jacobAndEsau = fixtures.FLIPPED, fixtures.TLAZ_JR, fixtures.TLAZ_C4, fixtures.jacobAndEsau
+local snapshotTest = include("scripts.snapshot").test
 local named = include("scripts.characters").named
 local ids = include("scripts.ids")
-local FLIP, CLICKER, ESAU_JR, ISAAC, T_LAZ, DEAD_T_LAZ, JACOB, ESAU, PRIMARY = ids.FLIP, ids.CLICKER, ids.ESAU_JR, ids.ISAAC, ids.T_LAZ,
-	ids.DEAD_T_LAZ, ids.JACOB, ids.ESAU, ids.PRIMARY
+local FLIP, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ, JACOB, ESAU = ids.FLIP, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.DEAD_T_LAZ, ids.JACOB, ids.ESAU
 
 local game = Game()
 local TAGS, SNAPSHOT_TAGS, DISPUTE_TAGS = { "base_change", "rehud" }, { "base_change", "rehud", "obs" }, { "base_change", "rehud", "obs", "obsx" }
-
--- Fixtures: `setup` from a fresh run, then `done` as the precondition.
-local function playerIs(t, what, extra)
-	return function()
-		local p = Isaac.GetPlayer(0)
-		return p:GetPlayerType() == t and (not extra or extra(p)), "player 0 is not " .. what
-	end
-end
-local function holdsJr(p) return p:GetActiveItem(PRIMARY) == ESAU_JR end
-local function withEsau() return ofType(ESAU) ~= nil end
-local function flipped() return { name = "Tainted Lazarus flipped", setup = fixtures.tlazFlipped(), done = playerIs(DEAD_T_LAZ, "Dead Tainted Lazarus") } end
-local function tlazJr() return { name = "Tainted Lazarus holding Esau Jr.", setup = fixtures.tlazJr(), done = playerIs(T_LAZ, "Tainted Lazarus holding Esau Jr.", holdsJr) } end
-local function tlazC4() return { name = "Tainted Lazarus holding c4", setup = { fresh(T_LAZ), give(4) }, done = playerIs(T_LAZ, "Tainted Lazarus") } end
-local function jacobAndEsau(setup) return { name = "Jacob and Esau", setup = setup, done = playerIs(JACOB, "Jacob beside Esau", withEsau) } end
-
--- Snapshot tests: an obsx step that fails, or still waits after 120 updates, ends its test, which stops at 445 updates (setup and settle
--- waits included); an obs one is only skipped.
-local DISPUTE_STEP_LIMIT, DISPUTE_LIMIT = 120, 445
-
--- A soft step that tags later TRACE lines with `label`; `strict`: with a step limit.
-local function soft(label, step, strict) return { label = label, run = step, limit = strict and DISPUTE_STEP_LIMIT or nil } end
-
--- A snapshot test: the fixture's setup and a settle wait unlogged, then the trace and `list`'s { tag, step } pairs (a pair may be a list
--- of pairs), each soft and numbered, then a last settle wait. `strict`: steps and limits as obsx.
-local function snapshotTest(name, fixture, list, strict)
-	local setup = {}
-	for _, s in ipairs(fixture.setup) do setup[#setup + 1] = strict and soft("setup " .. (#setup + 1), s, true) or s end
-	setup[#setup + 1] = strict and soft("setup settle", settled, true) or settled
-	local all, n, withSettle = {}, 0, { table.unpack(list) } -- a copy: the caller's list stays as given
-	withSettle[#withSettle + 1] = { "settle", settled }
-	for _, s in ipairs(withSettle) do
-		for _, pair in ipairs(type(s[1]) == "string" and { s } or s) do
-			n = n + 1
-			all[#all + 1] = soft(n .. " " .. pair[1], pair[2], strict)
-		end
-	end
-	return { name = name, tags = strict and DISPUTE_TAGS or SNAPSHOT_TAGS, snapshot = true, traceUpdates = true, onStepError = strict and "end" or "skip",
-		limit = strict and DISPUTE_LIMIT or nil, steps = all, fixture = { name = fixture.name, setup = setup, done = fixture.done } }
-end
+local STRICT = { strict = true }
 
 -- Clicker until `done(ctx)` holds after a use's look, up to `maxUses` uses (each refilled by the swap); `around(ctx, "before" | "after")`
 -- runs around each press. A random character may never land on J&E, so a missed split is a note in the RESULT line, not a fail.
@@ -125,7 +88,7 @@ local function vetoed(change)
 end
 
 local tests = {
-	{ name = "ChangePlayerType out of Tainted Lazarus merges the stored twin", tags = TAGS, fixture = flipped(), steps = {
+	{ name = "ChangePlayerType out of Tainted Lazarus merges the stored twin", tags = TAGS, fixture = FLIPPED, steps = {
 		look("before ChangePlayerType"), changeType(ISAAC),
 		look("after ChangePlayerType", function(ctx, label)
 			c4c5(ctx, label)
@@ -145,22 +108,23 @@ local tests = {
 			innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
 			lookC("start", innerInfo("start")), clickerUntil(mergedAndSplit, 12, lookC("after Clicker"), innerAround), innerInfo("end"),
 		} },
-	snapshotTest("ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip", tlazC4(), { { "Flip", flip("Flip") }, { "give c5", give(5) },
-		{ "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "pocket before Flip again", pocketHeld },
-		{ "players before Flip again", playerCount }, { "Flip again", flip("Flip again") }, { "pocket after Flip again", pocketHeld },
-		{ "players after Flip again", playerCount } }),
-	snapshotTest("a cancelled Clicker on the Esau Jr. character", tlazJr(), { jrFirst(), giveClicker(), { "cancel Clicker", vetoed(false) }, jrAgain() }, true),
-	snapshotTest("a cancelled Clicker, then ChangePlayerType in the same update", tlazJr(), { jrFirst(), giveClicker(),
-		{ "cancel Clicker and change type", vetoed(true) }, jrAgain() }, true),
+	snapshotTest("ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip", SNAPSHOT_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
+		{ "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
+		{ "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount }, { "Flip again", flip("Flip again") },
+		{ "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
+	snapshotTest("a cancelled Clicker on the Esau Jr. character", DISPUTE_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
+		{ "cancel Clicker", vetoed(false) }, jrAgain() }, STRICT),
+	snapshotTest("a cancelled Clicker, then ChangePlayerType in the same update", DISPUTE_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
+		{ "cancel Clicker and change type", vetoed(true) }, jrAgain() }, STRICT),
 	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
 	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
-	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", tlazC4(), { { "Flip", flip("Flip") },
+	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", DISPUTE_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
-		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }, true),
-	snapshotTest("ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once", tlazJr(), { { "Flip", flip("Flip") },
-		{ "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "remove c4", remove(4) },
-		{ "Esau Jr. at once", esauJr("Esau Jr. at once") }, { "stored settling", storedSettlingNow }, { "settle", settled }, jrAgain(),
-		{ "watch 60", idle(60) } }, true),
+		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }, STRICT),
+	snapshotTest("ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once", DISPUTE_TAGS, TLAZ_JR, {
+		{ "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
+		{ "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") }, { "stored settling", storedSettlingNow }, { "settle", settled },
+		jrAgain(), { "watch 60", idle(60) } }, STRICT),
 }
 
 return { name = "base_change", tests = tests }

@@ -1,11 +1,10 @@
 """HEAD df8ba84's scenarios by their old names, the groups of them that test_presses, test_invariants and same_behaviour.py state facts
-about, and where each scenario went. Frozen through S4: a spec's module registers where its scenarios went in its own NAMES
-(test_<spec>.py), never here. Temporary: goes once those facts name the specs' tests (plan S4's last merge or S6)."""
+about, and where each scenario went: a spec's module registers where its scenarios went in its own NAMES (test_<spec>.py), never here.
+Temporary: goes with same_behaviour.py (plan S6), once test_presses and test_invariants name the specs' tests."""
 import functools
 
 import dry
 
-SPEC = "legacy"  # a scenario no module claims still plays from specs/legacy.lua under its old name
 OBS = ["obs esaujr cross", "obs esaujr out", "obs esaujr flip", "obs esaujr flipped cross", "obs esaujr birthright", "obs esaujr clicker", "obs mirror",
        "obs esaujr birthright keep", "obs esaujr cross35", "obs esaujr dead seed", "obs esaujr birthright flip"]
 DISPUTES = [
@@ -17,7 +16,6 @@ DISPUTES = [
 OBSY_A = ["obsy a schoolbag", "obsy a schoolbag Clicker", "obsy a Dead form after A lost", "obsy a Isaac Clicker effect",
           "obsy a J&E by Jacob", "obsy a J&E by Esau", "obsy a Forgotten and Soul", "obsy a Tainted Forgotten", "obsy a Lazarus Risen"]
 OBSY_B = ["obsy b Tainted Jacob", "obsy b Eden", "obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"]
-OBSY_LARGE = ["obsy b continue with A stored", "obsy b continue after B loses Esau Jr.", "obsy b identity"]  # exit-continue, not new
 OBSY = OBSY_A + OBSY_B
 OBS += DISPUTES + OBSY
 FINAL = ["final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up", "final C Tainted Lazarus Esau Jr.", "final D Strawman",
@@ -34,14 +32,16 @@ LOOKED = [n for n in SCENARIOS if n != "probes" and n not in OBS and n not in FI
 
 @functools.lru_cache(maxsize=None)
 def names():
-    """{old scenario: [its tests, "<spec> > <test>"]}: each module's NAMES ({old: [test names in that spec]}), else its legacy test."""
+    """{old scenario: [its tests, "<spec> > <test>"]}: each module's NAMES ({old: [test names in that spec]})."""
     claimed = {}
     for m in dry.modules():
         spec = m.__name__[len("test_"):]
         for old, news in getattr(m, "NAMES", {}).items():
             assert old in SCENARIOS, f"{m.__name__}: no old scenario {old!r}"
             claimed.setdefault(old, []).extend(f"{spec} > {n}" for n in news)
-    return {old: claimed.get(old, [f"{SPEC} > {old}"]) for old in SCENARIOS}
+    missing = [old for old in SCENARIOS if old not in claimed]
+    assert not missing, f"no spec claims {missing}"
+    return {old: claimed[old] for old in SCENARIOS}
 
 
 def full(old):

@@ -28,13 +28,13 @@ WANT = {
 }
 # Decided behaviour changes (same_behaviour.py). Bug 3: final E no longer kills the summoned Esau at 60 updates (a wiki claim); it
 # records the room change and whether he leaves, so its lines and its assertion count (masked on its RESULT) differ from HEAD's.
-# D2: a fixture's done poll and its end are two steps, and two updates, ahead of each test's own steps, so an error names a step index
-# 2 higher, a look right after the fixture may settle 2 updates sooner, and TIMING frames come 2 later.
-SHIFT = r"error in step \d+|after \d+ updates(?= stored settling)|frame \d+"
+# Bug 7: VERDICT lines label characters by entity (GetPtrHash), not seed. D2: the fixture's done poll is a step, so a failed step's index
+# is one higher (press ignored, no spend).
 ALLOW = [
     ("bug 3", "final E Soul of Jacob and Esau", None),
     ("bug 3", "final E Soul of Jacob and Esau", r"PASS \d+ assertions"),
-    *(("D2", old, SHIFT) for old in NAMES if old != "final E Soul of Jacob and Esau"),
+    ("bug 7", "obsy b identity", r"(?<= VERDICT ).*$"),
+    *(("D2", old, r"(?<=error in step )\d+") for old in ("P3", "P1")),
 ]
 
 
@@ -44,9 +44,10 @@ def test_characters(path):
     lines = dry.segment(log, f"characters > {TEMPORARY_ESAU}")
     assert not any(" Kill()" in s for s in lines), "the temporary Esau was killed"
     assert any(" leave the room: StartRoomTransition " in s for s in lines), "no room change tried"
-    info = [s for s in dry.segment(log, f"characters > {BIRTHRIGHT_IDS}") if s.startswith(f"PROBE INFO characters > {BIRTHRIGHT_IDS} ")]
-    assert any("VERDICT Flip after Continue index 0 A -> B moved from 1 |" in s for s in info), info
-    ids = [s for s in info if " IDS " in s]
+    info = dry.check_verdicts(log, [f"characters > {BIRTHRIGHT_IDS}"])[f"characters > {BIRTHRIGHT_IDS}"]
+    assert any(s.startswith("VERDICT Flip after Continue index 0 A -> B moved from 1 |") for s in info), info
+    assert sum(s.startswith("after Continue: player seeds ") for s in info) == 1, info
+    ids = [s for s in info if s.startswith("IDS ")]
     assert len(ids) == 7 * 2 - 1 and all(" InitSeed " in s and " OtherTwin " in s and " MainTwin " in s for s in ids), ids  # one player after Esau Jr. #1
     # A Birthright twin's fresh copy stores presser and twin (obsyb1-2): the presser's spend is its watched drop, never a twin's seed
     swaps = [s for s in dry.segment(log, f"characters > {BIRTHRIGHT_IDS}") if s.startswith("PROBE SWAP Esau Jr. #")]

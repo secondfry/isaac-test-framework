@@ -1,7 +1,7 @@
 -- One icon per copy: owned, innate, wisps, the Zodiac and 3 Dollar Bill copies (plan S4).
 local P = include("scripts.log").P
 local console = include("scripts.console")
-local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
+local give, remove, stage = console.give, console.remove, console.stage
 local changeType = include("scripts.steps").changeType
 local copies = include("scripts.copies")
 local wisp, killWisp, engineWisps, zodiacOn, grant3DB, listed = copies.wisp, copies.killWisp, copies.engineWisps, copies.zodiacOn,
@@ -9,17 +9,11 @@ local wisp, killWisp, engineWisps, zodiacOn, grant3DB, listed = copies.wisp, cop
 local assertions = include("scripts.assert")
 local expectCount, own = assertions.expectCount, assertions.own
 local look = include("scripts.settle").look
+local freshRun = include("scripts.fixtures").fresh
 local ids = include("scripts.ids")
 local ISAAC, CAIN = ids.ISAAC, ids.CAIN
 
 local TAGS = { "item_copies", "rehud" }
-
--- A fresh run of type `t`, built per test.
--- shortcut: restart only, no fixed seed yet; console.fresh gains the seed command once session 1 has shown its order (plan S7).
-local function freshRun(t)
-	return { name = "fresh run of type " .. t, setup = { fresh(t) },
-		done = function() return Isaac.GetPlayer(0):GetPlayerType() == t, "player 0 is not type " .. t end }
-end
 
 return { name = "item_copies", tests = {
 	-- One entry per copy, by kind (clocked: wisps), floors kept; a lost copy takes the oldest entry of its kind.

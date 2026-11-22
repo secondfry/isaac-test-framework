@@ -10,7 +10,7 @@ local FIXTURE_LIMIT = 120 -- updates a fixture's done(ctx) may take
 
 -- main.lua's wiring, rebuilt on every load: the tests in play order, and the handlers of each runner event.
 local tests = {}
-local handlers = { teardown = {}, busy = {}, stepBegins = {}, giveUp = {}, snap = {}, fixtureDone = {} }
+local handlers = { teardown = {}, busy = {}, stepBegins = {}, giveUp = {}, snap = {}, traceStarts = {} }
 local function on(event, f) table.insert(assert(handlers[event], event), f) end
 local function fire(event, ...) for _, f in ipairs(handlers[event]) do f(...) end end
 
@@ -23,12 +23,19 @@ local function flatten(list, out)
 	return out
 end
 
--- Polls the fixture's done(ctx) every update; still false at the limit, the test FAILs as a precondition.
-local function fixtureReady(fixture)
+-- Polls the fixture's done(ctx) every update; still false at the limit, the test FAILs as a precondition. Once done, the next step
+-- runs in the same update ("now"), so a fixture adds no update of its own; a traceUpdates test's trace starts instead, and its first
+-- step comes next update, as after the recording step a trace started with before fixtures.
+local function fixtureReady(fixture, test)
 	return function(ctx)
 		ctx.t = (ctx.t or 0) + 1
 		local ok, why = fixture.done(ctx)
-		if ok then ctx.t = nil return end
+		if ok then
+			ctx.t = nil
+			if not test.traceUpdates then return "now" end
+			fire("traceStarts", test)
+			return
+		end
 		if ctx.t >= FIXTURE_LIMIT then error("precondition: " .. tostring(why or fixture.name), 0) end
 		return "again"
 	end
@@ -40,16 +47,16 @@ local function tagged(test, tag)
 	end
 end
 
--- Each test of `spec` as its own copy, named "<spec> > <test>", its fixture's setup and done poll ahead of its steps. Exit & Continue
--- tests play last (plan D7), in the order added: the user's exits come back to back at the end of the session.
+-- Each test of `spec` as its own copy, named "<spec> > <test>", its fixture's setup and done poll ahead of its steps (traceUpdates
+-- needs a fixture). Exit & Continue tests play last (plan D7), in the order added: the user's exits come back to back at the end of
+-- the session.
 local lastCount = 0
 local function add(spec)
 	for _, t in ipairs(spec.tests) do
 		local test, f = {}, t.fixture
 		for k, v in pairs(t) do test[k] = v end
 		test.spec, test.name = spec.name, spec.name .. " > " .. t.name
-		local ready = f and { f.setup or {}, fixtureReady(f), function() fire("fixtureDone", test) end } or {}
-		test.steps = flatten({ ready, t.steps })
+		test.steps = flatten({ f and { f.setup or {}, fixtureReady(f, test) } or {}, t.steps })
 		local last = tagged(test, "exit-continue")
 		table.insert(tests, last and #tests + 1 or #tests - lastCount + 1, test)
 		if last then lastCount = lastCount + 1 end
@@ -130,31 +137,8 @@ local function runStep(test, step, ctx)
 	return true
 end
 
--- One update of play; `...` run first on every update a test plays, under its name.
-local function tick(...)
-	local S = HARNESS.session
-	if not S.running then return end
-	local test = tests[S.testIndex]
-	if not test then
-		S.running, S.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
-		P("HARNESS DONE")
-		return
-	end
-	local skip = S.stepIndex == 1 and skipReason(S, test)
-	if skip then
-		P("RESULT", test.name, "SKIP " .. skip .. " (tags '" .. S.line .. "')")
-		S.testIndex = S.testIndex + 1
-		return
-	end
-	local ctx = S.ctx
-	ctx.name = test.name -- from the test's first update: the session's first run is first seen there
-	for _, f in ipairs({ ... }) do f() end
-	if test.onUpdate then test.onUpdate(ctx) end
-	if test.onStepError == "end" and ctx.interrupted then return finish() end
-	if overLimit(S, test) then return end
-	for _, busy in ipairs(handlers.busy) do
-		if busy() then return end
-	end
+-- Plays the test's current step for this update: its result, "now" when the next step runs in this update too.
+local function playStep(S, test, ctx)
 	local step = test.steps[S.stepIndex]
 	if not step then return finish() end
 	if not ctx.started then -- tools/report.py pairs it with a RESULT
@@ -171,6 +155,37 @@ local function tick(...)
 		return finish("error in step " .. S.stepIndex .. ": " .. tostring(res))
 	end
 	if res ~= "again" then S.stepIndex = S.stepIndex + 1 end
+	return res
+end
+
+-- One update of play; `...` run first on every update a test plays, under its name.
+local function tick(...)
+	local S = HARNESS.session
+	if not S.running then return end
+	-- Skipped tests take no update of their own, so a tag's worst case is its tests' limits alone.
+	local test = tests[S.testIndex]
+	local skip = test and S.stepIndex == 1 and skipReason(S, test)
+	while skip do
+		P("RESULT", test.name, "SKIP " .. skip .. " (tags '" .. S.line .. "')")
+		S.testIndex = S.testIndex + 1
+		test = tests[S.testIndex]
+		skip = test and skipReason(S, test)
+	end
+	if not test then
+		S.running, S.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
+		P("HARNESS DONE")
+		return
+	end
+	local ctx = S.ctx
+	ctx.name = test.name -- from the test's first update: the session's first run is first seen there
+	for _, f in ipairs({ ... }) do f() end
+	if test.onUpdate then test.onUpdate(ctx) end
+	if test.onStepError == "end" and ctx.interrupted then return finish() end
+	if overLimit(S, test) then return end
+	for _, busy in ipairs(handlers.busy) do
+		if busy() then return end
+	end
+	while playStep(S, test, ctx) == "now" do end
 end
 
 -- An MC_POST_UPDATE handler running `f`: an error ends the test it hit, not the session.

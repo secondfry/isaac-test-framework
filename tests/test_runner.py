@@ -20,8 +20,11 @@ return { name = "runner", tests = {
 		fixture = { name = "never", setup = {}, done = function() return false, "Clicker held" end, teardown = down("precondition") } },
 	{ name = "teardown throws", tags = { "runner" }, steps = {},
 		fixture = { name = "isaac", setup = { console.fresh(0) }, done = isaac, teardown = function() error("teardown broke") end } },
-	{ name = "fixture done", tags = { "runner" }, fixture = { name = "isaac", setup = { console.fresh(0) }, done = isaac, teardown = down("fixture done") },
-		steps = { function(ctx) assert_.expect(ctx, "player 0 type", Isaac.GetPlayer(0):GetPlayerType(), 0) end } },
+	{ name = "fixture done", tags = { "runner" }, fixture = { name = "isaac", setup = { console.fresh(0), function(ctx) ctx.setupAt = Game():GetFrameCount() end },
+		done = isaac, teardown = down("fixture done") }, steps = { function(ctx)
+			assert_.expect(ctx, "player 0 type", Isaac.GetPlayer(0):GetPlayerType(), 0)
+			assert_.expect(ctx, "done poll and first step in the update after setup", Game():GetFrameCount() - ctx.setupAt, 1)
+		end } },
 	{ name = "pre fails", tags = { "runner" }, steps = { function() assert_.pre(false, "a held Clicker") end } },
 	{ name = "Continue in a label", tags = { "runner" }, steps = { waits("Flip after Continue", 5) } },
 	{ name = "manual step", tags = { "runner" }, steps = { { manual = { kind = "continue" }, run = waits("YOU: wait", 5) } } },
@@ -33,7 +36,7 @@ WANT = {
     "runner > setup throws": "FAIL error in step 1: ",
     "runner > precondition": "FAIL precondition: Clicker held",
     "runner > teardown throws": "PASS 0 assertions",
-    "runner > fixture done": "PASS 1 assertions",
+    "runner > fixture done": "PASS 2 assertions",
     "runner > pre fails": "FAIL precondition: a held Clicker",
     "runner > Continue in a label": "PASS 0 assertions",
     "runner > manual step": "PASS 0 assertions",
@@ -63,8 +66,11 @@ def test_all(path):
     assert presses and len(presses) == len(swaps) + len(same) and stored, (len(presses), len(swaps), len(same), len(stored))
     assert not any("(seed holds no" in s for s in swaps)
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
-    assert dry.report(log) == (0, "ALL PASS"), dry.report(log)
-    print(f"PASS tags all: {len(plan)} tests, Exit & Continue ones last, report.py ALL PASS")
+    # report.py asks for analysis only of the steps a WANT expects unreached in the stub (the summoned Esau never leaves there)
+    odd = [f"{n} unreached: {v.split('; unreached: ')[1]}" for n, v in dry.expected(path).items() if "; unreached: " in v]
+    verdict = "NEEDS ANALYSIS: " + "; ".join(odd) if odd else "ALL PASS"
+    assert dry.report(log) == (1 if odd else 0, verdict), dry.report(log)
+    print(f"PASS tags all: {len(plan)} tests, Exit & Continue ones last, report.py: {verdict}")
 
 
 def test_fixtures(path):
@@ -100,18 +106,19 @@ def test_no_tags(path):
     print("PASS no tags runs every test but the exit-continue ones not new, and skips the opt-in ones")
 
 
-def test_tags_obs(path):
-    mode = "tags obs\r\nSTUCK 3 obs mirror | settle"  # a STUCK line left in the file keeps the tags
-    log = dry.run(path, mode=mode)
-    dry.expect_results(dry.finished(log, "tags obs", path), "tags obs", dry.expected(path, mode))
-    assert any(s.startswith("PROBE HARNESS START") and "tags 'tags obs'" in s for s in log), "tags not logged"
-    print("PASS tags obs runs just the obs tests")
+def test_tags(path):
+    for mode in ("tags obs\r\nSTUCK 3 obs mirror | settle", FINAL_MODE):  # a STUCK line left in the file keeps the tags
+        line = mode.splitlines()[0]
+        log = dry.run(path, mode=mode)
+        dry.expect_results(dry.finished(log, line, path), line, dry.expected(path, mode))
+        assert any(s.startswith("PROBE HARNESS START") and f"tags '{line}'" in s for s in log), "tags not logged"
+        print(f"PASS {line} runs just its tests")
 
 
-def worst_case(path, tests):
-    """The session's updates when each of `tests` stalls to its limit: their limits, one SKIP update per other test, HARNESS DONE."""
+def worst_case(tests):
+    """The session's updates when each of `tests` stalls to its limit: their limits and HARNESS DONE's (a SKIP takes none)."""
     assert all(t.limit for t in tests), [t.name for t in tests if not t.limit]
-    return sum(t.limit for t in tests) + len(dry.plan(path)) - len(tests) + 1
+    return sum(t.limit for t in tests) + 1
 
 
 def test_final_worst(path):
@@ -124,23 +131,22 @@ def test_final_worst(path):
     for t in checked:
         assert got[t.name] == f"FAIL test limit {t.limit} updates", (t.name, got[t.name])
     assert all(f"PROBE INFO {t.name} test limit {t.limit} updates" in log for t in final if t.snapshot)
-    worst = worst_case(path, final)
+    worst = worst_case(final)
     assert dry.run.updates == worst, (dry.run.updates, worst)
     print(f"PASS {FINAL_MODE} worst case: {worst} updates ({worst / 30 / 60:.1f} minutes of updates)")
 
 
 def test_obsx_limits(path):
-    obsx = tagged(path, "obsx")
-    want = dry.expected(path, "tags obsx")
+    obsx = tagged(path, "obsx")  # each a snapshot test: one ended in its setup or by its limit before its assertion only records
     log = dry.run(path, mode="tags obsx", ignoreRestart=True)
     got = dry.finished(log, "obsx setup step times out", path)
-    assert all(got[t.name] == want[t.name] for t in obsx)
+    assert all(got[t.name] == "RECORDED" for t in obsx), got
     assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(obsx)
     log = dry.run(path, mode="tags obsx", render_every=200)
     got = dry.finished(log, "obsx test times out", path)
-    assert all(got[t.name] == want[t.name] for t in obsx)
+    assert all(got[t.name] == "RECORDED" for t in obsx), got
     assert sum(s.endswith("test limit 445 updates") for s in log) == len(obsx)
-    assert dry.run.updates == worst_case(path, obsx) < 3 * 60 * 30, dry.run.updates
+    assert dry.run.updates == worst_case(obsx) < 3 * 60 * 30, dry.run.updates
     print("PASS obsx setup step and test limits, and total update budget")
 
 
@@ -152,7 +158,7 @@ def test_obsy_worst(path):
         dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
         tests = tagged(path, tag)
         assert all(f"PROBE INFO {t.name} test limit {t.limit} updates" in log for t in tests), mode
-        worst = worst_case(path, tests)
+        worst = worst_case(tests)
         assert dry.run.updates == worst < 3 * 60 * 30, (mode, dry.run.updates, worst)
         print(f"PASS {mode}: worst case {worst} updates")
 
@@ -188,12 +194,14 @@ def test_late_continue(path):
 
 
 def test_restart_ignored(path):
-    # a test limit of 600 or less ends the test first; a test whose step errors end it (recon, onStepError "end") logs them instead
+    # a test limit of 600 or less ends the test first; a test whose step errors end it (recon, onStepError "end") logs them instead and
+    # records only, its assertions unreached
     got = dry.finished(dry.run(path, ignoreRestart=True), "restart ignored", path)
-    dry.expect_results(got, "restart timeout", dry.expected(path), ("no new game after 600 updates", "test limit "),
+    want = {**dry.expected(path), **{t.name: "RECORDED" for t in dry.plan(path) if t.soft == "end" and "opt-in" not in t.tags}}
+    dry.expect_results(got, "restart timeout", want, ("no new game after 600 updates", "test limit "),
                        [t.name for t in dry.plan(path) if t.soft != "end" and "opt-in" not in t.tags])
     print("PASS a restart that never comes fails every test but the soft recon ones")
 
 
-TESTS = [test_all, test_fixtures, test_no_tags, test_tags_obs, test_final_worst, test_obsx_limits, test_obsy_worst,
+TESTS = [test_all, test_fixtures, test_no_tags, test_tags, test_final_worst, test_obsx_limits, test_obsy_worst,
          test_new_run_instead_of_continue, test_late_continue, test_restart_ignored]

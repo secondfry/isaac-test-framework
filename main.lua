@@ -10,7 +10,8 @@ local press = include("scripts.press")
 local characters = include("scripts.characters")
 local record = include("scripts.record")
 
-local SPECS = { "hello", "engine", "characters", "esau_jr", "base_change", "continue", "item_copies", "regressions", "revive" }
+-- continue before characters: their Exit & Continue tests then come in HEAD df8ba84's order (the stored, lost, then identity ones).
+local SPECS = { "hello", "engine", "continue", "characters", "esau_jr", "base_change", "item_copies", "regressions", "revive" }
 
 runner.setMod(mod)
 for _, name in ipairs(SPECS) do runner.add(include("specs." .. name)) end
@@ -24,7 +25,7 @@ runner.on("giveUp", wait.resetStep)
 runner.on("giveUp", press.teardown)
 runner.on("giveUp", record.stopTiming)
 runner.on("snap", record.snapStep)
-runner.on("fixtureDone", record.onFixtureDone)
+runner.on("traceStarts", record.onTraceStarts)
 
 -- Registration order matters within one callback: the engine runs same-priority callbacks in the order they were added.
 mod:AddCallback(ModCallbacks.MC_USE_ITEM, press.onUse)

@@ -5,7 +5,7 @@ local seedOf, wispsOf = engine.seedOf, engine.wispsOf
 local rehud = include("scripts.rehud")
 local dbg, keyOf, countEntries, leftEntries, ownerOf = rehud.dbg, rehud.keyOf, rehud.countEntries, rehud.leftEntries, rehud.ownerOf
 local console = include("scripts.console")
-local fresh, give, stage = console.fresh, console.give, console.stage
+local give, stage = console.give, console.stage
 local changeType = include("scripts.steps").changeType
 local assertions = include("scripts.assert")
 local expect, expectN, expectOne, expectCount, own, noneLeft = assertions.expect, assertions.expectN, assertions.expectOne,
@@ -13,19 +13,13 @@ local expect, expectN, expectOne, expectCount, own, noneLeft = assertions.expect
 local look = include("scripts.settle").look
 local press = include("scripts.press")
 local flip, esauJr, clicker = press.flip, press.esauJr, press.clicker
-local tlazFlipped = include("scripts.fixtures").tlazFlipped
+local fixtures = include("scripts.fixtures")
+local FLIPPED, HOLDS_JR = fixtures.FLIPPED, fixtures.TLAZ_JR_FLOOR_2
 local ids = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.DEAD_T_LAZ
 
 local game = Game()
 local TAGS = { "regressions", "rehud", "rehud-2.8" }
-
-local function playerIs(t, what) return function() return Isaac.GetPlayer(0):GetPlayerType() == t, "player 0 is not " .. what end end
--- Tainted Lazarus with c4 from floor 1, flipped on floor 2 to its Dead form, which takes c5.
-local FLIPPED = { name = "flipped Tainted Lazarus", setup = tlazFlipped(), done = playerIs(DEAD_T_LAZ, "the Dead form") }
--- Tainted Lazarus on floor 2 with c4 from floor 1 and an unpressed Esau Jr.
-local HOLDS_JR = { name = "Tainted Lazarus holding Esau Jr.", setup = { fresh(T_LAZ), give(4), give(ESAU_JR), stage(2) },
-	done = playerIs(T_LAZ, "Tainted Lazarus") }
 
 -- After Clicker out of Tainted Lazarus (S3): every c4 (floor 1, the stored form's) and c5 (floor 2, the Dead form's) the engine counts,
 -- wisps aside, is listed once, floor kept, under the player holding it; the stored form is forgotten. A roll into the other form's type

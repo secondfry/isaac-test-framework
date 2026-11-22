@@ -1,5 +1,5 @@
-"""The real presses: the Clicker veto, a same-update type change, a Birthright Flip, the Clicker effect, same-seed forms, a press the
-engine ignores and a use that spends nothing."""
+"""The real presses: the Clicker veto, a same-update type change, a Birthright Flip, the Clicker effect, a press the engine ignores and
+a use that spends nothing."""
 import dry
 from legacy_names import SCENARIOS, DISPUTES, NO_SWAP, ONLY_PICKED, full, expect_parts
 
@@ -7,7 +7,7 @@ WANT = {}  # no spec of its own: it plays every spec
 STORED = "spent nothing: stored presser seen with no drop after its use"
 # Every old scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on
 # its watched drop, a staying one (Clicker) on its charge, a card on its count.
-SPEND_SEEN = {"probes": STORED, "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4c": STORED, "S4": STORED,
+SPEND_SEEN = {"probes": (STORED, "spent nothing: charge"), "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4c": STORED, "S4": STORED,
               "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
               "continue": STORED, "continue settled": STORED, "final A two Esau Jr. copies": STORED, "final B Esau Jr. dropped and picked up": STORED,
               "final C Tainted Lazarus Esau Jr.": STORED, "final E Soul of Jacob and Esau": "spent nothing: card count", "final F Flip partners": STORED,
@@ -50,33 +50,17 @@ def test_clicker_effect_ignored(path):
     print("PASS an unchanged Clicker effect stops its test")
 
 
-def test_same_seed(path):
-    # obsy b run 1: after a Continue, Esau Jr. made a new entity with the presser's seed and type, its items re-rolled
-    name = full("obsy b continue after B loses Esau Jr.")
-    log = dry.run(path, mode="tags continue-b-loses", jrSameSeed=True)
-    got = dry.finished(log, "Esau Jr. keeps the seed", path)
-    assert got[name] == dry.want()[name], got[name]
-    same = [s for s in log if s.startswith(f"PROBE INFO {name} Esau Jr. #") and " new form, same seed " in s]
-    assert len(same) == 4 and " items 4:1/1 703:1/1 -> 53:1/1 703:1/1, INPUT_ACTION charge+battery 1 -> 0" in same[0], same
-    assert not any(s.startswith(f"PROBE INFO {name} ") and "never happened" in s for s in log)
-    print("PASS a press that keeps the seed is logged as data:", same[0])
-    # Only press #1 keeps the seed: its TIMING watch is dropped, not woken by #2's new seed under #1's label
-    name = full("obsy b continue with A stored")
-    log = dry.run(path, mode="tags continue-a-stored", jrSameSeed=1)
-    got = dry.finished(log, "Esau Jr. #1 keeps the seed", path)
-    assert got[name] == dry.want()[name], got[name]
-    assert any(s.startswith(f"PROBE INFO {name} Esau Jr. #1 new form, same seed ") for s in log)
-    assert any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #2 frame ") for s in log)
-    assert not any(s.startswith(f"PROBE INFO {name} TIMING Esau Jr. #1 frame ") for s in log), "stale TIMING watch woke"
-    print("PASS a same-seed press leaves no TIMING watch behind")
+def unswapped(path):
+    """The verdicts when no swap completes: a snapshot test whose assertion follows its first press only records."""
+    return {**dry.expected(path), **{full(n): "RECORDED" for n in ("obsx cancelled Clicker", "obsx cancelled Clicker then change")}}
 
 
 def test_press_ignored(path):
-    # probes' first press is Esau Jr., a swap: every test fails on its first press
+    # every swapping test fails on its first press
     log = dry.run(path, ignorePress=True)
     assert any(f"{full('obsx form loses Esau Jr.')} 2 Esau Jr. never happened:" in s for s in log)
     assert not any(s == "PROBE CMD giveitem c105" for s in log)
-    expect_parts(dry.finished(log, "press ignored", path), "press ignored", dry.expected(path),
+    expect_parts(dry.finished(log, "press ignored", path), "press ignored", unswapped(path),
                  {n: ("no new character, arms ", "test limit ") for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
@@ -86,8 +70,8 @@ def test_press_ignored(path):
 
 def test_no_spend(path):
     got = dry.finished(dry.run(path, noSpend=True), "no spend", path)
-    expect_parts(got, "no spend", dry.expected(path), {n: SPEND_SEEN[n] for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
+    expect_parts(got, "no spend", unswapped(path), {n: SPEND_SEEN[n] for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
     print("PASS no spend fails every swap:", got[full("test3")][:110])
 
 
-TESTS = [test_obsx, test_clicker_effect_ignored, test_same_seed, test_press_ignored, test_no_spend]
+TESTS = [test_obsx, test_clicker_effect_ignored, test_press_ignored, test_no_spend]

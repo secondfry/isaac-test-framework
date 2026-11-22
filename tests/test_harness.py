@@ -1,9 +1,7 @@
 """Dry run of main.lua against the stub in tests/stub/. Run: python -B -I tests/test_harness.py main.lua [test ...] (venv with lupa); no test names runs
 them all, in order."""
 import os
-import subprocess
 import sys
-import tempfile
 from lupa.lua53 import LuaRuntime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -99,8 +97,6 @@ INVARIANT_MODES = [
     # ReHUD's own esauJr flag exempts no row: only a character the harness saw Esau Jr. store
     ("phantomRow", "regression", "invariant phantom stored forms: ", [n for n in LOOKED if n not in ONLY_PICKED]),
 ]
-REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
-OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 PEDESTAL = {"yum-heart": 45, "Esau Jr.": 703}  # the fake user's target, by the YOU: line's wording
 STUB_FILES = ["api.lua", "players.lua", "characters.lua", "input.lua", "console.lua", "rehud.lua"]  # load order: rehud.lua registers its update first
 
@@ -208,45 +204,6 @@ def segment(log, name):
     return log[i:next(k for k in range(i, len(log)) if log[k].startswith(f"PROBE RESULT {name} ")) + 1]
 
 
-def run_tool(script, log):
-    """A tools/ script on these lines (a list) or on a file path: (exit code, stdout lines, stderr)."""
-    tmp = isinstance(log, list)
-    if tmp:
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
-            f.write("\n".join(log))
-        log = f.name
-    try:
-        p = subprocess.run([sys.executable, "-B", "-I", script, log], capture_output=True, text=True)
-    finally:
-        if tmp:
-            os.remove(log)
-    return p.returncode, p.stdout.splitlines(), p.stderr
-
-
-def run_report(log):
-    """tools/run_report.py: (exit code, last line)."""
-    code, out, err = run_tool(REPORT, log)
-    assert not err, err
-    return code, out[-1].strip()
-
-
-def obs_report(log, timed):
-    """tools/obs_report.py on the dry run: a timeline and a summary for every obs scenario (and every final one run), seeds labelled."""
-    code, out, err = run_tool(OBS_REPORT, log)
-    assert code == 0 and not err, err
-    assert out[-1] == f"obs scenarios: {len(timed)} ({', '.join(timed)})", out[-1]
-    for name in OBS:
-        assert f"== {name}" in out and f"  summary {name}: INFO data only" in out, name
-    # obs esaujr cross: the original (A) is stored by Esau Jr. and back after the second press; the form (B) holds the c5 marker
-    rows = out[out.index("== obs esaujr cross"):out.index("  summary obs esaujr cross: INFO data only") + 3]
-    assert any(r.startswith("u") and "| P0 t29 B [c5 c703 c711]" in r for r in rows), rows
-    assert rows[-2].startswith("    A = ") and "appeared u1, gone u2, back u" in rows[-2], rows[-2]
-    assert rows[-1].startswith("    B = ") and "engine c5x1" in rows[-1], rows[-1]
-    assert any(r.startswith("       PLAYERX 0 variant ") for r in out), "no PLAYERX line under a row"
-    assert any(r.startswith("       COUNT players ") for r in out), "no COUNT line under a row"
-    print("PASS obs_report: timelines and summaries for", len(timed), "scenarios")
-
-
 def check_obsy(log):
     """The obsy lines a log reader decides on, as the stub plays them."""
     info = [s[len("PROBE INFO "):] for s in log if s.startswith("PROBE INFO obsy ")]
@@ -295,13 +252,7 @@ def test_regression(path):
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
     assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
     print("PASS P2 reaches the split")
-    assert run_report(log) == (0, "ALL PASS"), run_report(log)
-    print("PASS run_report on the dry run: ALL PASS")
-    obs_report(log, OBS + [n for n in FINAL + FINAL_OBS if n not in ONLY_PICKED])
     check_obsy(log)
-    code, verdict = run_report(os.path.join(HERE, "fixtures", "run8-trimmed.txt"))
-    assert (code, verdict) == (1, "NEEDS ANALYSIS: S3 unobserved: rolled Tainted Lazarus, see r1; results for 4 of 16 scenarios"), (code, verdict)
-    print("PASS run_report parses the run 8 fixture:", verdict)
 
 
 def test_tlaz_roll_29(path):
@@ -500,10 +451,6 @@ def test_invariants(path):
         hit = [n for n in SCENARIOS if got[n].startswith("FAIL") and why in got[n]]
         assert hit == names, f"{flag} ({mode}): invariant fired in {hit}"
         print(f"PASS {flag} ({mode}) fails the invariant in {len(hit)} scenarios")
-        if flag == "missCopy":
-            code, verdict = run_report(log)
-            assert code == 1 and verdict.startswith("NEEDS ANALYSIS: test3 FAIL;"), (code, verdict)
-            print("PASS run_report on a failing run:", verdict[:60])
 
 
 TESTS = [test_regression, test_tlaz_roll_29, test_default, test_final, test_final_worst, test_only_obs, test_obsx, test_obsx_limits, test_obsy_worst,

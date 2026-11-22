@@ -107,7 +107,7 @@ def test_no_tags(path):
 
 
 def test_tags(path):
-    for mode in ("tags obs\r\nSTUCK 3 obs mirror | settle", FINAL_MODE):  # a STUCK line left in the file keeps the tags
+    for mode in ("tags hello\r\nSTUCK 3 hello > fresh Isaac on a fixed seed | settle", FINAL_MODE):  # a STUCK line left in the file keeps the tags
         line = mode.splitlines()[0]
         log = dry.run(path, mode=mode)
         dry.expect_results(dry.finished(log, line, path), line, dry.expected(path, mode))
@@ -141,32 +141,32 @@ def test_final_worst(path):
     print(f"PASS {FINAL_MODE} worst case: {worst} updates ({worst / 30 / 60:.1f} minutes of updates)")
 
 
-def test_obsx_limits(path):
-    obsx = tagged(path, "obsx")  # each a snapshot test: one ended in its setup or by its limit before its assertion only records
-    log = dry.run(path, mode="tags obsx", ignoreRestart=True)
-    got = dry.finished(log, "obsx setup step times out", path)
-    assert all(got[t.name].startswith("RECORDED; unreached: setup 1 never happened, steps 2-") for t in obsx), got
-    assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(obsx)
-    log = dry.run(path, mode="tags obsx", render_every=200)
-    got = dry.finished(log, "obsx test times out", path)
-    assert all(limited(got, t) for t in obsx), got
-    assert sum(s.endswith("test limit 445 updates") for s in log) == len(obsx)
-    assert dry.run.updates == worst_case(obsx) < 3 * 60 * 30, dry.run.updates
-    print("PASS obsx setup step and test limits, and total update budget")
+def test_strict_limits(path):
+    strict = tagged(path, "stored-character")  # each a snapshot test: one ended in its setup or by its limit before its assertion only records
+    mode = "tags stored-character"
+    log = dry.run(path, mode=mode, ignoreRestart=True)
+    got = dry.finished(log, "strict setup step times out", path)
+    assert all(got[t.name].startswith("RECORDED; unreached: setup 1 never happened, steps 2-") for t in strict), got
+    assert sum(s.endswith("never happened: step limit 120 updates: no new game") for s in log) == len(strict)
+    log = dry.run(path, mode=mode, render_every=200)
+    got = dry.finished(log, "strict test times out", path)
+    assert all(limited(got, t) for t in strict), got
+    assert sum(s.endswith("test limit 445 updates") for s in log) == len(strict)
+    assert dry.run.updates == worst_case(strict) < 3 * 60 * 30, dry.run.updates
+    print("PASS strict setup step and test limits, and total update budget")
 
 
-def test_obsy_worst(path):
-    # Each obsy tag's worst case: no console command ever runs, so every test stalls to its limit.
-    for tag in ("obsy-a", "obsy-b"):
-        mode = f"tags {tag}"
-        log = dry.run(path, mode=mode, render_every=10 ** 6)
-        got = dry.finished(log, mode, path)
-        dry.expect_results(got, mode, dry.expected(path, mode), cut=True)
-        tests = tagged(path, tag)
-        assert all(limited(got, t) for t in tests), (mode, got)
-        worst = worst_case(tests)
-        assert dry.run.updates == worst < 3 * 60 * 30, (mode, dry.run.updates, worst)
-        print(f"PASS {mode}: worst case {worst} updates")
+def test_recon_worst(path):
+    # The recon tests' worst case: no console command ever runs, so every test stalls to its limit.
+    mode = "tags recon"
+    log = dry.run(path, mode=mode, render_every=10 ** 6)
+    got = dry.finished(log, mode, path)
+    dry.expect_results(got, mode, dry.expected(path, mode), cut=True)
+    tests = tagged(path, "recon")
+    assert all(limited(got, t) for t in tests), got
+    worst = worst_case(tests)
+    assert dry.run.updates == worst, (dry.run.updates, worst)
+    print(f"PASS {mode}: worst case {worst} updates")
 
 
 def test_new_run_instead_of_continue(path):
@@ -186,10 +186,10 @@ def test_new_run_instead_of_continue(path):
 
 def test_late_continue(path):
     # The user continues after the 600-update Continue step gave up: logged, and the next test runs on
-    log = dry.run(path, mode="tags obsy-b", continue_after=615)  # lands in the next test before its own Continue step
+    log = dry.run(path, mode="tags continue", continue_after=615)  # lands in the next test before its own Continue step
     got = dry.finished(log, "late Continue", path)
-    want = dry.expected(path, "tags obsy-b")
-    names = [t.name for t in tagged(path, "obsy-b")]
+    want = dry.expected(path, "tags continue")
+    names = [t.name for t in tagged(path, "continue")]
     note = "; late Continue mid-test"
     assert all(dry.reached(got[name]).removesuffix(note) == want[name] for name in names), got
     late = [s for s in log if s.endswith(" late Continue, ignored")]
@@ -210,5 +210,5 @@ def test_restart_ignored(path):
     print("PASS a restart that never comes fails every test but the soft recon ones")
 
 
-TESTS = [test_all, test_fixtures, test_no_tags, test_tags, test_final_worst, test_obsx_limits, test_obsy_worst,
+TESTS = [test_all, test_fixtures, test_no_tags, test_tags, test_final_worst, test_strict_limits, test_recon_worst,
          test_new_run_instead_of_continue, test_late_continue, test_restart_ignored]

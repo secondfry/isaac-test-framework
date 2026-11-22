@@ -29,7 +29,7 @@ def test_continue_lines(path):
 
 def test_locked_character(path):
     # a restart that brings another character (a locked one may) fails each recon test of that character as a precondition
-    mode = "tags characters-recon"
+    mode = "tags recon"
     got = dry.finished(dry.run(path, mode=mode, lockedType=21), "locked Tainted Isaac", path)
     locked = [n for n in got if n.split(" > ")[1].startswith("Tainted Isaac: ")]
     want = "FAIL precondition: Tainted Isaac (type 21) cannot be started, locked on this save? player 0 is type 0, want 21"
@@ -40,7 +40,7 @@ def test_locked_character(path):
 
 def test_same_seed(path):
     # obsy b run 1: after a Continue, Esau Jr. made a new entity with the presser's seed and type, its items re-rolled
-    log = dry.run(path, mode="tags continue-b-loses", jrSameSeed=True)
+    log = dry.run(path, mode=MODE, jrSameSeed=True)
     got = dry.finished(log, "Esau Jr. keeps the seed", path)
     assert got[LOST] == dry.want()[LOST], got[LOST]
     same = [s for s in log if s.startswith(f"PROBE INFO {LOST} Esau Jr. #") and " new form, same seed " in s]
@@ -48,7 +48,7 @@ def test_same_seed(path):
     assert not any(s.startswith(f"PROBE INFO {LOST} ") and "never happened" in s for s in log)
     print("PASS a press that keeps the seed is logged as data:", same[0])
     # Only press #1 keeps the seed: its TIMING watch is dropped, not woken by #2's new seed under #1's label
-    log = dry.run(path, mode="tags continue-a-stored", jrSameSeed=1)
+    log = dry.run(path, mode=MODE, jrSameSeed=1)  # STORED plays the session's first Esau Jr. press
     got = dry.finished(log, "Esau Jr. #1 keeps the seed", path)
     assert got[STORED] == dry.want()[STORED], got[STORED]
     assert any(s.startswith(f"PROBE INFO {STORED} Esau Jr. #1 new form, same seed ") for s in log)

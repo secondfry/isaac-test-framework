@@ -33,7 +33,7 @@ local function jacobAndEsau(setup)
 	return fixture("Jacob and Esau", setup, JACOB, function() return ofType(ESAU) ~= nil, "no Esau beside Jacob" end)
 end
 
--- The characters the characters-recon tests start as (plan S5c). Tainted Isaac and Tainted Jacob may be locked on the save (README),
+-- The characters the per-character recon tests start as (plan S5c). Tainted Isaac and Tainted Jacob may be locked on the save (README),
 -- which their fixture reports. `who`: the press for Tainted Forgotten, as which button and entity use his active is unknown.
 local RECON_CHARACTERS = {
 	{ type = ids.ISAAC, name = "Isaac" }, { type = ids.T_ISAAC, name = "Tainted Isaac" }, { type = JACOB, name = "Jacob and Esau" },

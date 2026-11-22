@@ -34,34 +34,32 @@ Line 1 of `data\rehud_test_harness\save<slot>.dat` in the game folder (the vanil
 
 `HARNESS START` logs the line; a skipped test logs `RESULT <spec> > <test> SKIP <why> (tags '<line>')` and takes no update. The lines below line 1 are the harness's `STUCK` lines and never change the tags.
 
-The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud`; `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` and `characters-recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob); `obs`, `obsx`, `obsy-a`, `obsy-b`, `continue-a-stored`, `continue-b-loses` (groups of snapshot tests from earlier recon sessions).
+The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud`; `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; tagged `vanilla` too, as they read no ReHUD); `stored-character` (snapshot tests of a stored Esau Jr. or Flip character through Clicker, ChangePlayerType and losing Esau Jr.); `drop` (asks for a drop press).
 
 What each tags line plays, from the runner's plan (`dry.plan`): the tests, the user's Exit & Continues and pedestal walks, and the worst case: the updates when every test with a limit runs to it (`HARNESS DONE` included; 30 updates a second; menu time for the Continues not counted). A test without a limit has no cap of its own: each of its waits gives up after at most 600 updates, an Exit & Continue after 9000.
 
 | Tags line | Tests | Exit & Continues | Walks | Worst case, tests with a limit | Tests without a limit |
 |---|---|---|---|---|---|
-| (empty) | 77 | 3 | 2 | 20061 updates (11.1 min) | 33 |
-| `tags all` | 109 | 35 | 2 | 52061 (28.9 min) | 33 |
+| (empty) | 76 | 3 | 2 | 17841 updates (9.9 min) | 33 |
+| `tags all` | 108 | 35 | 2 | 49841 (27.7 min) | 33 |
 | `base_change` | 15 | 7 | 0 | 9531 (5.3 min) | 3 |
 | `characters` | 18 | 8 | 0 | 10776 (6.0 min) | 3 |
-| `characters-recon`, `recon` | 31 | 28 | 0 | 29336 (16.3 min) | 0 |
 | `continue` | 13 | 13 | 0 | 10001 (5.6 min) | 3 |
-| `continue-a-stored`, `continue-b-loses` | 1 each | 1 | 0 | 1001 (0.6 min) | 0 |
+| `drop` | 3 | 0 | 0 | 1336 (0.7 min) | 0 |
 | `engine` | 5 | 0 | 0 | - | 5 |
 | `esau_jr` | 46 | 7 | 2 | 19041 (10.6 min) | 13 |
 | `exit-continue` | 35 | 35 | 0 | 32001 (17.8 min) | 3 |
-| `hello`, `vanilla` | 3 | 0 | 0 | 446 (0.2 min) | 2 |
+| `hello` | 3 | 0 | 0 | 446 (0.2 min) | 2 |
 | `item_copies` | 4 | 0 | 0 | - | 4 |
 | `new` | 3 | 3 | 0 | - | 3 |
-| `obs` | 38 | 3 | 0 | 13236 (7.4 min) | 12 |
-| `obsx` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
-| `obsy-a` | 9 | 0 | 0 | 4006 (2.2 min) | 0 |
-| `obsy-b` | 5 | 3 | 0 | 3891 (2.2 min) | 0 |
+| `recon` | 31 | 28 | 0 | 29336 (16.3 min) | 0 |
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 76 | 7 | 2 | 21261 (11.8 min) | 31 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
 | `revive` | 1 | 0 | 0 | 2221 (1.2 min) | 0 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
+| `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
+| `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
 `revive` plays only with `tags revive`; play it alone: its game over may break the next test's restart.

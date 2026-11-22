@@ -8,7 +8,7 @@ CHECKED = {  # the tests with assertions: their PASS counts
     COPIES: 46, WALKED: 25, "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses": 39, FLIP_TWINS: 47,
 }
 CROSS = "Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back"
-OBSY = [  # the obsy-a and obsy-b tests: each reaches its verdicts
+PRESSES = [  # the strict snapshot tests of presses by each character and slot: each reaches its verdicts
     "Esau Jr. through the Schoolbag's second slot", "Esau Jr. through the Schoolbag with a Clicker press", "Esau Jr. character's Flips after losing Esau Jr.",
     "Isaac's Esau Jr. character uses Clicker's effect", "Esau Jr. presses by Jacob", "Esau Jr. presses by Esau", "Esau Jr. presses by The Forgotten and The Soul",
     "Esau Jr. presses by Tainted Forgotten", "Esau Jr. presses by Lazarus Risen", "Esau Jr. presses by Tainted Jacob", "Esau Jr. presses by Eden",
@@ -24,7 +24,7 @@ RECORDED = [  # the other snapshot tests
     "Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back", "Tainted Lazarus's Esau Jr. character uses Clicker's effect",
     "Isaac's Esau Jr. character loses Esau Jr. and gets it back", "Tainted Lazarus loses Esau Jr. after a round trip, returns recorded",
     "Esau Jr. and Flip with Birthright twins", "Esau Jr. character of a flipped-back Tainted Lazarus flips, then turns Dead Tainted Lazarus",
-    "Tainted Lazarus loses Esau Jr. after a round trip, verdict per press", *OBSY,
+    "Tainted Lazarus loses Esau Jr. after a round trip, verdict per press", *PRESSES,
 ]
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
 RECON = "Esau Jr. press, press, Exit & Continue, press"
@@ -39,7 +39,7 @@ def test_esau_jr(path):
     log = dry.run(path, mode=MODE)
     dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
 
-    info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in OBSY] + [f"esau_jr > {c}: {RECON}" for c in dry.RECON])
+    info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in PRESSES] + [f"esau_jr > {c}: {RECON}" for c in dry.RECON])
 
     def has(test, text):
         return any(text in s for s in info[f"esau_jr > {test}"])
@@ -50,7 +50,7 @@ def test_esau_jr(path):
     assert has("Esau Jr. through the Schoolbag's second slot", "Esau Jr. to primary after 1 updates by drop press | primary 703 secondary 45")
     assert has("Esau Jr. presses by The Forgotten and The Soul", "switch to the Soul after 1 updates by drop press")
     assert has("Esau Jr. through the Schoolbag with a Clicker press", "VERDICT Clicker index 0 B -> unchanged")
-    print("PASS esau_jr obsy and recon verdicts, timing, Schoolbag, Soul switch and Esau's presses")
+    print("PASS esau_jr press and recon verdicts, timing, Schoolbag, Soul switch and Esau's presses")
 
     assert f"PROBE SNAP esau_jr > {CROSS} | 1 Esau Jr. / lineup = A" in log, "no SNAP line after the first step"
     recon = f"PROBE SNAP esau_jr > Isaac: {RECON} | 1 Esau Jr. #1 / TIMING Esau Jr. #1 +0 = index 0 type 0 c703 "
@@ -72,7 +72,7 @@ def test_esau_jr(path):
 
 def test_drop_fallback(path):
     # a drop press the engine ignores: each drop step takes its fallback at 60 updates
-    mode = "tags obsy-a"
+    mode = "tags drop"
     log = dry.run(path, mode=mode, ignoreDrop=True)
     dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
     for test, line in (("Esau Jr. through the Schoolbag's second slot", "Esau Jr. to primary after 61 updates by SwapActiveItems | primary 703 secondary 45"),

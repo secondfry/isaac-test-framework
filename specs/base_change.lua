@@ -31,7 +31,7 @@ local FLIP, CLICKER, ISAAC, T_LAZ, DEAD_T_LAZ, JACOB, ESAU, PRIMARY = ids.FLIP, 
 	ids.ESAU, ids.PRIMARY
 
 local game = Game()
-local TAGS, SNAPSHOT_TAGS, DISPUTE_TAGS = { "base_change", "rehud" }, { "base_change", "rehud", "obs" }, { "base_change", "rehud", "obs", "obsx" }
+local TAGS, STORED_CHARACTER_TAGS = { "base_change", "rehud" }, { "base_change", "rehud", "stored-character" }
 local STRICT = { strict = true }
 
 -- Clicker until `done(ctx)` holds after a use's look, up to `maxUses` uses (each refilled by the swap); `around(ctx, "before" | "after")`
@@ -111,20 +111,20 @@ local tests = {
 			innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
 			lookC("start", innerInfo("start")), clickerUntil(mergedAndSplit, 12, lookC("after Clicker"), innerAround), innerInfo("end"),
 		} },
-	snapshotTest("ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip", SNAPSHOT_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
+	snapshotTest("ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip", TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
 		{ "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount }, { "Flip again", flip("Flip again") },
 		{ "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
-	snapshotTest("a cancelled Clicker on the Esau Jr. character", DISPUTE_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
+	snapshotTest("a cancelled Clicker on the Esau Jr. character", STORED_CHARACTER_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
 		{ "cancel Clicker", vetoed(false) }, jrAgain() }, STRICT),
-	snapshotTest("a cancelled Clicker, then ChangePlayerType in the same update", DISPUTE_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
+	snapshotTest("a cancelled Clicker, then ChangePlayerType in the same update", STORED_CHARACTER_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
 		{ "cancel Clicker and change type", vetoed(true) }, jrAgain() }, STRICT),
 	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
 	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
-	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", DISPUTE_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
+	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", STORED_CHARACTER_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
 		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }, STRICT),
-	snapshotTest("ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once", DISPUTE_TAGS, TLAZ_JR, {
+	snapshotTest("ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once", STORED_CHARACTER_TAGS, TLAZ_JR, {
 		{ "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
 		{ "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") }, { "stored settling", storedSettlingNow }, { "settle", settled },
 		jrAgain(), { "watch 60", idle(60) } }, STRICT),

@@ -42,12 +42,12 @@ local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, T_FORGOTTEN, ESAU, PRIMARY, SECONDARY = e
 
 local game = Game()
 
--- Snapshot test kinds: their tags, and whether a step is strict (obsx, obsy, final I-M): it has a limit, and its miss ends the test, so
--- later presses cannot run on the wrong setup; a soft one (obs) is logged and skipped.
-local SOFT = { tags = { "esau_jr", "rehud", "obs" } }
-local OBSX = { tags = { "esau_jr", "rehud", "obs", "obsx" }, strict = true }
-local OBSY_A = { tags = { "esau_jr", "rehud", "obs", "obsy-a" }, strict = true }
-local OBSY_B = { tags = { "esau_jr", "rehud", "obs", "obsy-b" }, strict = true }
+-- Snapshot test kinds: their tags, and whether a step is strict: it has a limit, and its miss ends the test, so later presses cannot
+-- run on the wrong setup; a SNAPSHOT one's miss is logged and skipped. DROP asks for a drop press.
+local SNAPSHOT = { tags = { "esau_jr", "rehud" } }
+local STORED_CHARACTER = { tags = { "esau_jr", "rehud", "stored-character" }, strict = true }
+local STRICT = { tags = { "esau_jr", "rehud" }, strict = true }
+local DROP = { tags = { "esau_jr", "rehud", "drop" }, strict = true }
 local FINAL = { tags = { "esau_jr", "rehud", "rehud-2.8" }, strict = true }
 local function snapshotTest(kind, name, f, steps) return test(name, kind.tags, f, steps, kind) end
 
@@ -89,37 +89,37 @@ local tests = {
 		fixture = fixtures.TLAZ_JR_FLOOR_2, steps = {
 		look("after c4", oneC4), esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
 	} },
-	snapshotTest(SOFT, "Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back", TLAZ_JR,
+	snapshotTest(SNAPSHOT, "Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back", TLAZ_JR,
 		{ jrFirst(), { "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
-	snapshotTest(SOFT, "Esau Jr. character turned Isaac presses back", TLAZ_JR, { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
-	snapshotTest(SOFT, "Esau Jr. character flips there and back, then presses back", TLAZ_JR, { jrFirst(), { "pocket of the form", pocketHeld },
+	snapshotTest(SNAPSHOT, "Esau Jr. character turned Isaac presses back", TLAZ_JR, { jrFirst(), { "ChangePlayerType 0", changeType(ISAAC) }, jrAgain() }),
+	snapshotTest(SNAPSHOT, "Esau Jr. character flips there and back, then presses back", TLAZ_JR, { jrFirst(), { "pocket of the form", pocketHeld },
 		{ "Flip of the form", flip("Flip of the form") }, { "Flip back", flip("Flip back") }, jrAgain() }),
-	snapshotTest(SOFT, "Esau Jr. character of a flipped-back Tainted Lazarus turned Dead Tainted Lazarus", TLAZ_JR, { { "Flip", flip("Flip") },
+	snapshotTest(SNAPSHOT, "Esau Jr. character of a flipped-back Tainted Lazarus turned Dead Tainted Lazarus", TLAZ_JR, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "Flip back", flip("Flip back") }, { "Esau Jr.", esauJr("Esau Jr.") }, { "ChangePlayerType 38", changeType(DEAD_T_LAZ) },
 		jrAgain(), { "Flip A", flip("Flip A") }, { "re-give c703 #2", regiveEsauJr() }, { "Esau Jr. #2", esauJr("Esau Jr. #2") },
 		{ "Flip of the Esau Jr. form", flip("Flip of the Esau Jr. form") } }),
-	snapshotTest(SOFT, "Birthright given and removed after Esau Jr.", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
+	snapshotTest(SNAPSHOT, "Birthright given and removed after Esau Jr.", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
 		{ "remove Birthright", remove(BIRTHRIGHT) } }),
-	snapshotTest(SOFT, "Esau Jr. with Birthright held from the start",
+	snapshotTest(SNAPSHOT, "Esau Jr. with Birthright held from the start",
 		{ name = "Tainted Lazarus holding Esau Jr. and Birthright", setup = { fresh(T_LAZ), give(4), give(ESAU_JR), give(BIRTHRIGHT) } },
 		{ jrFirst(), jrAgain() }),
-	snapshotTest(SOFT, "Clicker on the Esau Jr. character, then more presses", TLAZ_JR, { jrFirst(), { "give Clicker", give(CLICKER) },
+	snapshotTest(SNAPSHOT, "Clicker on the Esau Jr. character, then more presses", TLAZ_JR, { jrFirst(), { "give Clicker", give(CLICKER) },
 		{ "Clicker", clicker }, { "Clicker roll", typeNow }, { "settle", settled }, jrAgain(),
 		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") },
 		{ "re-give c703 #4", regiveEsauJr() }, { "Esau Jr. #4", esauJr("Esau Jr. #4") } }),
-	snapshotTest(SOFT, "Birthright on the Esau Jr. character, then it presses back", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
+	snapshotTest(SNAPSHOT, "Birthright on the Esau Jr. character, then it presses back", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
 		{ "settle", settled }, jrAgain() }),
-	snapshotTest(SOFT, "Esau Jr. character turned Tainted Forgotten presses back", TLAZ_JR, { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) },
+	snapshotTest(SNAPSHOT, "Esau Jr. character turned Tainted Forgotten presses back", TLAZ_JR, { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) },
 		{ "settle", settled }, jrAgain(), { "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") } }),
-	snapshotTest(SOFT, "Tainted Lazarus flips after an Esau Jr. round trip", TLAZ_JR, { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld },
+	snapshotTest(SNAPSHOT, "Tainted Lazarus flips after an Esau Jr. round trip", TLAZ_JR, { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld },
 		{ "Flip on A", flip("Flip on A") } }),
-	snapshotTest(SOFT, "Birthright on the Esau Jr. character, then Flip", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
+	snapshotTest(SNAPSHOT, "Birthright on the Esau Jr. character, then Flip", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
 		{ "settle", settled }, { "Flip", flip("Flip") } }),
-	snapshotTest(OBSX, "Clicker on Tainted Lazarus back from its Esau Jr. character", TLAZ_JR, { jrFirst(), jrAgain(), giveClicker(),
+	snapshotTest(STORED_CHARACTER, "Clicker on Tainted Lazarus back from its Esau Jr. character", TLAZ_JR, { jrFirst(), jrAgain(), giveClicker(),
 		{ "Clicker", obsClicker }, jrTwice() }),
-	snapshotTest(OBSX, "Clicker on the Esau Jr. character after its Flip", TLAZ_JR, { jrFirst(), { "Flip of the form", flip("Flip of the form") },
+	snapshotTest(STORED_CHARACTER, "Clicker on the Esau Jr. character after its Flip", TLAZ_JR, { jrFirst(), { "Flip of the form", flip("Flip of the form") },
 		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
-	snapshotTest(OBSX, "Clicker on a Birthright twin of the Esau Jr. character", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
+	snapshotTest(STORED_CHARACTER, "Clicker on a Birthright twin of the Esau Jr. character", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
 		{ "select type-29 twin", birthrightFlip, deadFirst },
 		giveClicker(), { "Clicker by type 29", function(ctx)
 			if not ctx.t then
@@ -127,48 +127,48 @@ local tests = {
 			end
 			return obsClicker(ctx)
 		end }, jrTwice() }),
-	snapshotTest(OBSX, "Clicker on Isaac's Esau Jr. character", holding("Isaac", ISAAC), { jrFirst(), giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
-	snapshotTest(OBSX, "Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back", TLAZ_JR, {
+	snapshotTest(STORED_CHARACTER, "Clicker on Isaac's Esau Jr. character", holding("Isaac", ISAAC), { jrFirst(), giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
+	snapshotTest(STORED_CHARACTER, "Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back", TLAZ_JR, {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
-	snapshotTest(OBSX, "Tainted Lazarus's Esau Jr. character uses Clicker's effect", TLAZ_JR, {
+	snapshotTest(STORED_CHARACTER, "Tainted Lazarus's Esau Jr. character uses Clicker's effect", TLAZ_JR, {
 		{ "record A", rememberOriginal }, jrFirst(), { "give c1", give(1) }, { "use Clicker effect", useClickerEffect }, controlPresses() }),
-	snapshotTest(OBSX, "Isaac's Esau Jr. character loses Esau Jr. and gets it back", holding("Isaac", ISAAC), {
+	snapshotTest(STORED_CHARACTER, "Isaac's Esau Jr. character loses Esau Jr. and gets it back", holding("Isaac", ISAAC), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
-	snapshotTest(OBSX, "Tainted Lazarus loses Esau Jr. after a round trip, returns recorded", TLAZ_JR, {
+	snapshotTest(STORED_CHARACTER, "Tainted Lazarus loses Esau Jr. after a round trip, returns recorded", TLAZ_JR, {
 		{ "record A", rememberOriginal }, jrFirst(), { "record B", rememberForm },
 		{ "Esau Jr. back to A", esauJr("Esau Jr. back to A") },
 		{ "verify A returned", function(ctx) pre(seedOf(Isaac.GetPlayer(0)) == ctx.originalSeed, "original A in player 0") end },
 		replaceEsauJr(), controlPresses() }),
 	-- Does A return after its Esau Jr. character held Esau Jr. in the Schoolbag's second slot? Variant: a real Clicker press meanwhile.
-	snapshotTest(OBSY_A, "Esau Jr. through the Schoolbag's second slot", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"),
+	snapshotTest(DROP, "Esau Jr. through the Schoolbag's second slot", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"),
 		{ "give Schoolbag", give(SCHOOLBAG) }, { "give c45", give(YUM_HEART) }, { "slots after c45", slotsNow },
 		{ "Esau Jr. to secondary", toSlot("Esau Jr. to secondary", SECONDARY, ESAU_JR) },
 		{ "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	snapshotTest(OBSY_A, "Esau Jr. through the Schoolbag with a Clicker press", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"),
+	snapshotTest(DROP, "Esau Jr. through the Schoolbag with a Clicker press", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"),
 		{ "give Schoolbag", give(SCHOOLBAG) }, giveClicker(), { "slots after Clicker", slotsNow },
 		{ "Clicker to primary", toSlot("Clicker to primary", PRIMARY, CLICKER) }, { "Clicker", verdict("Clicker", obsClicker) },
 		{ "slots after the Clicker press", slotsNow }, { "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) },
 		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
 	-- Once A is lost, does A's Dead Tainted Lazarus X (or A) ever come back through B's Flips or presses?
-	snapshotTest(OBSY_A, "Esau Jr. character's Flips after losing Esau Jr.", TLAZ_JR, { { "Flip", flipV("Flip") }, { "Flip back", flipV("Flip back") },
+	snapshotTest(STRICT, "Esau Jr. character's Flips after losing Esau Jr.", TLAZ_JR, { { "Flip", flipV("Flip") }, { "Flip back", flipV("Flip back") },
 		jrPair("Esau Jr. #1"), replaceEsauJr(), { "Flip of B", flipV("Flip of B") }, { "Flip back to B", flipV("Flip back to B") },
 		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
 	-- Clicker's effect with Esau Jr. kept, on a character other than Lazarus.
-	snapshotTest(OBSY_A, "Isaac's Esau Jr. character uses Clicker's effect", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"), { "give c1", give(1) },
+	snapshotTest(STRICT, "Isaac's Esau Jr. character uses Clicker's effect", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"), { "give c1", give(1) },
 		{ "use Clicker effect", useClickerEffect }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
-	snapshotTest(OBSY_A, "Esau Jr. presses by Jacob", holding("Jacob", JACOB), charPresses()),
-	snapshotTest(OBSY_A, "Esau Jr. presses by Esau", { name = "Esau holding Esau Jr.", setup = { fresh(JACOB), give(4), giveEsau(ESAU_JR) } },
+	snapshotTest(STRICT, "Esau Jr. presses by Jacob", holding("Jacob", JACOB), charPresses()),
+	snapshotTest(STRICT, "Esau Jr. presses by Esau", { name = "Esau holding Esau Jr.", setup = { fresh(JACOB), give(4), giveEsau(ESAU_JR) } },
 		charPresses({ index = 1 }, nil, esauLoses)),
-	snapshotTest(OBSY_A, "Esau Jr. presses by The Forgotten and The Soul", holding("The Forgotten", PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
+	snapshotTest(DROP, "Esau Jr. presses by The Forgotten and The Soul", holding("The Forgotten", PlayerType.PLAYER_THEFORGOTTEN), charPresses(nil, {
 		jrPair("Esau Jr. as Forgotten #1"), jrPair("Esau Jr. as Forgotten #2"),
 		{ "switch to the Soul", dropPress("switch to the Soul", function(p) return p:GetPlayerType() == PlayerType.PLAYER_THESOUL end,
 			"ChangePlayerType 17", function(p) p:ChangePlayerType(PlayerType.PLAYER_THESOUL) end) } })),
-	snapshotTest(OBSY_A, "Esau Jr. presses by Tainted Forgotten", holding("Tainted Forgotten", T_FORGOTTEN), charPresses({ index = 0, any = true })),
-	snapshotTest(OBSY_A, "Esau Jr. presses by Lazarus Risen", holding("Lazarus", PlayerType.PLAYER_LAZARUS),
+	snapshotTest(STRICT, "Esau Jr. presses by Tainted Forgotten", holding("Tainted Forgotten", T_FORGOTTEN), charPresses({ index = 0, any = true })),
+	snapshotTest(STRICT, "Esau Jr. presses by Lazarus Risen", holding("Lazarus", PlayerType.PLAYER_LAZARUS),
 		charPresses(nil, { { "ChangePlayerType 11", changeType(PlayerType.PLAYER_LAZARUS2) } })),
 	-- Locked on save slot 1 (README): a restart that never gives the type ends the test with an INFO "character locked?" line.
-	snapshotTest(OBSY_B, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", PlayerType.PLAYER_JACOB_B), charPresses()),
-	snapshotTest(OBSY_B, "Esau Jr. presses by Eden", holding("Eden", PlayerType.PLAYER_EDEN), charPresses()),
+	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", PlayerType.PLAYER_JACOB_B), charPresses()),
+	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", PlayerType.PLAYER_EDEN), charPresses()),
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).
 	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = CHECKED, fixture = fixture("Jacob holding Esau Jr. on floor 2",
 		{ fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, JACOB), steps = {

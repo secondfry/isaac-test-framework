@@ -24,9 +24,12 @@ def spend_why(name):
         "spent nothing: stored presser seen with no drop after its use"
 
 
-def test_obsx(path):
-    log = dry.run(path, mode="tags obsx", ignoreFirstVetoPress=True, birthrightDeadFirst=True)
-    dry.expect_results(dry.finished(log, "tags obsx", path), "tags obsx", dry.expected(path, "tags obsx"))
+MODE = "tags stored-character"
+
+
+def test_stored_character(path):
+    log = dry.run(path, mode=MODE, ignoreFirstVetoPress=True, birthrightDeadFirst=True)
+    dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
     cancelled = [s for s in log if " cancelled Clicker update " in s]
     assert len(cancelled) == 2, cancelled
     for s in cancelled:
@@ -49,11 +52,11 @@ def test_obsx(path):
         assert [s.rsplit(" ", 1)[1] for s in history] == want, history
     b_returns = [s for s in log if s.startswith(f"PROBE INFO {original} press #") and " B seed " in s]
     assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["true", "false"], b_returns
-    print("PASS tags obsx, re-armed veto, same-update change, Birthright Flip, and controls")
+    print(f"PASS {MODE}, re-armed veto, same-update change, Birthright Flip, and controls")
 
 
 def test_clicker_effect_ignored(path):
-    log = dry.run(path, mode="tags obsx", ignoreClickerEffect=True)
+    log = dry.run(path, mode=MODE, ignoreClickerEffect=True)
     dry.finished(log, "Clicker effect does nothing", path)
     prefix = f"PROBE INFO {EFFECT} "
     assert any(s.startswith(prefix + "UseActiveItem Clicker type 29 -> 29 changed false") for s in log)
@@ -87,4 +90,4 @@ def test_no_spend(path):
     print("PASS no spend fails every swap:", got[swaps[0]][:110])
 
 
-TESTS = [test_obsx, test_clicker_effect_ignored, test_press_ignored, test_no_spend]
+TESTS = [test_stored_character, test_clicker_effect_ignored, test_press_ignored, test_no_spend]

@@ -164,7 +164,7 @@ local tests = {
 		{ "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
 		{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT),
 	-- Which id tells the two Birthright twins apart and stays stable across Flip, Esau Jr. and Exit & Continue?
-	snapshotTest("ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue", { "characters", "rehud", "obs", "obsy-b", "exit-continue" },
+	snapshotTest("ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue", { "characters", "rehud", "exit-continue" },
 		fixtures.TLAZ_JR_TWINS, {
 		{ "ids after Birthright", ids("after Birthright") },
 		{ "Flip", flipV("Flip") }, { "ids after Flip", ids("after Flip") }, { "Flip back", flipV("Flip back") }, { "ids after Flip back", ids("after Flip back") },

@@ -61,10 +61,10 @@ end
 
 local tests = {
 	-- Does a stored character survive Exit & Continue?
-	snapshotTest("Esau Jr. character stored across Exit & Continue", { "continue", "rehud", "obs", "obsy-b", "continue-a-stored", "exit-continue" },
+	snapshotTest("Esau Jr. character stored across Exit & Continue", { "continue", "rehud", "exit-continue" },
 		isaacJr, { jrPair("Esau Jr. #1"), continued, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }, SNAPSHOT),
 	-- Does a character lost with its Esau Jr. stay lost across Exit & Continue?
-	snapshotTest("Esau Jr. lost, then Exit & Continue", { "continue", "rehud", "obs", "obsy-b", "continue-b-loses", "exit-continue" },
+	snapshotTest("Esau Jr. lost, then Exit & Continue", { "continue", "rehud", "exit-continue" },
 		isaacJr, { jrPair("Esau Jr. #1"), loseEsauJr(), continued, { "re-give c703", give(ESAU_JR) }, jrPair("Esau Jr. #2"),
 			jrPair("Esau Jr. #3"), jrPair("Esau Jr. #4") }, SNAPSHOT),
 	-- The temporary Esau and Strawman's Keeper across Exit & Continue: their Parent, ControllerIndex and numbers before and after.

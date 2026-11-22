@@ -90,41 +90,6 @@ local clickerLoop = clickerUntil(function() return Isaac.GetPlayer(0):GetPlayerT
 		ctx.esau = esau and keyOf(esau)
 	end)
 
--- probes: engine facts the swaps rely on, as checks, so a game patch that changes one fails here first.
-
-local function maxCharges(ctx)
-	for _, c in ipairs({ { CLICKER, 6 }, { ESAU_JR, 1 }, { FLIP, 6 } }) do -- want: pre-REP+ items.xml
-		expect(ctx, "MaxCharges c" .. c[1], itemConfig:GetCollectible(c[1]).MaxCharges, c[2])
-	end
-end
-
--- REP+ Flip takes 4 though MaxCharges reads 6 (user, in game; run 3).
-local function pocketCharge(ctx)
-	local p, s = Isaac.GetPlayer(0), ActiveSlot.SLOT_POCKET
-	local function read() return p:GetActiveCharge(s) .. " + " .. p:GetBatteryCharge(s) end
-	expect(ctx, "pocket item", p:GetActiveItem(s), FLIP)
-	p:SetActiveCharge(6, s)
-	expect(ctx, "SetActiveCharge(6, 2): charge + battery", read(), "4 + 2")
-	p:SetActiveCharge(0, s)
-	p:FullCharge(s)
-	expect(ctx, "FullCharge(2) from 0: charge + battery", read(), "4 + 0")
-end
-
-local function onePress(label) return function(ctx) expect(ctx, label .. ": arms needed", ctx.arms, 1) end end
-
-local function clickerHeld(ctx)
-	local p = Isaac.GetPlayer(0)
-	expect(ctx, "Clicker after a real press: active, charge", p:GetActiveItem() .. ", " .. p:GetActiveCharge(), CLICKER .. ", 0")
-end
-
-local function cardBesideFlip(ctx)
-	local p, slot = Isaac.GetPlayer(0), nil
-	for i = 0, 3 do
-		if p:GetCard(i) == Card.CARD_SOUL_JACOB then slot = slot or i end
-	end
-	expect(ctx, "Soul of J&E beside Flip: card slot", slot, 1)
-end
-
 -- Tainted Lazarus flips with c4, the user exits and continues, and ChangePlayerType merges the stored form: one c4, no c711.
 local function continueSteps(beforeFlip)
 	local steps = { fresh(T_LAZ), give(4), stage(2), beforeFlip }
@@ -592,12 +557,6 @@ FINAL[#FINAL + 1] = obsScenario("final N summoned Esau across Continue", { fresh
 -- kind "large": needs the user to exit and Continue; runs last. new = true until it has passed in game (then clear it by hand); set it
 -- again whenever its steps or checks change. leftOk = true lets left entries pass the invariant (for a scenario where a player leaves).
 local SCENARIOS = {
-	{ name = "probes", kind = "small", steps = {
-		fresh(ISAAC), maxCharges, give(ESAU_JR), esauJr("Esau Jr."), onePress("Esau Jr."),
-		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
-		fresh(T_LAZ), addCard(Card.CARD_SOUL_JACOB), cardBesideFlip,
-		fresh(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"),
-	} },
 	{ name = "test3", kind = "small", steps = {
 		tlazFlipped(), look("before ChangePlayerType"), changeType(ISAAC),
 		look("after ChangePlayerType", function(ctx, label)

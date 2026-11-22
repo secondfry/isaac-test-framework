@@ -68,7 +68,8 @@ VOCABULARY = [
     ("bug 4", r"\bsplit \((\d+) Clicker uses\)", r"no split in \1 Clicker uses"),
 ]
 BOTH = [
-    ("D3", r"^(PROBE HARNESS START \d+) [\s\S]*", r"\1"),  # tags and mod data replace the mode (HEAD's %q keeps a newline)
+    ("D3", r"^(PROBE HARNESS START) [\s\S]*", r"\1"),  # tags and mod data replace the mode (HEAD's %q keeps a newline)
+    # (D2: split and new tests change the count; test_runner's test_all checks it against the runner's plan)
     ("D3", r"^(PROBE RESULT .*?) SKIP .*", r"\1 SKIP"),  # the tags' skip reasons replace the mode's
     ("D7", r"^PROBE GAME START \d+ ", "PROBE GAME START N "),  # the session's game count tells a test's position, not its behaviour
 ]

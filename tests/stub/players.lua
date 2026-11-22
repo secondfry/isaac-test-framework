@@ -7,7 +7,10 @@ function GetPtrHash(p) return p.hash or p.seed end
 
 players, stageN, pendingStart = {}, 1, nil
 stored = {} -- the form each swap item (Flip, Esau Jr.) swapped out
-local seedN = 100
+local seedN
+-- startRun calls it for a new run: a test's seeds (and hashes, Index) depend on that test alone, not on the tests played before it.
+function resetSeeds() seedN = 100 end
+resetSeeds()
 PM = {}; PM.__index = PM
 function tlaz(t) return t == 29 or t == 38 end
 local INNATE = {[2]={[46]=1}} -- innate copies by player type: Cain's Lucky Foot

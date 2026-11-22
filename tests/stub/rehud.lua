@@ -73,7 +73,7 @@ function fakeTrack()
 end
 addPriorityCallback(nil, ModCallbacks.MC_POST_UPDATE, 0, fakeTrack)
 
--- A new run: no entries, numbers or keys (startRun calls it).
+-- A new run: no entries, numbers, keys or settle counts (startRun calls it; each run's seeds start over).
 function resetFakeReHUD()
-  numbers, nextNumber, tagged, summoned = {}, 0, {}, {}; for i = #entries, 1, -1 do entries[i] = nil end
+  numbers, nextNumber, tagged, summoned, settle = {}, 0, {}, {}, {}; for i = #entries, 1, -1 do entries[i] = nil end
 end

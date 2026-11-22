@@ -67,6 +67,8 @@ function fire(id, ...)
 end
 function startRun(t, cont)
   if not cont then
+    -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone
+    resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
     stageN = 1; stored, wisps, pickups = {}, {}, {}; resetFakeReHUD()
   end

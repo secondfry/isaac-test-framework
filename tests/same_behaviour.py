@@ -1,5 +1,7 @@
-"""The refactored harness against HEAD df8ba84: each dry run played by both, logs compared line by line after normalising.
-Run: python -B -I tests/same_behaviour.py main.lua. Temporary: deleted once the refactor is done (plan S6)."""
+"""The refactored harness against HEAD df8ba84: each dry run played by both, logs normalised, then each test's lines compared in order
+with its old scenario's (a test may change spec and position) and the lines outside every test as a set.
+Both stubs start each run's seeds, frames and fake ReHUD settle counts over (HEAD's patched as it loads), so a test's lines depend on
+that test alone. Run: python -B -I tests/same_behaviour.py main.lua. Temporary: deleted once the refactor is done (plan S6)."""
 import os
 import re
 import subprocess
@@ -65,6 +67,7 @@ VOCABULARY = [
 BOTH = [
     ("D3", r"^(PROBE HARNESS START \d+) [\s\S]*", r"\1"),  # tags and mod data replace the mode (HEAD's %q keeps a newline)
     ("D3", r"^(PROBE RESULT .*?) SKIP .*", r"\1 SKIP"),  # the tags' skip reasons replace the mode's
+    ("D7", r"^PROBE GAME START \d+ ", "PROBE GAME START N "),  # the session's game count tells a test's position, not its behaviour
 ]
 DROP = [("D4", r"^PROBE SNAP ")]  # snapshot lines are new
 MASKS = [
@@ -77,9 +80,13 @@ WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:li
 # mode): a block of ENTRY lines is compared as a set.
 ENTRY = re.compile(r"^(PROBE (?:TRACE u\d+ after .*?: )?ENTRY )\d+ ")
 PASSED = re.compile(r"^PROBE RESULT (.*) PASS (\d+) assertions")
+START = re.compile(r"^PROBE TEST START (.*)$")
 # Runs whose HEAD logs differ between runs of HEAD itself beyond ENTRY order: only their RESULT lines are compared. Untagged keys share a
 # seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs).
 VOLATILE = {f"untagged ({legacy.FINAL_MODE})"}
+# The new stub's run start (tests/stub/api.lua startRun, rehud.lua resetFakeReHUD), patched into HEAD's stub.lua as it loads.
+BASE_RUN = "  if not cont then\n"
+BASE_RESET = BASE_RUN + "    seedN, frame, settle = 100, 0, {}\n"
 
 
 def show(path):
@@ -87,7 +94,9 @@ def show(path):
 
 
 def load_base(lua, _path):
-    lua.execute(show("tests/stub.lua"))
+    stub = show("tests/stub.lua")
+    assert stub.count(BASE_RUN) == 1, "HEAD's startRun moved"
+    lua.execute(stub.replace(BASE_RUN, BASE_RESET))
     lua.execute(show("main.lua"))
 
 
@@ -103,7 +112,8 @@ def base_mode(mode):
 
 
 def normalise(log, side):
-    out, masks = [], {}
+    """Each line with the allowed differences rewritten, a new test's name as its old scenario's."""
+    out = []
     rewrites = [(re.compile(r), s) for _, r, s in (VOCABULARY if side == "base" else []) + BOTH]
     drops = [re.compile(r) for _, r in DROP] if side == "new" else []
     for line in log:
@@ -114,26 +124,64 @@ def normalise(log, side):
             line = NAME.sub(lambda m: NEW_TO_OLD[m.group(0)], line)
         for r, s in rewrites:
             line = r.sub(s, line)
-        for _, test, regex in MASKS:
-            if line.startswith(f"PROBE TEST START {test}"):
-                masks[test] = re.compile(regex)
-        for m in masks.values():
-            line = m.sub("<allowed>", line)
         out.append(line)
-        for test in [t for t in masks if line.startswith(f"PROBE RESULT {t} ")]:
-            del masks[test]
-    return sort_entries(out)
+    return out
+
+
+def by_test(log):
+    """{old scenario: [the lines of each of its tests, TEST START to RESULT, masked]} and the set of lines outside every test."""
+    tests, outside, name = {}, set(), None
+    for line in log:
+        m = START.match(line)
+        if m:
+            name = m[1]
+            tests.setdefault(name, []).append([])
+        if name is None:
+            outside.add(line)
+            continue
+        tests[name][-1].append(line)
+        if line.startswith(f"PROBE RESULT {name} "):
+            name = None
+    masks = {}
+    for _, test, regex in MASKS:
+        masks.setdefault(test, []).append(re.compile(regex))
+    for name, segments in tests.items():
+        for k, seg in enumerate(segments):
+            for m in masks.get(name, []):
+                seg = [m.sub("<allowed>", s) for s in seg]
+            segments[k] = sort_entries(seg)
+    return tests, outside
 
 
 def assertion_sums(base, new):
-    """Each old scenario whose PASS count differs from the sum of its new tests' counts (both logs normalised to old names)."""
-    def counts(log):
+    """Each old scenario whose PASS count differs from the sum of its new tests' counts."""
+    def counts(tests):
         out = {}
-        for m in filter(None, map(PASSED.match, log)):
-            out[m[1]] = out.get(m[1], 0) + int(m[2])
+        for old, segments in tests.items():
+            for m in (PASSED.match(seg[-1]) for seg in segments):
+                if m:
+                    out[old] = out.get(old, 0) + int(m[2])
         return out
     b, n = counts(base), counts(new)
     return [f"{old}: {b[old]} assertions, new {n.get(old, 0)}" for old in NAMES if old in b and b[old] != n.get(old, 0)]
+
+
+def first_difference(base, new, volatile):
+    """(old scenario or "outside tests", base line, new line) of the first difference, or None. A scenario split into several tests is
+    compared by its assertion counts alone; a volatile run's tests by their RESULT lines."""
+    (bt, bo), (nt, no) = base, new
+    for old in dict.fromkeys([*bt, *nt]):
+        b, n = bt.get(old, []), nt.get(old, [])
+        if len(n) > 1:
+            continue
+        b, n = ([seg[-1:] if volatile else seg for seg in x] for x in (b, n))
+        b, n = (x[0] if x else ["<not played>"] for x in (b, n))
+        i = next((k for k, (x, y) in enumerate(zip(b, n)) if x != y), None if len(b) == len(n) else min(len(b), len(n)))
+        if i is not None:
+            return old, b[i] if i < len(b) else "<end>", n[i] if i < len(n) else "<end>"
+    if bo != no:
+        return "outside tests", min(bo - no, default="<none>"), min(no - bo, default="<none>")
+    return None
 
 
 def sort_entries(log):
@@ -155,14 +203,7 @@ def play(job):
     kwargs = {"mode": "tags all", **kwargs}
     if side == "base":
         kwargs.update(mode=base_mode(kwargs["mode"]), loader=load_base, walk=walk_base)
-    return normalise(dry.run(path, **kwargs), side)
-
-
-def first_difference(a, b):
-    for i, (x, y) in enumerate(zip(a, b)):
-        if x != y:
-            return i
-    return None if len(a) == len(b) else min(len(a), len(b))
+    return by_test(normalise(dry.run(path, **kwargs), side))
 
 
 def main(path):
@@ -173,18 +214,16 @@ def main(path):
     failed = 0
     for k, (name, _) in enumerate(CONFIGS):
         base, new = logs[2 * k], logs[2 * k + 1]
-        sums = assertion_sums(base, new)
-        if name in VOLATILE:
-            base, new = ([s for s in log if s.startswith("PROBE RESULT ")] for log in (base, new))
-        i = first_difference(base, new)
-        if i is None and not sums:
-            print(f"SAME {name}: {len(new)} lines")
+        sums = assertion_sums(base[0], new[0])
+        diff = first_difference(base, new, name in VOLATILE)
+        if diff is None and not sums:
+            print(f"SAME {name}: {sum(map(len, new[0].values()))} tests")
             continue
         failed += 1
         if sums:
             print(f"DIFF {name} assertion counts: {'; '.join(sums)}")
-        if i is not None:
-            print(f"DIFF {name} at line {i + 1}:\n  base {base[i] if i < len(base) else '<end>'}\n  new  {new[i] if i < len(new) else '<end>'}")
+        if diff:
+            print(f"DIFF {name} in {diff[0]}:\n  base {diff[1]}\n  new  {diff[2]}")
     print(f"same_behaviour: {len(CONFIGS) - failed} of {len(CONFIGS)} runs the same, allowed {', '.join(sorted({a[0] for a in ALLOW}))}")
     sys.exit(1 if failed else 0)
 

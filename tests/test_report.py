@@ -181,7 +181,21 @@ def test_cp1251():
     print("PASS a cp1251 console prints unencodable text as ?")
 
 
-TESTS = [test_verdicts, test_snapshots, test_stub_log, test_guard, test_json, test_timeline, test_cp1251]
+def test_session1():
+    # harness session 1 (2026-11-23, tags seed), trimmed to the engine line and the harness's own lines
+    with open(os.path.join(HERE, "fixtures", "session1-seed.txt"), encoding="utf-8") as f:
+        log = f.read().splitlines()
+    specs = tempfile.mkdtemp()
+    code, out, data, _ = run(log, specs)
+    assert data["session"]["version"] == ENGINE[len("[INFO] - "):], data["session"]
+    t = next(t for t in data["tests"] if t["name"] == "fresh run on a fixed seed")
+    assert (t["status"], t["snapshot"]["state"], t["snapshot"]["written"]) == ("RECORDED", "new", True), t
+    assert "## fresh run on a fixed seed" in snap_file(specs), "session 1's snapshot not written"
+    assert code == (0 if out[-1] == "ALL PASS" else 1), (code, out[-1])
+    print("PASS session 1's log: engine version, the seed recon test recorded and its snapshot written:", out[-1])
+
+
+TESTS = [test_verdicts, test_snapshots, test_stub_log, test_guard, test_json, test_timeline, test_cp1251, test_session1]
 
 
 if __name__ == "__main__":

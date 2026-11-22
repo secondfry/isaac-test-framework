@@ -1,0 +1,607 @@
+[INFO] - Binding of Isaac: Repentance+ v1.9.7.19.J511
+[INFO] - Lua Debug: PROBE HARNESS START 111 tests, tags 'tags seed', update snapshots no, mod data 'tags seed\n'
+[INFO] - Lua Debug: PROBE RESULT hello > fresh Isaac on a fixed seed SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT hello > Clicker on Isaac SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 0 seed 4251294779 hash 1220143916 parent false
+[INFO] - Lua Debug: PROBE TEST START hello > fresh run on a fixed seed | tags hello,vanilla,seed
+[INFO] - Lua Debug: PROBE ACTION restart 0 by type 0
+[INFO] - Lua Debug: PROBE CMD restart 0
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Setting PersistentGameData ReadOnly to False
+[INFO] - CPU time spent on enemy queries: 0.00 seconds.
+[INFO] - Clearing player color assignments 
+[INFO] - Clearing player color assignment for color 0 
+[INFO] - Clearing player color assignment for color 1 
+[INFO] - Clearing player color assignment for color 2 
+[INFO] - Clearing player color assignment for color 3 
+[INFO] - Setting PersistentGameData ReadOnly to True
+[INFO] - RNG Start Seed: ZAJJ MGXF (2818570855) [New, 1]
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 0
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assigning Player Color (0) to Controller(-2) 
+[INFO] - Assinging player entity 0 (ControlerIndex = -2) to HUD slot 0 
+[INFO] - Level::Init m_Stage 1, m_StageType 0 Seed 3989833193
+[INFO] - delete 0 generated rooms.
+[INFO] - generate...
+[INFO] - place_room: shape 10
+[INFO] - 10 rooms in 6 loops
+[INFO] - placing rooms...
+[INFO] - Map Generated in 1 Loops
+[INFO] - CURRENT ROOM INDEX 84 210d754c
+[INFO] - Room 1.2(Start Room)
+[INFO] - SpawnRNG seed: 11092208
+[INFO] - Spawn Entity with Type(6), Variant(19), Pos(240.00,160.00)
+[INFO] - Lua mem usage: 39000 KB and 186 bytes
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Lua Debug: PROBE GAME START 2 continued false
+[INFO] - music stopped playing
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 0 seed 124476800 hash 1236535692 parent false
+[INFO] - Lua Debug: PROBE FLOOR 1 Basement I
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Lua Debug: PROBE DONE restart 0 after 1 updates
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup 1 / A tag = A
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed settle wait ended after 30 updates settled
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | setup settle / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u1 after start: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u1 after start: PLAYERX 0 variant 0 ghost false Index 0 tag 124476800 charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u1 after start: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE TRACE u1 after start: ROSTER key 124476800 number 0 swapped false partner nil left false type 0 group 0
+[INFO] - Lua Debug: PROBE TRACE u1 step 1 seeds after restart 0 begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed SEEDS after restart 0 start seed ZAJJ MGXF item seeds 124476800 InitSeed 1145710433 type 0 items 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 1 seeds after restart 0 / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u2 step 2 seed command begins
+[INFO] - Lua Debug: PROBE ACTION seed command by type 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed seed command with the start seed ZAJJ MGXF
+[INFO] - Lua Debug: PROBE CMD seed ZAJJ MGXF
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Setting PersistentGameData ReadOnly to False
+[INFO] - CPU time spent on enemy queries: 0.00 seconds.
+[INFO] - Clearing player color assignments 
+[INFO] - Clearing player color assignment for color 0 
+[INFO] - Clearing player color assignment for color 1 
+[INFO] - Clearing player color assignment for color 2 
+[INFO] - Clearing player color assignment for color 3 
+[INFO] - Setting PersistentGameData ReadOnly to True
+[INFO] - RNG Start Seed: ZAJJ MGXF (2818570855) [New, 1]
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 0
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assigning Player Color (0) to Controller(-2) 
+[INFO] - Assinging player entity 0 (ControlerIndex = -2) to HUD slot 0 
+[INFO] - Level::Init m_Stage 1, m_StageType 0 Seed 3989833193
+[INFO] - delete 0 generated rooms.
+[INFO] - generate...
+[INFO] - place_room: shape 10
+[INFO] - 10 rooms in 6 loops
+[INFO] - placing rooms...
+[INFO] - Map Generated in 1 Loops
+[INFO] - CURRENT ROOM INDEX 84 210d754c
+[INFO] - Room 1.2(Start Room)
+[INFO] - SpawnRNG seed: 11092208
+[INFO] - Spawn Entity with Type(6), Variant(19), Pos(240.00,160.00)
+[INFO] - Lua mem usage: 39265 KB and 904 bytes
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Lua Debug: PROBE GAME START 3 continued false
+[INFO] - Lua Debug: PROBE TRACE u3 after 2 seed command: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u3 after 2 seed command: PLAYERX 0 variant 0 ghost false Index 0 tag none charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u3 after 2 seed command: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 0 seed 124476800 hash 1236535692 parent false
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed seed command: game start after 1 updates, continued false
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Lua Debug: PROBE TRACE u4 after 2 seed command: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u4 after 2 seed command: PLAYERX 0 variant 0 ghost false Index 0 tag 124476800 charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u4 after 2 seed command: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE TRACE u4 after 2 seed command: ROSTER key 124476800 number 0 swapped false partner nil left false type 0 group 0
+[INFO] - Lua Debug: PROBE DONE seed command after 1 updates
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 2 seed command / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u5 step 3 seeds after the seed command begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed SEEDS after the seed command start seed ZAJJ MGXF item seeds 124476800 InitSeed 1145710433 type 0 items 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 3 seeds after the seed command / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u6 step 4 seed command again begins
+[INFO] - Lua Debug: PROBE ACTION seed command by type 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed seed command with the start seed ZAJJ MGXF
+[INFO] - Lua Debug: PROBE CMD seed ZAJJ MGXF
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Setting PersistentGameData ReadOnly to False
+[INFO] - CPU time spent on enemy queries: 0.00 seconds.
+[INFO] - Clearing player color assignments 
+[INFO] - Clearing player color assignment for color 0 
+[INFO] - Clearing player color assignment for color 1 
+[INFO] - Clearing player color assignment for color 2 
+[INFO] - Clearing player color assignment for color 3 
+[INFO] - Setting PersistentGameData ReadOnly to True
+[INFO] - RNG Start Seed: ZAJJ MGXF (2818570855) [New, 1]
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 0
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assigning Player Color (0) to Controller(-2) 
+[INFO] - Assinging player entity 0 (ControlerIndex = -2) to HUD slot 0 
+[INFO] - Level::Init m_Stage 1, m_StageType 0 Seed 3989833193
+[INFO] - delete 0 generated rooms.
+[INFO] - generate...
+[INFO] - place_room: shape 10
+[INFO] - 10 rooms in 6 loops
+[INFO] - placing rooms...
+[INFO] - Map Generated in 1 Loops
+[INFO] - CURRENT ROOM INDEX 84 210d754c
+[INFO] - Room 1.2(Start Room)
+[INFO] - SpawnRNG seed: 11092208
+[INFO] - Spawn Entity with Type(6), Variant(19), Pos(240.00,160.00)
+[INFO] - Lua mem usage: 39226 KB and 968 bytes
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Lua Debug: PROBE GAME START 4 continued false
+[INFO] - Lua Debug: PROBE TRACE u7 after 4 seed command again: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u7 after 4 seed command again: PLAYERX 0 variant 0 ghost false Index 0 tag none charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u7 after 4 seed command again: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 0 seed 124476800 hash 1236535692 parent false
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed seed command: game start after 1 updates, continued false
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Lua Debug: PROBE TRACE u8 after 4 seed command again: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u8 after 4 seed command again: PLAYERX 0 variant 0 ghost false Index 0 tag 124476800 charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u8 after 4 seed command again: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE TRACE u8 after 4 seed command again: ROSTER key 124476800 number 0 swapped false partner nil left false type 0 group 0
+[INFO] - Lua Debug: PROBE DONE seed command after 1 updates
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 4 seed command again / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u9 step 5 seeds after the second seed command begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed SEEDS after the second seed command start seed ZAJJ MGXF item seeds 124476800 InitSeed 1145710433 type 0 items 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 5 seeds after the second seed command / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u10 step 6 restart 0 begins
+[INFO] - Lua Debug: PROBE ACTION restart 0 by type 0
+[INFO] - Lua Debug: PROBE CMD restart 0
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Setting PersistentGameData ReadOnly to False
+[INFO] - CPU time spent on enemy queries: 0.00 seconds.
+[INFO] - Clearing player color assignments 
+[INFO] - Clearing player color assignment for color 0 
+[INFO] - Clearing player color assignment for color 1 
+[INFO] - Clearing player color assignment for color 2 
+[INFO] - Clearing player color assignment for color 3 
+[INFO] - Setting PersistentGameData ReadOnly to True
+[INFO] - RNG Start Seed: ZAJJ MGXF (2818570855) [New, 1]
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 0
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assigning Player Color (0) to Controller(-2) 
+[INFO] - Assinging player entity 0 (ControlerIndex = -2) to HUD slot 0 
+[INFO] - Level::Init m_Stage 1, m_StageType 0 Seed 3989833193
+[INFO] - delete 0 generated rooms.
+[INFO] - generate...
+[INFO] - place_room: shape 10
+[INFO] - 10 rooms in 6 loops
+[INFO] - placing rooms...
+[INFO] - Map Generated in 1 Loops
+[INFO] - CURRENT ROOM INDEX 84 210d754c
+[INFO] - Room 1.2(Start Room)
+[INFO] - SpawnRNG seed: 11092208
+[INFO] - Spawn Entity with Type(6), Variant(19), Pos(240.00,160.00)
+[INFO] - Lua mem usage: 39227 KB and 8 bytes
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Lua Debug: PROBE GAME START 5 continued false
+[INFO] - Lua Debug: PROBE TRACE u11 after 6 restart 0: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u11 after 6 restart 0: PLAYERX 0 variant 0 ghost false Index 0 tag none charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u11 after 6 restart 0: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 0 seed 124476800 hash 1236535692 parent false
+[INFO] - Lua Debug: PROBE FLOOR 1 Basement I
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Isaac) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Isaac)
+[INFO] - Lua Debug: PROBE TRACE u12 after 6 restart 0: PLAYER 0 type 0 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 0 c482 0 c619 0 primary 0 secondary 0 pocket 0
+[INFO] - Lua Debug: PROBE TRACE u12 after 6 restart 0: PLAYERX 0 variant 0 ghost false Index 0 tag 124476800 charge primary 0+0 pocket 0+0 items 
+[INFO] - Lua Debug: PROBE TRACE u12 after 6 restart 0: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE TRACE u12 after 6 restart 0: ROSTER key 124476800 number 0 swapped false partner nil left false type 0 group 0
+[INFO] - Lua Debug: PROBE DONE restart 0 after 1 updates
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 6 restart 0 / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u13 step 7 seeds after restart 0 again begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed SEEDS after restart 0 again start seed ZAJJ MGXF item seeds 124476800 InitSeed 1145710433 type 0 items 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A type = 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A name = Isaac
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A items = 
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A actives = 0:0+0 0:0+0 0:0+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 7 seeds after restart 0 again / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u14 step 8 restart 29 begins
+[INFO] - Lua Debug: PROBE ACTION restart 29 by type 0
+[INFO] - Lua Debug: PROBE CMD restart 29
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Setting PersistentGameData ReadOnly to False
+[INFO] - CPU time spent on enemy queries: 0.00 seconds.
+[INFO] - Clearing player color assignments 
+[INFO] - Clearing player color assignment for color 0 
+[INFO] - Clearing player color assignment for color 1 
+[INFO] - Clearing player color assignment for color 2 
+[INFO] - Clearing player color assignment for color 3 
+[INFO] - Setting PersistentGameData ReadOnly to True
+[INFO] - RNG Start Seed: ZAJJ MGXF (2818570855) [New, 1]
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 29
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assigning Player Color (0) to Controller(-2) 
+[INFO] - [Frame: 0] Initialized player with Variant 0 and Subtype 38
+[INFO] - Entity_Player::SetControllerId() Setting controller ID to -2, (Prev: -1) 
+[INFO] - Assinging player entity 0 (ControlerIndex = -2) to HUD slot 0 
+[INFO] - Level::Init m_Stage 1, m_StageType 0 Seed 3989833193
+[INFO] - delete 0 generated rooms.
+[INFO] - generate...
+[INFO] - place_room: shape 10
+[INFO] - 10 rooms in 6 loops
+[INFO] - placing rooms...
+[INFO] - Map Generated in 1 Loops
+[INFO] - CURRENT ROOM INDEX 84 210d754c
+[INFO] - Room 1.2(Start Room)
+[INFO] - SpawnRNG seed: 11092208
+[INFO] - Spawn Entity with Type(6), Variant(19), Pos(240.00,160.00)
+[INFO] - Lua mem usage: 39227 KB and 315 bytes
+[INFO] - Adding collectible 711 (Flip) to player 0 (Lazarus) from pool treasure
+[INFO] - Saving PersistentGameData to Steam Cloud: rep+persistentgamedata1.dat.
+[INFO] - Lua Debug: PROBE GAME START 6 continued false
+[INFO] - Lua Debug: PROBE TRACE u15 after 8 restart 29: PLAYER 0 type 29 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 1 c482 0 c619 0 primary 0 secondary 0 pocket 711
+[INFO] - Lua Debug: PROBE TRACE u15 after 8 restart 29: PLAYERX 0 variant 0 ghost false Index 0 tag none charge primary 0+0 pocket 4+0 items 711:1/1
+[INFO] - Lua Debug: PROBE TRACE u15 after 8 restart 29: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed CHAR 1 first seen at index 0 type 29 seed 124476800 hash 1236535692 parent false
+[INFO] - Lua Debug: PROBE FLOOR 1 Basement I
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Lazarus) from pool treasure
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Lazarus) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Lazarus) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Adding collectible 1 (The Sad Onion) to player 0 (Lazarus) from pool treasure
+[INFO] - Adding costume for 1 (The Sad Onion) which was added before and never removed.
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Lazarus)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Lazarus)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Lazarus)
+[INFO] - Removing collectible 1 (The Sad Onion) from player 0 (Lazarus)
+[INFO] - Lua Debug: PROBE TRACE u16 after 8 restart 29: PLAYER 0 type 29 seed 124476800 hash 1236535692 ctrl 4294967294 parent false c2 0 c4 0 c5 0 c703 0 c711 1 c482 0 c619 0 primary 0 secondary 0 pocket 711
+[INFO] - Lua Debug: PROBE TRACE u16 after 8 restart 29: PLAYERX 0 variant 0 ghost false Index 0 tag 124476800 charge primary 0+0 pocket 4+0 items 711:1/1
+[INFO] - Lua Debug: PROBE TRACE u16 after 8 restart 29: COUNT players 1 c703 pedestals 0
+[INFO] - Lua Debug: PROBE TRACE u16 after 8 restart 29: ROSTER key 124476800 number 0 swapped false partner nil left false type 29 group 0
+[INFO] - Lua Debug: PROBE TRACE u16 after 8 restart 29: ENTRY 1 c711 owner 124476800 floor Basement I merged nil temporary false
+[INFO] - Lua Debug: PROBE DONE restart 29 after 1 updates
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A type = 29
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A name = Lazarus
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A items = 711:1/1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A actives = 0:0+0 0:0+0 711:4+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 8 restart 29 / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u17 step 9 seeds after restart 29 begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed SEEDS after restart 29 start seed ZAJJ MGXF item seeds 124476800 InitSeed 1145710433 type 29 items 711:1/1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A type = 29
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A name = Lazarus
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A items = 711:1/1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A actives = 0:0+0 0:0+0 711:4+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 9 seeds after restart 29 / A tag = A
+[INFO] - Lua Debug: PROBE TRACE u18 step 10 settle begins
+[INFO] - Lua Debug: PROBE INFO hello > fresh run on a fixed seed settle wait ended after 29 updates settled
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / lineup = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / players = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A type = 29
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A name = Lazarus
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A seed = s1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A InitSeed = i1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A Index = x1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A items = 711:1/1
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A actives = 0:0+0 0:0+0 711:4+0 0:0+0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A trinkets = 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A cards = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A pills = 0 0 0 0
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A twin = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A main twin = A
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A parent = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A sub player = none
+[INFO] - Lua Debug: PROBE SNAP hello > fresh run on a fixed seed | 10 settle / A tag = A
+[INFO] - Lua Debug: PROBE RESULT hello > fresh run on a fixed seed RECORDED
+[INFO] - Lua Debug: PROBE RESULT engine > MaxCharges reads pre-REP+ charges SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT engine > Esau Jr. takes one press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT engine > Clicker stays held after a real press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT engine > a card beside Flip sits in pocket slot 1 SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT engine > Flip takes 4 charges and one press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Birthright twins keep their items through two Flips and a new floor SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > removing Birthright stores Dead Tainted Lazarus, and Flip brings him back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > temporary Esau from Soul of Jacob and Esau keeps his own items SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Strawman's Keeper is a character with his own items SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > temporary Esau has a number until he leaves SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > harness tag on Tainted Lazarus through Flip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Strawman's Keeper killed SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > The Forgotten: switch between body and soul SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Forgotten: switch between body and soul SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Lazarus: Birthright and Flip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus keeps one c4 through two Esau Jr. presses SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character turned Isaac presses back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character flips there and back, then presses back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character of a flipped-back Tainted Lazarus turned Dead Tainted Lazarus SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Birthright given and removed after Esau Jr. SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. with Birthright held from the start SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Clicker on the Esau Jr. character, then more presses SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Birthright on the Esau Jr. character, then it presses back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character turned Tainted Forgotten presses back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus flips after an Esau Jr. round trip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Birthright on the Esau Jr. character, then Flip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Clicker on Tainted Lazarus back from its Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Clicker on the Esau Jr. character after its Flip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Clicker on a Birthright twin of the Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Clicker on Isaac's Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus's Esau Jr. character uses Clicker's effect SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Isaac's Esau Jr. character loses Esau Jr. and gets it back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus loses Esau Jr. after a round trip, returns recorded SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. through the Schoolbag's second slot SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. through the Schoolbag with a Clicker press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character's Flips after losing Esau Jr. SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Isaac's Esau Jr. character uses Clicker's effect SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Jacob SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Esau SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by The Forgotten and The Soul SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Tainted Forgotten SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Lazarus Risen SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Tainted Jacob SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. presses by Eden SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Jacob's Esau Jr. character beside Esau gets character number 2 SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > two Esau Jr. copies each bring back their own character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. dropped and picked up brings Isaac back SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Flip twins change after Esau Jr., then Clicker SKIP opt-in (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. and Flip with Birthright twins SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Esau Jr. character of a flipped-back Tainted Lazarus flips, then turns Dead Tainted Lazarus SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus loses Esau Jr. after a round trip, verdict per press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > ChangePlayerType out of Tainted Lazarus merges the stored twin SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Clicker on Jacob and Esau until they split SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Clicker merges and splits Jacob and Esau holding Inner Eye SKIP opt-in (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > a cancelled Clicker on the Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > a cancelled Clicker, then ChangePlayerType in the same update SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT item_copies > one icon per owned, innate and wisp copy, the oldest lost first SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT item_copies > Zodiac copy is clocked SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT item_copies > 3 Dollar Bill copies are clocked SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT item_copies > base character change learns the innate copy, clocked copies stay SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > (P4c 1) Esau Jr. character turned Isaac SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > (P4c 2) Flip of the Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > (P4c 3) crossing on a flipped one's Esau Jr. character SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > S3 SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > r1 SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT regressions > r1 mirror SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT revive > Lazarus with every revive dies until none is left SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Esau Jr. character stored across Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Esau Jr. lost, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > temporary Esau and Strawman's Keeper across Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Flip mid-settle, Exit & Continue, then ChangePlayerType SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Flip once settled, Exit & Continue, then ChangePlayerType SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > item copies survive Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Isaac: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Tainted Isaac: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Jacob and Esau: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > The Forgotten: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Tainted Forgotten: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Tainted Lazarus: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT continue > Tainted Jacob: start, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Isaac: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Isaac: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Jacob and Esau: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > The Forgotten: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Forgotten: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Lazarus: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT characters > Tainted Jacob: Strawman, Soul of Jacob and Esau, Soul of the Forgotten, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Isaac: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Isaac: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Jacob and Esau: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > The Forgotten: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Forgotten: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Lazarus: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT esau_jr > Tainted Jacob: Esau Jr. press, press, Exit & Continue, press SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Isaac: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Tainted Isaac: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Jacob and Esau: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > The Forgotten: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Tainted Forgotten: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Tainted Lazarus: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE RESULT base_change > Tainted Jacob: Clicker, then Exit & Continue SKIP not tagged (tags 'tags seed')
+[INFO] - Lua Debug: PROBE HARNESS DONE

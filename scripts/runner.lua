@@ -30,6 +30,7 @@ local function fixtureReady(fixture, test)
 		local ok, why = fixture.done(ctx)
 		if ok then
 			ctx.t = nil
+			P("INFO", ctx.name, "start seed", Game():GetSeeds():GetStartSeedString())
 			if not test.traceUpdates then return "now" end
 			fire("traceStarts", test)
 			return

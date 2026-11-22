@@ -42,16 +42,30 @@ local function stage(n)
 	end)
 end
 
--- A new (not continued) game by `restart t`, with player 0 of type `t` when `typed`; records floor 1.
+-- Every test's start seed: `seed` with it restarted the run on it after 1 update, and later restarts kept it (session 1).
+local FIXED_SEED = "9SZM 3P3S"
+
+-- Queues `command`, a new game; the generation the step waits to pass.
+local function startNew(command)
+	queue(command)
+	expectStart("new")
+	return HARNESS.session.gen
+end
+
+-- A new (not continued) game by `restart t` on FIXED_SEED, after a `seed` command when the run is on another; player 0 of type `t`
+-- when `typed`; records floor 1.
 local function newGame(t, typed)
 	return act("restart " .. t, function()
-		queue("restart " .. t)
-		expectStart("new")
-		return HARNESS.session.gen
-	end, function(ctx, gen)
+		local seeding = game:GetSeeds():GetStartSeedString() ~= FIXED_SEED
+		return { seeding = seeding, gen = startNew(seeding and ("seed " .. FIXED_SEED) or ("restart " .. t)) }
+	end, function(ctx, b)
 		local S = HARNESS.session
-		if S.gen == gen or game:GetNumPlayers() == 0 then return false, "no new game" end
+		if S.gen == b.gen or game:GetNumPlayers() == 0 then return false, "no new game" end
 		if S.continued then error("restart " .. t .. " continued a run") end
+		if b.seeding then
+			b.seeding, b.gen = false, startNew("restart " .. t)
+			return false, "on the fixed seed, no new game yet"
+		end
 		local got = Isaac.GetPlayer(0):GetPlayerType()
 		if typed and got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
 		ctx.floors[1] = floorName()
@@ -63,15 +77,12 @@ local function fresh(t) return newGame(t, true) end
 -- Any character: a fixture's done check then reports a locked one (fixtures.character).
 local function restart(t) return newGame(t, false) end
 
--- Recon (plan open point 1): the `seed` command with the run's own start seed, then up to 50 updates (under the STUCK mark) for a game
--- start, logging whether one came. Whether the command starts a run, and from MC_POST_RENDER, is unobserved.
+-- Recon: the `seed` command with the run's own start seed, then up to 50 updates for a game start, logging whether one came (session 1: after 1 update).
 local function seed()
 	return act("seed command", function(ctx)
 		local code = game:GetSeeds():GetStartSeedString()
 		P("INFO", ctx.name, "seed command with the start seed", code)
-		queue("seed " .. code)
-		expectStart("new")
-		return HARNESS.session.gen
+		return startNew("seed " .. code)
 	end, function(ctx, gen)
 		local S = HARNESS.session
 		if S.gen ~= gen and game:GetNumPlayers() > 0 then

@@ -39,7 +39,7 @@ return { name = "hello", tests = {
 			expect(ctx, "Clicker charge after the use", chargeOf(p, CLICKER, PRIMARY), 0)
 		end,
 	} },
-	-- Recon: no assertions; console.fresh gains the seed command once this has shown its order (plan S7).
+	-- Recon: no assertions; what the seed command and restarts do to the seeds, which console.fresh relies on (session 1).
 	snapshotTest("fresh run on a fixed seed", { "hello", "vanilla", "seed" }, freshRun(ISAAC), {
 		{ "seeds after restart 0", seedsNow("after restart 0") },
 		{ "seed command", seed() }, { "seeds after the seed command", seedsNow("after the seed command") },

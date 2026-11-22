@@ -59,7 +59,7 @@ missCopy, dupCopy, keepStored, leaveNotMerge, laterFloor, untagged, phantomRow =
 
 frame = 0
 G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end,
-  GetSeeds=function() return {GetStartSeedString=function() return "STUB SEED" end} end, GetLevel=function() return {GetCurrentRoomIndex=function() return 84 end, GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+  GetSeeds=function() return {GetStartSeedString=function() return startSeed end} end, GetLevel=function() return {GetCurrentRoomIndex=function() return 84 end, GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 
@@ -71,8 +71,12 @@ function fire(id, ...)
     end
   end
 end
+-- The run's start seed; `seeded` once a `seed` command set it (tests/stub/console.lua).
+startSeed, seeded, seedRolls = nil, false, 0
 function startRun(t, cont)
   if not cont then
+    -- shortcut: a restart keeps a seed a `seed` command set and rolls a new one otherwise, as the restart from the user's run did (session 1); whether a plain second restart keeps it with no seed command first is session 2's recon
+    if not seeded then seedRolls = seedRolls + 1; startSeed = "STUB " .. seedRolls end
     -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it once a session logs GetFrameCount across a restart
     resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end

@@ -24,7 +24,7 @@ end
 local function owns(id) return function(p) return owned(p, id) > 0, "player 0 owns no c" .. id end end
 local ownsJr, ownsC4 = owns(ESAU_JR), owns(4)
 
--- shortcut: restart only, no fixed seed yet; console.fresh gains the seed command once session 1 has shown its order (plan S7).
+-- A fresh run of type `t` on the fixed seed (console.fresh).
 local function freshRun(t) return fixture("fresh run of type " .. t, { fresh(t) }, t) end
 -- `character` (type `t`) with c4 from floor 1 and an unpressed Esau Jr.
 local function holdingJr(character, t) return fixture(character .. " holding Esau Jr.", { fresh(t), give(4), give(ESAU_JR) }, t, ownsJr) end

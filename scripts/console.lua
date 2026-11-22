@@ -60,6 +60,28 @@ local function fresh(t)
 	end)
 end
 
+-- Recon (plan open point 1): the `seed` command with the run's own start seed, then up to 50 updates (under the STUCK mark) for a game
+-- start, logging whether one came. Whether the command starts a run, and from MC_POST_RENDER, is unobserved.
+local function seed()
+	return act("seed command", function(ctx)
+		local code = game:GetSeeds():GetStartSeedString()
+		P("INFO", ctx.name, "seed command with the start seed", code)
+		queue("seed " .. code)
+		expectStart("new")
+		return HARNESS.session.gen
+	end, function(ctx, gen)
+		local S = HARNESS.session
+		if S.gen ~= gen and game:GetNumPlayers() > 0 then
+			P("INFO", ctx.name, "seed command: game start after", ctx.t, "updates, continued", S.continued)
+			return true
+		end
+		if ctx.t < 50 then return false, "no game start" end
+		expectStart(nil)
+		P("INFO", ctx.name, "seed command: no game start in", ctx.t, "updates")
+		return true
+	end)
+end
+
 -- Console giveitem to whoever the engine gives it (the Keeper once a Strawman Keeper existed, in-game 2026-11-22); logs who got it.
 local function giveAnyone(id)
 	local function counts()
@@ -90,4 +112,4 @@ local function flush()
 	Isaac.ExecuteCommand(c)
 end
 
-return { give = give, remove = remove, stage = stage, fresh = fresh, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }
+return { give = give, remove = remove, stage = stage, fresh = fresh, seed = seed, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }

@@ -53,7 +53,8 @@ tlazRoll = 35 -- set by the test: the type Clicker rolls from Tainted Lazarus (3
 missCopy, dupCopy, keepStored, leaveNotMerge, laterFloor, untagged, phantomRow = false, false, false, false, false, false, false
 
 frame = 0
-G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end, GetLevel=function() return {GetCurrentRoomIndex=function() return 84 end, GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
+G = {GetNumPlayers=function() return #players end, GetFrameCount=function() return frame end,
+  GetSeeds=function() return {GetStartSeedString=function() return "STUB SEED" end} end, GetLevel=function() return {GetCurrentRoomIndex=function() return 84 end, GetName=function() return "Floor"..stageN end, GetStage=function() return stageN end} end}
 function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 

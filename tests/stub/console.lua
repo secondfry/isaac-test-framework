@@ -1,5 +1,7 @@
--- Fake console: restart, giveitem, remove and stage.
+-- Fake console: restart, giveitem, remove and stage; seed does nothing.
 function Isaac.ExecuteCommand(c)
+  -- shortcut: what `seed <code>` does in game is unobserved (plan open point 1), so it does nothing here; model it from session 1 (plan S7).
+  if c:match("^seed ") then return end
   local a, b = c:match("^(%S+) c?(%d+)$")
   b = tonumber(b)
   if a == "restart" then if not ignoreRestart then pendingStart = b end

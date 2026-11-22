@@ -5,7 +5,8 @@ local engine = include("scripts.game")
 local ITEM_IDS, floorName, seedOf, owned, wispsOf, heldItems, pedestals, slots, findPlayer = engine.ITEM_IDS, engine.floorName, engine.seedOf,
 	engine.owned, engine.wispsOf, engine.heldItems, engine.pedestals, engine.slots, engine.findPlayer
 local rehud = include("scripts.rehud")
-local dbg, entries, tagText, storedSettling, keyOf = rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling, rehud.keyOf
+local present, dbg, entries, tagText, storedSettling, keyOf = rehud.present, rehud.dbg, rehud.entries, rehud.tagText, rehud.storedSettling,
+	rehud.keyOf
 local info = include("scripts.steps").info
 local enums = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY = enums.FLIP, enums.ESAU_JR, enums.CLICKER, enums.BIRTHRIGHT, enums.PRIMARY,
@@ -57,6 +58,7 @@ local function obsLines()
 			.. " pocket " .. p:GetActiveCharge(ActiveSlot.SLOT_POCKET) .. "+" .. p:GetBatteryCharge(ActiveSlot.SLOT_POCKET) .. " items " .. heldItems(p)
 	end
 	t[#t + 1] = "COUNT players " .. game:GetNumPlayers() .. " c703 pedestals " .. pedestals(ESAU_JR)
+	if not present() then return t end
 	local rows = dbg().roster.serialize()
 	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
 	for _, r in ipairs(rows) do

@@ -3,10 +3,15 @@ local seedOf = include("scripts.game").seedOf
 
 local game = Game()
 
-local function dbg()
+-- False in a vanilla session: the trace and the settle waits then skip ReHUD (plan D8).
+local function present()
 	local d = ReHUD and ReHUD.dbg
-	if not (d and d.tracker and d.roster) then error("ReHUD.dbg missing: install ReHUD cf965b0 or later") end
-	return d
+	return (d and d.tracker and d.roster) ~= nil
+end
+
+local function dbg()
+	if not present() then error("ReHUD.dbg missing: install ReHUD cf965b0 or later") end
+	return ReHUD.dbg
 end
 
 local function entries() return dbg().tracker.entries end
@@ -45,8 +50,9 @@ local function ownerOf(id)
 	return owner
 end
 
--- What ReHUD is still settling, or nil, by each player's roster key (keyOf).
+-- What ReHUD is still settling, or nil, by each player's roster key (keyOf); nil without ReHUD.
 local function settling()
+	if not present() then return end
 	for _, e in ipairs(entries()) do
 		if e.merged then return "a merge" end
 	end
@@ -59,6 +65,7 @@ end
 -- Stored forms still settling: the wait skips them, as ReHUD freezes their settle until they return (roster.lua), so this says whether
 -- a step tested ReHUD's stored-mid-settle path or its settled one.
 local function storedSettling()
+	if not present() then return "" end
 	local r, seen, t = dbg().roster, {}, {}
 	for _, e in ipairs(entries()) do
 		if not seen[e.owner] and r.isSwapped(e.owner) and r.isSettling(e.owner) then seen[e.owner] = true; t[#t + 1] = e.owner end
@@ -67,6 +74,6 @@ local function storedSettling()
 end
 
 return {
-	dbg = dbg, entries = entries, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
+	present = present, dbg = dbg, entries = entries, tag = tag, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
 	ownerOf = ownerOf, settling = settling, storedSettling = storedSettling,
 }

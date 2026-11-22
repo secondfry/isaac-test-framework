@@ -32,8 +32,24 @@ function kinds(p)
 end
 function PM:ToPlayer() return self end
 function PM:GetData() return self.data end
--- shortcut: Kill = leaves GetPlayer, no revive, unobserved; the Keeper kill and the revive recon log what the engine does, model it from them.
-function PM:Kill() for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
+local function consume(p, id)
+  if (p.items[id] or 0) == 0 then return false end
+  p.items[id] = p.items[id] - 1
+  return true
+end
+-- A Strawman Keeper leaves GetPlayer; any other player revives, the same entity, or the game is over.
+-- shortcut: revives at once (in game: alive by update 58) in the priority seen with all sources held on one Lazarus (session 2); each source
+-- alone, the game over's new game type and seed, and Missing Poster on Lazarus are unobserved (next revive session)
+function PM:Kill()
+  if self.t == 14 then for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
+  for i, c in ipairs(self.cards) do if c == 89 then table.remove(self.cards, i) return end end -- Soul of Lazarus: type kept
+  if self.t == 8 then self.t = 11 return end -- Lazarus's innate revive
+  if consume(self, 332) then return end -- Lazarus' Rags: type kept
+  if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
+  if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
+  players, pendingStart = {}, 0 -- game over: the engine starts a new game (session 2)
+end
+function PM:IsDead() return false end -- a dead player is revived or gone here (Kill)
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
 function PM:GetCollectibleCount() local n = 0 for _, c in pairs(self.items) do n = n + c end return n end

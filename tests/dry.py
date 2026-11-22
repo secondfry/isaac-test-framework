@@ -1,4 +1,8 @@
-"""The dry run: main.lua played against the stub in tests/stub/, and the helpers every test module reads its log with."""
+"""The dry run: main.lua played against the stub in tests/stub/, the test modules and the plan of tests, and the helpers every test
+module reads its log with."""
+import collections
+import functools
+import importlib
 import os
 import re
 import subprocess
@@ -10,16 +14,63 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPORT = os.path.join(HERE, "..", "tools", "report.py")
 STUB_FILES = ["api.lua", "players.lua", "characters.lua", "input.lua", "console.lua", "rehud.lua"]  # load order: rehud.lua registers its update first
 RESULT = re.compile(r"^PROBE RESULT (.+?) (PASS \d+ assertions|FAIL |RECORDED|SKIP )")
+NOT_MODULES = {"test_harness", "test_report"}  # the entry, and report.py's own tests (run on their own)
+# A planned test as the runner holds it: its full name, tags, limit in updates (None: none), snapshot test or not, onStepError (None).
+Planned = collections.namedtuple("Planned", "name tags limit snapshot soft")
+
+
+@functools.lru_cache(maxsize=None)
+def modules():
+    """Every tests/test_<name>.py module but NOT_MODULES, by name: each exports TESTS (its test functions) and WANT (its tests' verdicts
+    under `tags all` when nothing fails, by "<spec> > <test>"); a spec's module also NAMES (its legacy scenarios, legacy_names.py)."""
+    names = sorted(f[:-3] for f in os.listdir(HERE) if f.startswith("test_") and f.endswith(".py") and f[:-3] not in NOT_MODULES)
+    return tuple(importlib.import_module(n) for n in names)
+
+
+def want():
+    """Every module's WANT in one map."""
+    out = {}
+    for m in modules():
+        for name, verdict in m.WANT.items():
+            assert name not in out, f"two verdicts for {name}"
+            out[name] = verdict
+    return out
+
+
+@functools.lru_cache(maxsize=None)
+def plan(path):
+    """The tests main.lua at `path` plays, in play order, read from its runner."""
+    lua = LuaRuntime()
+    load(lua, path)
+
+    def array(t):
+        return [t[i] for i in range(1, len(t) + 1)] if t else []
+    return tuple(Planned(t.name, frozenset(array(t.tags)), t.limit, bool(t.snapshot), t.onStepError) for t in array(lua.globals().RUNNER.tests))
+
+
+def expected(path, mode="tags all"):
+    """Each planned test's verdict under the tags line `mode` when nothing fails."""
+    verdicts = want()
+    missing = [t.name for t in plan(path) if t.name not in verdicts]
+    assert not missing, f"no WANT for {missing}"
+    return wanted(mode, {t.name: (verdicts[t.name], t.tags) for t in plan(path)})
+
+
+def finished(log, label, path):
+    """The RESULTs of a finished session that played every planned test once, in play order."""
+    return check_finished(log, label, [t.name for t in plan(path)])
 
 
 def load(lua, path, specs=None):
-    """The stub, the game's include() over the mod folder (each call runs the file again), then the mod's main.lua at `path`. `specs`
-    maps a spec name to Lua code returning that spec, played in place of the file of that name."""
+    """The stub, the game's include() over the mod folder (each call runs the file again), then the mod's main.lua at `path`; main's
+    runner, its first include, as RUNNER. `specs` maps a spec name to Lua code returning that spec, played in place of the file of
+    that name."""
     for name in STUB_FILES:
         with open(os.path.join(HERE, "stub", name), encoding="utf-8") as f:
             lua.execute(f.read())
     root = os.path.dirname(os.path.abspath(path)).replace("\\", "/") + "/"
     lua.execute("local root = ... function include(name) return dofile(root .. name:gsub('%.', '/') .. '.lua') end", root)
+    lua.execute("local real = include function include(n) local m = real(n) if n == 'scripts.runner' then RUNNER = RUNNER or m end return m end")
     for name, code in (specs or {}).items():
         lua.execute("local name, code = ... local real = include "
                     "function include(n) if n == 'specs.' .. name then return load(code)() end return real(n) end", name, code)
@@ -109,11 +160,16 @@ def wanted(mode, tests):
     return out
 
 
+def fails(verdict, why):
+    """True when `verdict` is a FAIL naming `why` (or one of a tuple)."""
+    return verdict.startswith("FAIL") and any(w in verdict for w in (why if isinstance(why, tuple) else (why,)))
+
+
 def expect_results(got, label, want, why=None, names=()):
     """Every test in `names` FAILs naming `why` (or one of a tuple); every other test in `want` ends as it says."""
     for name in want:
         if name in names:
-            assert got[name].startswith("FAIL") and any(w in got[name] for w in (why if isinstance(why, tuple) else (why,))), f"{label}: {name}: {got[name]}"
+            assert fails(got[name], why), f"{label}: {name}: {got[name]}"
         else:
             assert got[name] == want[name], f"{label}: {name}: {got[name]}"
 

@@ -1,9 +1,8 @@
 """The invariants every settled look asserts: each one's negative stub mode fails exactly the tests it must, and a wrong floor fails every look."""
 import dry
-import test_legacy as legacy
-from test_legacy import SCENARIOS, FINAL, FINAL_MODE, ONLY_PICKED, LOOKED
+from legacy_names import FINAL, FINAL_MODE, ONLY_PICKED, LOOKED, full, hit, expect_parts
 
-WANT = {}  # no spec of its own yet: it plays specs/legacy.lua (plan S4)
+WANT = {}  # no spec of its own: it plays every spec
 FINAL_C4 = ["final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up", "final C Tainted Lazarus Esau Jr.", "final D Strawman",
             "final E Soul of Jacob and Esau"]  # F and G run only when tagged; G holds no c4
 HOLDS_C4 = ["test3", "birthright", "P3", "P4a", "P4c", "S4", "P1", "P2", "S1", "S3", "r1", "r1 mirror", *FINAL_C4, "continue", "continue settled", "L1"]
@@ -27,27 +26,22 @@ INVARIANT_MODES = [
 
 
 def test_wrong_floor(path):
-    got = legacy.finished(dry.run(path, wrongFloor=True), "wrong floor")
-    want = legacy.wanted("tags all")
-    for name in SCENARIOS:
-        if name in LOOKED and name not in ONLY_PICKED:
-            # expectN names the wrong floor; a floor-filtered count names the floor it found too few on
-            assert got[name].startswith("FAIL") and ("on 'Wrong'" in got[name] or " on Floor" in got[name]), f"wrong floor: {name}: {got[name]}"
-        else:
-            assert got[name] == want[name], f"wrong floor: {name}: {got[name]}"
-    print("PASS a wrong ReHUD floor fails:", got["test3"][:90])
+    got = dry.finished(dry.run(path, wrongFloor=True), "wrong floor", path)
+    # expectN names the wrong floor; a floor-filtered count names the floor it found too few on
+    expect_parts(got, "wrong floor", dry.expected(path), {n: ("on 'Wrong'", " on Floor") for n in LOOKED if n not in ONLY_PICKED})
+    print("PASS a wrong ReHUD floor fails:", got[full("test3")][:90])
 
 
 def test_invariants(path):
     for flag, mode, why, names in INVARIANT_MODES:
         log = dry.run(path, mode=mode, **{flag: True})
-        got = legacy.finished(log, flag)
-        hit = [n for n in SCENARIOS if got[n].startswith("FAIL") and why in got[n]]
-        assert hit == names, f"{flag} ({mode}): invariant fired in {hit}"
-        print(f"PASS {flag} ({mode}) fails the invariant in {len(hit)} tests")
+        hits = hit(dry.finished(log, flag, path), why)
+        assert hits == names, f"{flag} ({mode}): invariant fired in {hits}"
+        print(f"PASS {flag} ({mode}) fails the invariant in {len(hits)} old scenarios")
         if flag == "missCopy":
             code, verdict = dry.report(log)
-            assert code == 1 and verdict.startswith(f"NEEDS ANALYSIS: {legacy.SPEC}test3 FAIL;"), (code, verdict)
+            reasons = verdict.removeprefix("NEEDS ANALYSIS: ").split("; ")
+            assert code == 1 and verdict.startswith("NEEDS ANALYSIS: ") and f"{full('test3')} FAIL" in reasons, (code, verdict)
             print("PASS report.py on a failing session:", verdict[:60])
 
 

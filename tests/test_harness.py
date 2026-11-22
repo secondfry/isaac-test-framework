@@ -1,20 +1,16 @@
 """Dry run of main.lua against the stub in tests/stub/. Run: python -B -I tests/test_harness.py main.lua [test ...] (venv with lupa); no test names runs
-them all, in order. Each test module exports TESTS (its test functions) and WANT (its tests' verdicts)."""
+them all, module by module. Each tests/test_<name>.py module is found by itself (dry.modules) and exports TESTS (its test functions) and WANT
+(its tests' verdicts)."""
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves the script's folder off sys.path
-import test_invariants  # noqa: E402
-import test_legacy  # noqa: E402
-import test_presses  # noqa: E402
-import test_runner  # noqa: E402
-
-MODULES = [test_legacy, test_runner, test_presses, test_invariants]
+import dry  # noqa: E402
 
 
 def main(path, names):
     by_name = {}
-    for m in MODULES:
+    for m in dry.modules():
         for t in m.TESTS:
             assert t.__name__ not in by_name, f"two tests named {t.__name__}"
             by_name[t.__name__] = t

@@ -235,7 +235,8 @@ local function onGameStart(isContinued)
 	S.expectStart = nil
 end
 
+-- tests: the play list, which tests/dry.py reads (names, tags, limits) so no Python file lists the specs' tests again.
 return {
 	add = add, on = on, tick = tick, guard = guard, render = render, onGameStart = onGameStart, stuck = stuck, setMod = setMod,
-	expectStart = expectStart,
+	expectStart = expectStart, tests = tests,
 }

@@ -10,7 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dry  # noqa: E402
-import test_legacy as legacy  # noqa: E402
+from legacy_names import FINAL_MODE, names  # noqa: E402
 from test_invariants import INVARIANT_MODES  # noqa: E402
 
 BASE = "df8ba84"
@@ -21,9 +21,9 @@ CONFIGS = [
     ("all", {}),
     ("tlazRoll 29", {"tlazRoll": 29}),
     ("no tags", {"mode": ""}),
-    ("final", {"mode": legacy.FINAL_MODE}),
-    ("final worst", {"mode": legacy.FINAL_MODE, "render_every": 10 ** 6}),
-    ("obs", {"mode": f"tags obs\r\nSTUCK 3 {legacy.SPEC}obs mirror | settle"}),
+    ("final", {"mode": FINAL_MODE}),
+    ("final worst", {"mode": FINAL_MODE, "render_every": 10 ** 6}),
+    ("obs", {"mode": "tags obs\r\nSTUCK 3 obs mirror | settle"}),
     ("obsx veto", {"mode": "tags obsx", "ignoreFirstVetoPress": True, "birthrightDeadFirst": True}),
     ("obsx no effect", {"mode": "tags obsx", "ignoreClickerEffect": True}),
     ("obsx no restart", {"mode": "tags obsx", "ignoreRestart": True}),
@@ -41,15 +41,18 @@ CONFIGS = [
     *((f"{flag} ({mode})", {"mode": mode, flag: True}) for flag, mode, _, _ in INVARIANT_MODES),
 ]
 # HEAD's mode for each tags line (D3: tags replace modes).
-MODES = {"tags all": "regression", "": "", legacy.FINAL_MODE: "only final,S3,r1,P4c", "tags obs": "only obs", "tags obsx": "only obsx",
+MODES = {"tags all": "regression", "": "", FINAL_MODE: "only final,S3,r1,P4c", "tags obs": "only obs", "tags obsx": "only obsx",
          "tags obsy-a": "only obsy a", "tags obsy-b": "only obsy b", "tags continue-b-loses": "only obsy b continue after B loses Esau Jr.",
          "tags continue-a-stored": "only obsy b continue with A stored"}
-# Each old scenario's new tests, "<spec> > <test>"; a scenario split in S4 lists every part.
-NAMES = {n: [legacy.SPEC + n] for n in legacy.SCENARIOS}
+# Each old scenario's new tests, "<spec> > <test>", from every spec module's NAMES; a scenario split in S4 lists every part.
+NAMES = names()
 NEW_TO_OLD = {new: old for old, news in NAMES.items() for new in news}
 NAME = re.compile("|".join(re.escape(n) for n in sorted(NEW_TO_OLD, key=len, reverse=True)))
 # Each allowed difference, tagged with its bug or decision id (plan.md). VOCABULARY maps HEAD's lines onto the new ones; BOTH rewrites
-# both logs; DROP removes new lines HEAD has no counterpart for; MASKS: (id, test, regex) masked in both from that test's start to its RESULT.
+# both logs; DROP removes new lines HEAD has no counterpart for; MASKS: (id, old scenario, regex) masked in both within that scenario's
+# lines. A spec module adds its own as ALLOW = [(id, old scenario, regex)], regex None when the scenario's lines are not compared at all
+# (its assertion counts still are).
+MODULE_ALLOW = [a for m in dry.modules() for a in getattr(m, "ALLOW", [])]
 VOCABULARY = [
     ("D1", r"^PROBE SCENARIO START ", "PROBE TEST START "),
     ("D1", r"^PROBE CHECK FAIL ", "PROBE ASSERT FAIL "),
@@ -74,23 +77,26 @@ NEW_SIDE = [("S4.0 tags", r"^(PROBE TEST START .*?) \| tags .*$", r"\1")]  # TES
 MASKS = [
     # its look is built once, not by a step: G's frames and trace updates come one update sooner
     ("D6", "final G Jacob and Esau Clicker split", r"frame \d+|TRACE u\d+"),
+    *(a for a in MODULE_ALLOW if a[2] is not None),
 ]
+UNCOMPARED = {a[1] for a in MODULE_ALLOW if a[2] is None}
 # D7 moves tests: FIRST rewrites a test's first ACTION line in both (its restart names the type the test before it left); OUTSIDE drops
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
 FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
 # The session's first run is first seen before the first test starts: HEAD logged no test name there (nil), now the first test's.
 OUTSIDE_NAME = [("CHAR name", r"^PROBE INFO .*? CHAR (\d+) first seen ", r"PROBE INFO <first test> CHAR \1 first seen ")]
-ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME
+ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME + [a for a in MODULE_ALLOW if a[2] is None]
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
 ENTRY = re.compile(r"^(PROBE (?:TRACE u\d+ after .*?: )?ENTRY )\d+ ")
 PASSED = re.compile(r"^PROBE RESULT (.*) PASS (\d+) assertions")
 START = re.compile(r"^PROBE TEST START (.*)$")
+SKIPPED = re.compile(r"^PROBE RESULT (.*) SKIP$")  # as BOTH leaves a SKIP
 # Runs whose HEAD logs differ between runs of HEAD itself beyond ENTRY order: only their RESULT lines are compared. Untagged keys share a
 # seed, so which stored character an entry follows depends on that address order (final M, 6 of 12 runs).
-VOLATILE = {f"untagged ({legacy.FINAL_MODE})"}
+VOLATILE = {f"untagged ({FINAL_MODE})"}
 # The new stub's run start (tests/stub/api.lua startRun, rehud.lua resetFakeReHUD), patched into HEAD's stub.lua as it loads.
 BASE_RUN = "  if not cont then\n"
 BASE_RESET = BASE_RUN + "    seedN, frame, settle = 100, 0, {}\n"
@@ -115,7 +121,7 @@ def walk_base(g):
 
 def base_mode(mode):
     first, sep, rest = mode.partition("\r\n")
-    return MODES[first] + sep + rest.replace(legacy.SPEC, "")
+    return MODES[first] + sep + rest
 
 
 def normalise(log, side):
@@ -160,10 +166,16 @@ def by_test(log):
             for _, r, s in FIRST if first is not None else []:
                 seg[first] = re.sub(r, s, seg[first])
             segments[k] = sort_entries(seg)
-    outside = {s for s in outside if not any(re.match(r, s) for _, r in OUTSIDE)}
+    outside = {s for s in outside if not any(re.match(r, s) for _, r in OUTSIDE) and not new_test_skip(s)}
     for _, r, s in OUTSIDE_NAME:
         outside = {re.sub(r, s, line) for line in outside}
-    return tests, outside
+    return {n: s for n, s in tests.items() if n in NAMES}, outside
+
+
+def new_test_skip(line):
+    """A SKIP of a test no old scenario became: HEAD had nothing to compare it with (nor its lines, which by_test leaves out)."""
+    m = SKIPPED.match(line)
+    return bool(m) and m[1] not in NAMES
 
 
 def assertion_sums(base, new):
@@ -180,12 +192,12 @@ def assertion_sums(base, new):
 
 
 def first_difference(base, new, volatile):
-    """(old scenario or "outside tests", base line, new line) of the first difference, or None. A scenario split into several tests is
-    compared by its assertion counts alone; a volatile run's tests by their RESULT lines."""
+    """(old scenario or "outside tests", base line, new line) of the first difference, or None. A scenario split into several tests, or
+    a module's ALLOW leaves uncompared, is compared by its assertion counts alone; a volatile run's tests by their RESULT lines."""
     (bt, bo), (nt, no) = base, new
     for old in dict.fromkeys([*bt, *nt]):
         b, n = bt.get(old, []), nt.get(old, [])
-        if len(n) > 1:
+        if len(n) > 1 or old in UNCOMPARED:
             continue
         b, n = ([seg[-1:] if volatile else seg for seg in x] for x in (b, n))
         b, n = (x[0] if x else ["<not played>"] for x in (b, n))

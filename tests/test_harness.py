@@ -1,4 +1,4 @@
-"""Dry run of main.lua against tests/stub.lua. Run: python -B -I tests/test_harness.py main.lua [test ...] (venv with lupa); no test names runs
+"""Dry run of main.lua against the stub in tests/stub/. Run: python -B -I tests/test_harness.py main.lua [test ...] (venv with lupa); no test names runs
 them all, in order."""
 import os
 import subprocess
@@ -102,12 +102,14 @@ INVARIANT_MODES = [
 REPORT = os.path.join(HERE, "..", "tools", "run_report.py")
 OBS_REPORT = os.path.join(HERE, "..", "tools", "obs_report.py")
 PEDESTAL = {"yum-heart": 45, "Esau Jr.": 703}  # the fake user's target, by the YOU: line's wording
+STUB_FILES = ["api.lua", "players.lua", "characters.lua", "input.lua", "console.lua", "rehud.lua"]  # load order: rehud.lua registers its update first
 
 
 def load(lua, path):
     """The stub, the game's include() over the mod folder (each call runs the file again), then the mod's main.lua at `path`."""
-    with open(os.path.join(HERE, "stub.lua"), encoding="utf-8") as f:
-        lua.execute(f.read())
+    for name in STUB_FILES:
+        with open(os.path.join(HERE, "stub", name), encoding="utf-8") as f:
+            lua.execute(f.read())
     root = os.path.dirname(os.path.abspath(path)).replace("\\", "/") + "/"
     lua.execute("local root = ... function include(name) return dofile(root .. name:gsub('%.', '/') .. '.lua') end", root)
     with open(path, encoding="utf-8") as f:

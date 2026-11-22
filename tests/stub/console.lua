@@ -1,8 +1,8 @@
 -- Fake console: seed, restart, giveitem, remove and stage.
 function Isaac.ExecuteCommand(c)
-  -- shortcut: `seed <code>` restarts on that seed after 1 update keeping player 0's type, seen on Isaac only (session 1); whether it keeps another type is session 2's recon
+  -- shortcut: `seed <code>` restarts on that seed after 1 update keeping player 0's type, seen on Isaac only (sessions 1-2); another type's: the next session's run started as Cain, logged by newGame
   local code = c:match("^seed (.+)$")
-  if code then startSeed, seeded, pendingStart = code, true, players[1].t return end
+  if code then startSeed, seeded, seedStart, pendingStart = code, true, true, players[1].t return end
   local a, b = c:match("^(%S+) c?(%d+)$")
   b = tonumber(b)
   if a == "restart" then if not ignoreRestart then pendingStart = b == lockedType and 0 or b end

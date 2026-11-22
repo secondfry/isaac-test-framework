@@ -1,7 +1,8 @@
 -- Console commands: queued as steps in HARNESS.console, run from MC_POST_RENDER by flush.
 local P = include("scripts.log").P
 local act = include("scripts.wait").act
-local expectStart = include("scripts.runner").expectStart
+local runner = include("scripts.runner")
+local expectStart, abort = runner.expectStart, runner.abort
 local engine = include("scripts.game")
 local floorName, owned = engine.floorName, engine.owned
 
@@ -42,7 +43,7 @@ local function stage(n)
 	end)
 end
 
--- Every test's start seed: `seed` with it restarted the run on it after 1 update, and later restarts kept it (session 1).
+-- Every test's start seed: `seed` with it restarts onto it from any run, and restarts keep it for every type and after Exit & Continue (sessions 1-2).
 local FIXED_SEED = "9SZM 3P3S"
 
 -- Queues `command`, a new game; the generation the step waits to pass.
@@ -52,8 +53,7 @@ local function startNew(command)
 	return HARNESS.session.gen
 end
 
--- A new (not continued) game by `restart t` on FIXED_SEED, after a `seed` command when the run is on another; player 0 of type `t`
--- when `typed`; records floor 1.
+-- A new game by `restart t` on FIXED_SEED (a `seed` command first when off it), each start's seed logged; player 0 of type `t` when `typed`.
 local function newGame(t, typed)
 	return act("restart " .. t, function()
 		local seeding = game:GetSeeds():GetStartSeedString() ~= FIXED_SEED
@@ -62,11 +62,17 @@ local function newGame(t, typed)
 		local S = HARNESS.session
 		if S.gen == b.gen or game:GetNumPlayers() == 0 then return false, "no new game" end
 		if S.continued then error("restart " .. t .. " continued a run") end
+		local code, got = game:GetSeeds():GetStartSeedString(), Isaac.GetPlayer(0):GetPlayerType()
 		if b.seeding then
+			P("INFO", ctx.name, "seed command: start seed", code, "type", got, "after", ctx.t, "updates")
 			b.seeding, b.gen = false, startNew("restart " .. t)
 			return false, "on the fixed seed, no new game yet"
 		end
-		local got = Isaac.GetPlayer(0):GetPlayerType()
+		if not b.checked then -- the typed check below repeats every update
+			b.checked = true
+			P("INFO", ctx.name, "restart", t, "start seed", code, "type", got, "frame", game:GetFrameCount())
+			if code ~= FIXED_SEED then abort("restart " .. t .. " left the fixed seed: start seed " .. code) end
+		end
 		if typed and got ~= t then return false, "player 0 is type " .. got .. " (character locked?)" end
 		ctx.floors[1] = floorName()
 		P("FLOOR", 1, ctx.floors[1])

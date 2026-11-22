@@ -17,6 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 NOISE = [
     "Different number of collectibles",  # engine [WARN] at every game start, harness or not (runs 6-8: 10-25 per run)
     "Could not find provider",  # Stats+ (WARN) at load: its essentials addon has no provider for three options; unrelated to ReHUD
+    "Failed to read player data from gamestate",  # engine [ERROR] at menu save load in a vanilla launch (sessions 1-2): the saved run had another modding state
 ]
 # Case-sensitive, so the engine's lowercase "[warn] AnmCache" INFO lines (run 7, sprite cache on exit) stay out.
 ERROR = re.compile(r'\[(WARN|ERROR)\]|\((WARN|ERROR)\)|\]ERROR:|Error in "|Lua stack trace|Caught exception|attempt to ')

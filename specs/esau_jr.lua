@@ -166,7 +166,7 @@ local tests = {
 	snapshotTest(STRICT, "Esau Jr. presses by Tainted Forgotten", holding("Tainted Forgotten", T_FORGOTTEN), charPresses({ index = 0, any = true })),
 	snapshotTest(STRICT, "Esau Jr. presses by Lazarus Risen", holding("Lazarus", LAZARUS),
 		charPresses(nil, { { "ChangePlayerType 11", changeType(LAZARUS_RISEN) } })),
-	-- Locked on save slot 1 (README): a restart that never gives the type ends the test with an INFO "character locked?" line.
+	-- Eden is thought locked on save slot 1 (README): a restart that never gives the type ends the test with an INFO "character locked?" line.
 	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", T_JACOB), charPresses()),
 	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", EDEN), charPresses()),
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).

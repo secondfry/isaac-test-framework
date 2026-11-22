@@ -45,7 +45,8 @@ ignoreRestart = false -- set by the test: `restart` does nothing
 ignorePress = false -- set by the test: the engine polls input but ignores a forced press
 ignoreDrop = false -- set by the test: the engine ignores a forced drop press, so drop presses take their fallback
 lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
--- shortcut: a locked type's restart starts Isaac (unobserved); model what session 2's Tainted Isaac and Tainted Jacob restarts show
+-- shortcut: a locked type's restart starts Isaac (unobserved: the recon characters are all unlocked, session 2); model it if a test needs a locked character
+restartRolls = false -- set by the test: a restart rolls a new seed even after a seed command
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do
@@ -71,13 +72,14 @@ function fire(id, ...)
     end
   end
 end
--- The run's start seed; `seeded` once a `seed` command set it (tests/stub/console.lua).
-startSeed, seeded, seedRolls = nil, false, 0
+-- The run's start seed; `seeded` once a `seed` command set it, `seedStart` while its own game start is pending (tests/stub/console.lua).
+startSeed, seeded, seedStart, seedRolls = nil, false, false, 0
 function startRun(t, cont)
   if not cont then
-    -- shortcut: a restart keeps a seed a `seed` command set and rolls a new one otherwise, as the restart from the user's run did (session 1); whether a plain second restart keeps it with no seed command first is session 2's recon
-    if not seeded then seedRolls = seedRolls + 1; startSeed = "STUB " .. seedRolls end
-    -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it once a session logs GetFrameCount across a restart
+    -- a restart keeps a seed a `seed` command set (sessions 1-2: every type, after Continues) and rolls one otherwise (session 1)
+    if seedStart then seedStart = false
+    elseif not seeded or restartRolls then seedRolls = seedRolls + 1; startSeed = "STUB " .. seedRolls end
+    -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it from the next session's restart INFO frame
     resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
     stageN = 1; stored, wisps, pickups = {}, {}, {}; resetFakeReHUD()

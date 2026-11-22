@@ -113,6 +113,11 @@ local function overLimit(S, test)
 	return true
 end
 
+-- A step error no onStepError policy softens: the test FAILs with `why` (a run off the fixed seed makes every later value meaningless).
+local ABORT = "abort: "
+local function abort(why) error(ABORT .. why, 0) end
+local function aborted(res) return tostring(res):sub(1, #ABORT) == ABORT end
+
 -- One step's update: (ok, result) as pcall gives them. A table step of a test with an onStepError policy is soft: when its error, or
 -- its limit passed, comes, it logs "never happened" and the test moves on ("skip") or ends ("end").
 local function runStep(test, step, ctx)
@@ -128,6 +133,7 @@ local function runStep(test, step, ctx)
 		if res ~= "again" and test.snapshot then fire("snap", ctx, step.label, true) end
 		return true, res
 	end
+	if aborted(res) then return false, res end
 	P("INFO", ctx.name, step.label, "never happened:", res)
 	table.insert(ctx.notes, step.label .. " never happened")
 	ctx.interrupted = test.onStepError == "end"
@@ -151,6 +157,7 @@ local function playStep(S, test, ctx)
 	local ok, res = runStep(test, step, ctx)
 	if not ok then
 		if tostring(res):find("^precondition: ") then return finish(res) end
+		if aborted(res) then return finish(res:sub(#ABORT + 1)) end
 		return finish("error in step " .. S.stepIndex .. ": " .. tostring(res))
 	end
 	if res ~= "again" then S.stepIndex = S.stepIndex + 1 end
@@ -255,5 +262,5 @@ end
 -- tests: the play list, which tests/dry.py reads (names, tags, limits) so no Python file lists the specs' tests again.
 return {
 	add = add, on = on, tick = tick, guard = guard, render = render, onGameStart = onGameStart, stuck = stuck, setMod = setMod,
-	expectStart = expectStart, tests = tests,
+	expectStart = expectStart, abort = abort, tests = tests,
 }

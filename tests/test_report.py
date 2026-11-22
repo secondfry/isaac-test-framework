@@ -71,7 +71,8 @@ def test_verdicts():
     asked = test_lines("continue", "continue", "PASS 1 assertions", body=probe("ACTION exit to the menu and Continue now by type 0"))
     code, out, _, _ = run(session(asked), specs)
     assert out[-1] == "NEEDS ANALYSIS: continue asked 1 times, resumed 0", out
-    noise = ["[WARN] - Different number of collectibles in collection 0/733", "[INFO] - Lua Debug: Error in \"PostUpdate\" call: x 12"]
+    noise = ["[WARN] - Different number of collectibles in collection 0/733", "[ERROR] - Failed to read player data from gamestate",
+             "[INFO] - Lua Debug: Error in \"PostUpdate\" call: x 12"]
     code, out, _, _ = run(session(PASSING) + noise, specs)
     assert out[-1] == "NEEDS ANALYSIS: 1 distinct errors", out
     print("PASS verdicts: pass, skip, fail with context, unreached, cut off, continues, errors")

@@ -66,7 +66,7 @@ def test_all(path):
     assert presses and len(presses) == len(swaps) + len(same) and stored, (len(presses), len(swaps), len(same), len(stored))
     assert not any("(seed holds no" in s for s in swaps)
     print("PASS every swap logged a spend:", len(swaps), "swaps,", len(stored), "by a stored presser")
-    # report.py asks for analysis only of the steps a WANT expects unreached in the stub (the summoned Esau never leaves there)
+    # report.py asks for analysis only of the steps a WANT expects unreached in the stub (the temporary Esau never leaves there)
     odd = [f"{n} unreached: {v.split('; unreached: ')[1]}" for n, v in dry.expected(path).items() if "; unreached: " in v]
     verdict = "NEEDS ANALYSIS: " + "; ".join(odd) if odd else "ALL PASS"
     assert dry.report(log) == (1 if odd else 0, verdict), dry.report(log)

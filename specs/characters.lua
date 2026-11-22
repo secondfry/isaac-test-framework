@@ -16,7 +16,7 @@ local assertions = include("scripts.assert")
 local expect, expectN, expectCount, oneC4, twoC4, birthrightOwners = assertions.expect, assertions.expectN, assertions.expectCount,
 	assertions.oneC4, assertions.twoC4, assertions.birthrightOwners
 local record = include("scripts.record")
-local verdict, ids, helpersInfo = record.verdict, record.ids, record.helpersInfo
+local verdict, ids, parentsInfo = record.verdict, record.ids, record.parentsInfo
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
 local press = include("scripts.press")
@@ -59,17 +59,17 @@ local function esauLeaves(ctx)
 		local ok, res = pcall(leaveRoom)
 		P("INFO", ctx.name, "leave the room: StartRoomTransition", ok and ("to " .. tostring(res)) or ("failed: " .. tostring(res)))
 	elseif room ~= ctx.esauRoom then
-		P("INFO", ctx.name, "room changed", ctx.esauRoom, "->", room, "after", ctx.t, "updates, summoned Esau", e and "present" or "gone")
+		P("INFO", ctx.name, "room changed", ctx.esauRoom, "->", room, "after", ctx.t, "updates, temporary Esau", e and "present" or "gone")
 		ctx.esauRoom = room
 	end
 	if not e then
-		P("INFO", ctx.name, "summoned Esau gone after", ctx.t, "updates, room", room, "players", game:GetNumPlayers())
+		P("INFO", ctx.name, "temporary Esau gone after", ctx.t, "updates, room", room, "players", game:GetNumPlayers())
 		ctx.t, ctx.esauGone = nil, true
 		return
 	end
-	if ctx.t % 10 == 0 then P("INFO", ctx.name, "summoned Esau still present at update", ctx.t, "room", room) end
+	if ctx.t % 10 == 0 then P("INFO", ctx.name, "temporary Esau still present at update", ctx.t, "room", room) end
 	if ctx.t >= 150 then
-		table.insert(ctx.notes, "summoned Esau never left")
+		table.insert(ctx.notes, "temporary Esau never left")
 		ctx.t = nil
 		return
 	end
@@ -94,18 +94,18 @@ local function keeperItems(ctx)
 	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
 end
 
-local CHECKED = { "characters", "rehud" }
+local ASSERTING = { "characters", "rehud" }
 local REHUD_2_8 = { "characters", "rehud", "rehud-2.8" }
 
 local tests = {
-	{ name = "Birthright twins keep their items through two Flips and a new floor", tags = CHECKED,
+	{ name = "Birthright twins keep their items through two Flips and a new floor", tags = ASSERTING,
 		fixture = fixtures.FLIPPED, steps = {
 			give(BIRTHRIGHT, 2), look("after Birthright", birthrightOwners),
 			flip("Flip 1 of 2"), look("after Flip 1", birthrightOwners), flip("Flip 2 of 2"), look("after two Flips", birthrightOwners),
 			stage(3), look("on stage 3", birthrightOwners),
 		} },
 	-- Run 7: Dead Tainted Lazarus, number 1, holds c711 from Basement II.
-	{ name = "removing Birthright stores Dead Tainted Lazarus, and Flip brings him back", tags = CHECKED,
+	{ name = "removing Birthright stores Dead Tainted Lazarus, and Flip brings him back", tags = ASSERTING,
 		fixture = fixtures.TLAZ_C4_FLOOR_2, steps = {
 			look("after c4", oneC4),
 			give(BIRTHRIGHT, 2), look("after Birthright", function(ctx, label)
@@ -125,11 +125,11 @@ local tests = {
 				expect(ctx, label .. ": left entries", leftEntries(), 0)
 			end),
 		} },
-	{ name = "temporary Esau from Soul of Jacob and Esau keeps his own items", tags = CHECKED,
+	{ name = "temporary Esau from Soul of Jacob and Esau keeps his own items", tags = ASSERTING,
 		fixture = fixture("Isaac with two c4 on floor 2", { fresh(ISAAC), give(4), give(4), stage(2) }, ISAAC), steps = {
 			look("before Soul of Jacob and Esau", twoC4),
 			addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
-			-- ReHUD 2.8 lists the summoned Esau (user decision 2026-11-22): his c1 under him.
+			-- ReHUD 2.8 lists the temporary Esau (user decision 2026-11-22): his c1 under him.
 			giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 1, nil, keyOf(ofType(ESAU))) end),
 			stage(3), look("on stage 3", twoC4),
 		} },
@@ -146,11 +146,11 @@ local tests = {
 			end),
 			giveType(6, KEEPER), lookC("after Keeper AddCollectible c6", function(ctx, label) expectCount(ctx, label, 1, 6, nil, nil, keyOf(withParent(KEEPER))) end),
 		} },
-	-- The summoned Esau (type 20, a Parent) has a number while present and none once he is gone; whether a room change takes him is recorded.
+	-- The temporary Esau (type 20, a Parent) has a number while present and none once he is gone; whether a room change takes him is recorded.
 	{ name = "temporary Esau has a number until he leaves", tags = REHUD_2_8, limit = 350,
 		fixture = fixture("Isaac holding Soul of Jacob and Esau", { fresh(ISAAC), give(4), give(5), addCard(Card.CARD_SOUL_JACOB) }, ISAAC), steps = {
 			soulJE, named("Esau", ESAU),
-			lookC("summoned Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", number(keyOf(withParent(ESAU))) ~= nil, true) end),
+			lookC("temporary Esau present", function(ctx, label) expect(ctx, label .. ": Esau has a number", number(keyOf(withParent(ESAU))) ~= nil, true) end),
 			esauLeaves, lookC("after Esau left", function(ctx, label)
 				if not ctx.esauGone then return end
 				expect(ctx, label .. ": Esau's number", number(ctx.esauKey), nil)
@@ -162,8 +162,8 @@ local tests = {
 		{ "Flip", verdict("Flip", flip("Flip")) }, { "settle", settled }, { "Flip back", verdict("Flip back", flip("Flip back")) } }, STRICT),
 	snapshotTest("Strawman's Keeper killed", REHUD_2_8, { name = "Isaac with Strawman's Keeper holding c5", setup = { fresh(ISAAC), give(4),
 		give(STRAWMAN), condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end), giveType(5, KEEPER) }, done = keeperPresent }, {
-		{ "helpers before the kill", helpersInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
-		{ "where its items went", keeperItems }, { "helpers after the kill", helpersInfo("after the kill") } }, STRICT),
+		{ "parents before the kill", parentsInfo("before the kill") }, { "kill the Keeper", killKeeper }, { "settle", settled },
+		{ "where its items went", keeperItems }, { "parents after the kill", parentsInfo("after the kill") } }, STRICT),
 	-- Which id tells the two Birthright twins apart and stays stable across Flip, Esau Jr. and Exit & Continue?
 	snapshotTest("ids of the Birthright twins through Flip, Esau Jr. and Exit & Continue", { "characters", "rehud", "exit-continue" },
 		fixtures.TLAZ_JR_TWINS, {

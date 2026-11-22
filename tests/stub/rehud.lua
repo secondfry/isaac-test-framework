@@ -1,8 +1,8 @@
 -- Fake ReHUD: one entry per copy and kind held by a character (not the Tainted Soul) or stored form, listed under the floor it
--- first appeared on; a vanished owner's entries go to player 0 (a merge), a summoned Esau's go, and its number is forgotten. Numbers are
+-- first appeared on; a vanished owner's entries go to player 0 (a merge), a temporary Esau's go, and its number is forgotten. Numbers are
 -- first seen; a new key settles for 20 updates, frozen while stored (roster.lua). Keys as roster.lua playerKey: a GetData tag, the seed
 -- for a seed's first character, seed + n * 2^32 for later ones.
-local entries, settle, numbers, nextNumber, tagged, summoned = {}, {}, {}, 0, {}, {}
+local entries, settle, numbers, nextNumber, tagged, temporary = {}, {}, {}, 0, {}, {}
 local tracker = {entries=entries, characterCount=0}
 local function keyOf(p)
   if untagged then return p.seed end
@@ -31,7 +31,7 @@ function fakeTrack()
       local key = keyOf(p)
       all[#all+1] = p
       p.unseen = nil
-      if p.Parent and p.t == 20 then summoned[key] = true end
+      if p.Parent and p.t == 20 then temporary[key] = true end
       if settle[key] == nil then settle[key] = 20 elseif settle[key] > 0 then settle[key] = settle[key] - 1 end
     end
   end
@@ -49,7 +49,7 @@ function fakeTrack()
   for i = #entries, 1, -1 do -- newest first, so the oldest of a kind goes
     local e = entries[i]
     if not held[e.owner] and leaveNotMerge then e.left = true end
-    if not e.left and not held[e.owner] and summoned[e.owner] then table.remove(entries, i) goto nextEntry end
+    if not e.left and not held[e.owner] and temporary[e.owner] then table.remove(entries, i) goto nextEntry end
     if not e.left then
       if not held[e.owner] then e.owner = keyOf(players[1]) end
       local kind = e.temporary and 2 or 1
@@ -76,5 +76,5 @@ addPriorityCallback(nil, ModCallbacks.MC_POST_UPDATE, 0, fakeTrack)
 
 -- A new run: no entries, numbers, keys or settle counts (startRun calls it; each run's seeds start over).
 function resetFakeReHUD()
-  numbers, nextNumber, tagged, summoned, settle = {}, 0, {}, {}, {}; for i = #entries, 1, -1 do entries[i] = nil end
+  numbers, nextNumber, tagged, temporary, settle = {}, 0, {}, {}, {}; for i = #entries, 1, -1 do entries[i] = nil end
 end

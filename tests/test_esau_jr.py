@@ -3,7 +3,7 @@ import dry
 
 COPIES, WALKED = "two Esau Jr. copies each bring back their own character", "Esau Jr. dropped and picked up brings Isaac back"
 FLIP_TWINS = "Flip twins change after Esau Jr., then Clicker"
-CHECKED = {  # the tests with assertions: their PASS counts
+ASSERTING = {  # the tests with assertions: their PASS counts
     "Tainted Lazarus keeps one c4 through two Esau Jr. presses": 18, "Jacob's Esau Jr. character beside Esau gets character number 2": 29,
     COPIES: 46, WALKED: 25, "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses": 39, FLIP_TWINS: 47,
 }
@@ -30,7 +30,7 @@ RECORDED = [  # the other snapshot tests
 RECON = "Esau Jr. press, press, Exit & Continue, press"
 # The stub's Clicker merges the stored form's c703 into the Dead form beside Clicker, so the re-give adds no owned copy (stub only).
 CUT = {"Clicker on the Esau Jr. character after its Flip": "RECORDED; unreached: 7 re-give c703 never happened, steps 13-16 skipped"}
-WANT = {**{f"esau_jr > {n}": f"PASS {c} assertions" for n, c in CHECKED.items()}, **{f"esau_jr > {n}": "RECORDED" for n in RECORDED},
+WANT = {**{f"esau_jr > {n}": f"PASS {c} assertions" for n, c in ASSERTING.items()}, **{f"esau_jr > {n}": "RECORDED" for n in RECORDED},
         **{f"esau_jr > {n}": v for n, v in CUT.items()}, **dry.recon("esau_jr", RECON)}
 MODE = "tags esau_jr"  # every test here, final F (opt-in) included
 

@@ -32,7 +32,7 @@ local function ofType(t) return findPlayer(function(p) return p:GetPlayerType() 
 local function bySeed(seed) return (findPlayer(function(p) return seedOf(p) == seed end)) end
 -- An entity lookup, not a kept entity: a removed player's methods crash natively (AGENTS.md).
 local function byHash(h) return (findPlayer(function(p) return GetPtrHash(p) == h end)) end
--- The first player of type `t` with a Parent: Strawman's Keeper, the summoned Esau.
+-- The first player of type `t` with a Parent: Strawman's Keeper, the temporary Esau.
 local function withParent(t) return (findPlayer(function(p) return p:GetPlayerType() == t and p.Parent end)) end
 
 local function owned(p, id) return p:GetCollectibleNum(id, true) end

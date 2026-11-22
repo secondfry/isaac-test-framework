@@ -29,7 +29,7 @@ INVARIANT_MODES = [
     ("keepStored", "tags all", "invariant phantom stored forms: ", lambda _: MERGES),
     ("leaveNotMerge", "tags all", "invariant left entries: ", lambda _: MERGES | {P4C_2, P2, R1, R1_MIRROR}),
     # P2 and S3 list nothing after their last stage, so a next-floor name is still one they reached; S4's Esau Jr. form (holding c703) and
-    # P1's summoned Esau do
+    # P1's temporary Esau do
     ("laterFloor", "tags all", "invariant floors: ", lambda looked: looked - {P2, S3}),
     # LJ and D share a seed: keyed by seed alone they share a row
     ("untagged", "tags rehud-2.8", "invariant characters: ", lambda _: {FINAL_C, FINAL_F}),

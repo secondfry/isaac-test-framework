@@ -153,9 +153,9 @@ local function press(label, id, slot, count, ceiling, who)
 		-- shortcut: the full press answers both triggered polls of its update, safe only while the pocket holds no card (a card reads
 		-- the first, Flip the second); Flip's charge of 4 is spent by one use, so it cannot flip twice. Revisit for a card beside Flip.
 		b.seed, b.button, b.full, b.index, b.hash = seedOf(p), button, slot == ActiveSlot.SLOT_POCKET or who ~= nil, index, GetPtrHash(p)
-		-- Only a recon test takes a same-seed new form as a press (see below); a checked one (F, G trace too) needs a new character.
+		-- Only a recon test takes a same-seed new form as a press (see below); one with assertions (F, G trace too) needs a new character.
 		local trace = HARNESS.record.trace
-		if trace and not trace.checked then b.items = heldItems(p) end
+		if trace and not trace.asserting then b.items = heldItems(p) end
 		local read = prime(p, id, slot, b, H, label)
 		b.arms, b.fired, b.pressed = 0, H.fired, H.pressed
 		arm(H, b)
@@ -261,7 +261,7 @@ local function cancelledClicker(change)
 	end, 10)
 end
 
-local obsClicker = press("Clicker", CLICKER, PRIMARY, nil, 60)
+local clickerWithin60 = press("Clicker", CLICKER, PRIMARY, nil, 60)
 
 local birthrightFlip = flip("put type 29 in player 0")
 
@@ -341,6 +341,6 @@ end
 return {
 	onUse = onUse, onPlayerUpdate = onPlayerUpdate, onInput = onInput, onVetoPre = onVetoPre, onClickerUse = onClickerUse,
 	onVetoUpdate = onVetoUpdate, endPress = endPress, teardown = teardown, press = press, flip = flip, esauJr = esauJr, soulJE = soulJE,
-	clicker = clicker, cancelledClicker = cancelledClicker, obsClicker = obsClicker, birthrightFlip = birthrightFlip, dropPress = dropPress,
+	clicker = clicker, cancelledClicker = cancelledClicker, clickerWithin60 = clickerWithin60, birthrightFlip = birthrightFlip, dropPress = dropPress,
 	toSlot = toSlot, dropOnce = dropOnce, deadFirst = deadFirst, swapCopies = swapCopies,
 }

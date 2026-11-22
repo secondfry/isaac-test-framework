@@ -18,7 +18,7 @@ def test_continue_lines(path):
     log = dry.run(path, mode=MODE)
     dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
     keeper = dry.segment(log, "continue > temporary Esau and Strawman's Keeper across Exit & Continue")
-    assert any("HELPERS after Continue" in s and " type 14 parent index 0 " in s for s in keeper), "no Keeper after the Continue"
+    assert any("PARENTS after Continue" in s and " type 14 parent index 0 " in s for s in keeper), "no Keeper after the Continue"
     for name, lines in dry.check_verdicts(log, [STORED, LOST]).items():
         assert sum(s.startswith("after Continue: player seeds ") for s in lines) == 1, name
     for c in dry.RECON:

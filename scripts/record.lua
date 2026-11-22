@@ -44,12 +44,12 @@ end
 
 -- The trace: what the engine and ReHUD do and in what order. While a trace runs, update logs the whole state on every update where it
 -- changed: one TRACE line per player, roster row and tracker entry.
-local OBS_IDS = { 2, 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
-local function obsLines()
+local TRACE_IDS = { 2, 4, 5, ESAU_JR, FLIP, CLICKER, BIRTHRIGHT }
+local function traceLines()
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p, n = Isaac.GetPlayer(i), {}
-		for _, id in ipairs(OBS_IDS) do n[#n + 1] = "c" .. id .. " " .. p:GetCollectibleNum(id, false) end
+		for _, id in ipairs(TRACE_IDS) do n[#n + 1] = "c" .. id .. " " .. p:GetCollectibleNum(id, false) end
 		t[#t + 1] = "PLAYER " .. i .. " type " .. p:GetPlayerType() .. " seed " .. seedOf(p) .. " hash " .. GetPtrHash(p) .. " ctrl " .. p.ControllerIndex
 			.. " parent " .. tostring(p.Parent ~= nil) .. " " .. table.concat(n, " ") .. " primary " .. p:GetActiveItem(ActiveSlot.SLOT_PRIMARY)
 			.. " secondary " .. p:GetActiveItem(ActiveSlot.SLOT_SECONDARY) .. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET)
@@ -72,7 +72,7 @@ local function update()
 	local o = HARNESS.record.trace
 	if not o then return end
 	o.u = o.u + 1
-	local lines = obsLines()
+	local lines = traceLines()
 	local s = table.concat(lines, "\n")
 	if s == o.last then return end
 	o.last = s
@@ -80,11 +80,11 @@ local function update()
 end
 
 local function start() HARNESS.record.trace = { u = 0, step = "start" } end
--- A trace in a test with assertions: its presses keep the checked swap rule.
-local function startChecked() HARNESS.record.trace = { u = 0, step = "start", checked = true } end
+-- A trace in a test with assertions: its presses keep the asserting swap rule.
+local function startAsserting() HARNESS.record.trace = { u = 0, step = "start", asserting = true } end
 -- A traceUpdates test's trace starts once its fixture is done.
 local function onTraceStarts(test)
-	if test.snapshot then start() else startChecked() end
+	if test.snapshot then start() else startAsserting() end
 end
 -- Later TRACE lines say they follow step `tag`.
 local function stepBegins(tag)
@@ -151,7 +151,7 @@ local function timingSee(p)
 				P("INFO", HARNESS.session.ctx.name, "TIMING", t.label, "frame", frame, "+" .. (frame - t.first), "index", t.index, "seed", seed, "type", p:GetPlayerType(),
 					"c703 owned", owned(p, ESAU_JR), "primary", p:GetActiveItem(PRIMARY), "secondary", p:GetActiveItem(SECONDARY), "pocket", p:GetActiveItem(ActiveSlot.SLOT_POCKET))
 				local trace = HARNESS.record.trace
-				if trace and not trace.checked then -- relative frames only: a snapshot compares across sessions
+				if trace and not trace.asserting then -- relative frames only: a snapshot compares across sessions
 					snap(HARNESS.session.ctx, trace.step .. " / TIMING " .. t.label .. " +" .. (frame - t.first), "index " .. t.index .. " type " .. p:GetPlayerType()
 						.. " c703 " .. owned(p, ESAU_JR) .. " primary " .. p:GetActiveItem(PRIMARY) .. " secondary " .. p:GetActiveItem(SECONDARY)
 						.. " pocket " .. p:GetActiveItem(ActiveSlot.SLOT_POCKET))
@@ -203,12 +203,12 @@ end
 local slotsNow = info("player 0 slots", slots)
 
 -- Each player's Parent (as a GetPlayer index), ControllerIndex and ReHUD key and number: which character a temporary one's number follows.
-local function helpersInfo(what)
+local function parentsInfo(what)
 	return function(ctx)
 		for i = 0, game:GetNumPlayers() - 1 do
 			local p = Isaac.GetPlayer(i)
 			local parent = p.Parent and select(2, findPlayer(function(q) return GetPtrHash(q) == GetPtrHash(p.Parent) end))
-			P("INFO", ctx.name, "HELPERS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
+			P("INFO", ctx.name, "PARENTS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
 				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(number(keyOf(p))))
 		end
 	end
@@ -307,8 +307,8 @@ local function snapStep(ctx, step, reached)
 end
 
 return {
-	logState = logState, update = update, startChecked = startChecked, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
+	logState = logState, update = update, startAsserting = startAsserting, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
 	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
-	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, helpersInfo = helpersInfo, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
+	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, parentsInfo = parentsInfo, ids = ids, innerLine = innerLine, innerWatch = innerWatch,
 	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep, try = try,
 }

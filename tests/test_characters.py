@@ -13,7 +13,7 @@ WANT = {
     "characters > removing Birthright stores Dead Tainted Lazarus, and Flip brings him back": "PASS 30 assertions",
     "characters > temporary Esau from Soul of Jacob and Esau keeps his own items": "PASS 25 assertions",
     "characters > Strawman's Keeper is a character with his own items": "PASS 22 assertions",
-    f"characters > {TEMPORARY_ESAU}": "PASS 13 assertions; unreached: summoned Esau never left",
+    f"characters > {TEMPORARY_ESAU}": "PASS 13 assertions; unreached: temporary Esau never left",
     "characters > harness tag on Tainted Lazarus through Flip": "RECORDED",
     "characters > Strawman's Keeper killed": "RECORDED",
     f"characters > {BIRTHRIGHT_IDS}": "RECORDED",

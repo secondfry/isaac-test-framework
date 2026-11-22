@@ -16,7 +16,7 @@ local assertions = include("scripts.assert")
 local expect, expectN, expectOne, expectCount, own, oneC4 = assertions.expect, assertions.expectN, assertions.expectOne,
 	assertions.expectCount, assertions.own, assertions.oneC4
 local record = include("scripts.record")
-local playerCount, helpersInfo, ids = record.playerCount, record.helpersInfo, record.ids
+local playerCount, parentsInfo, ids = record.playerCount, record.parentsInfo, record.ids
 local settle = include("scripts.settle")
 local look, settled = settle.look, settle.settled
 local press = include("scripts.press")
@@ -73,8 +73,8 @@ local tests = {
 		fixtures.fixture("Isaac holding Soul of Jacob and Esau", { fresh(ISAAC), give(4), addCard(Card.CARD_SOUL_JACOB) }, ISAAC, fixtures.owns(4)),
 		{ { "Soul of Jacob and Esau", soulJE }, { "give Strawman", give(STRAWMAN) },
 			{ "Strawman Keeper", condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end) },
-			{ "settle", settled }, { "helpers before the exit", helpersInfo("before the exit") }, continued,
-			{ "players after Continue", playerCount }, { "settle 2", settled }, { "helpers after Continue", helpersInfo("after Continue") } }, SNAPSHOT),
+			{ "settle", settled }, { "parents before the exit", parentsInfo("before the exit") }, continued,
+			{ "players after Continue", playerCount }, { "settle 2", settled }, { "parents after Continue", parentsInfo("after Continue") } }, SNAPSHOT),
 	-- The Flip comes a few updates after restart, so the twin is stored mid-settle (the 20ca1f1 path).
 	continueTest("Flip mid-settle, Exit & Continue, then ChangePlayerType"),
 	-- The settle wait first, so the twin is stored settled, as in real play.

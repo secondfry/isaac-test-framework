@@ -16,13 +16,13 @@ local dropByHand, pickByHand, continued = manual.dropByHand, manual.pickByHand, 
 local assertions = include("scripts.assert")
 local expect, expectCount, oneC4, pre = assertions.expect, assertions.expectCount, assertions.oneC4, assertions.pre
 local record = include("scripts.record")
-local verdict, ids, slotsNow, pocketHeld, typeNow, playerCount, startChecked = record.verdict, record.ids, record.slotsNow, record.pocketHeld,
-	record.typeNow, record.playerCount, record.startChecked
+local verdict, ids, slotsNow, pocketHeld, typeNow, playerCount, startAsserting = record.verdict, record.ids, record.slotsNow, record.pocketHeld,
+	record.typeNow, record.playerCount, record.startAsserting
 local settle = include("scripts.settle")
 local look, settled, lookC = settle.look, settle.settled, settle.lookC
 local press = include("scripts.press")
-local flip, esauJr, clicker, obsClicker, birthrightFlip, dropPress, toSlot, deadFirst, swapCopies = press.flip, press.esauJr, press.clicker,
-	press.obsClicker, press.birthrightFlip, press.dropPress, press.toSlot, press.deadFirst, press.swapCopies
+local flip, esauJr, clicker, clickerWithin60, birthrightFlip, dropPress, toSlot, deadFirst, swapCopies = press.flip, press.esauJr, press.clicker,
+	press.clickerWithin60, press.birthrightFlip, press.dropPress, press.toSlot, press.deadFirst, press.swapCopies
 local jrSteps = include("scripts.esau_jr_steps")
 local regiveEsauJr, jrFirst, jrAgain, jrTwice, giveClicker, rememberOriginal, rememberForm, controlPresses, replaceEsauJr, useClickerEffect,
 	jrPair, flipV, charPresses, esauLoses = jrSteps.regiveEsauJr, jrSteps.jrFirst, jrSteps.jrAgain, jrSteps.jrTwice, jrSteps.giveClicker,
@@ -81,11 +81,11 @@ local function clickerMerges(ctx)
 	end
 end
 
-local CHECKED = { "esau_jr", "rehud" }
-local CHECKED_FINAL = { "esau_jr", "rehud", "rehud-2.8" }
+local ASSERTING = { "esau_jr", "rehud" }
+local ASSERTING_FINAL = { "esau_jr", "rehud", "rehud-2.8" }
 
 local tests = {
-	{ name = "Tainted Lazarus keeps one c4 through two Esau Jr. presses", tags = CHECKED,
+	{ name = "Tainted Lazarus keeps one c4 through two Esau Jr. presses", tags = ASSERTING,
 		fixture = fixtures.TLAZ_JR_FLOOR_2, steps = {
 		look("after c4", oneC4), esauJr("Esau Jr. 1"), look("after Esau Jr. 1", oneC4), esauJr("Esau Jr. 2"), look("after Esau Jr. 2", oneC4),
 	} },
@@ -116,18 +116,18 @@ local tests = {
 	snapshotTest(SNAPSHOT, "Birthright on the Esau Jr. character, then Flip", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT) },
 		{ "settle", settled }, { "Flip", flip("Flip") } }),
 	snapshotTest(STORED_CHARACTER, "Clicker on Tainted Lazarus back from its Esau Jr. character", TLAZ_JR, { jrFirst(), jrAgain(), giveClicker(),
-		{ "Clicker", obsClicker }, jrTwice() }),
+		{ "Clicker", clickerWithin60 }, jrTwice() }),
 	snapshotTest(STORED_CHARACTER, "Clicker on the Esau Jr. character after its Flip", TLAZ_JR, { jrFirst(), { "Flip of the form", flip("Flip of the form") },
-		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
+		giveClicker(), { "Clicker", clickerWithin60 }, jrTwice() }),
 	snapshotTest(STORED_CHARACTER, "Clicker on a Birthright twin of the Esau Jr. character", TLAZ_JR, { jrFirst(), { "give Birthright", give(BIRTHRIGHT, 2) },
 		{ "select type-29 twin", birthrightFlip, deadFirst },
 		giveClicker(), { "Clicker by type 29", function(ctx)
 			if not ctx.t then
 				pre(Isaac.GetPlayer(0):GetPlayerType() == T_LAZ and ofType(DEAD_T_LAZ), "type 29 in player 0 with the type-38 Birthright twin present")
 			end
-			return obsClicker(ctx)
+			return clickerWithin60(ctx)
 		end }, jrTwice() }),
-	snapshotTest(STORED_CHARACTER, "Clicker on Isaac's Esau Jr. character", holding("Isaac", ISAAC), { jrFirst(), giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
+	snapshotTest(STORED_CHARACTER, "Clicker on Isaac's Esau Jr. character", holding("Isaac", ISAAC), { jrFirst(), giveClicker(), { "Clicker", clickerWithin60 }, jrTwice() }),
 	snapshotTest(STORED_CHARACTER, "Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back", TLAZ_JR, {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
 	snapshotTest(STORED_CHARACTER, "Tainted Lazarus's Esau Jr. character uses Clicker's effect", TLAZ_JR, {
@@ -146,7 +146,7 @@ local tests = {
 		{ "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) }, jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
 	snapshotTest(DROP, "Esau Jr. through the Schoolbag with a Clicker press", holding("Isaac", ISAAC), { jrPair("Esau Jr. #1"),
 		{ "give Schoolbag", give(SCHOOLBAG) }, giveClicker(), { "slots after Clicker", slotsNow },
-		{ "Clicker to primary", toSlot("Clicker to primary", PRIMARY, CLICKER) }, { "Clicker", verdict("Clicker", obsClicker) },
+		{ "Clicker to primary", toSlot("Clicker to primary", PRIMARY, CLICKER) }, { "Clicker", verdict("Clicker", clickerWithin60) },
 		{ "slots after the Clicker press", slotsNow }, { "Esau Jr. to primary", toSlot("Esau Jr. to primary", PRIMARY, ESAU_JR) },
 		jrPair("Esau Jr. #2"), jrPair("Esau Jr. #3") }),
 	-- Once A is lost, does A's Dead Tainted Lazarus X (or A) ever come back through B's Flips or presses?
@@ -170,7 +170,7 @@ local tests = {
 	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", PlayerType.PLAYER_JACOB_B), charPresses()),
 	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", PlayerType.PLAYER_EDEN), charPresses()),
 	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).
-	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = CHECKED, fixture = fixture("Jacob holding Esau Jr. on floor 2",
+	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = ASSERTING, fixture = fixture("Jacob holding Esau Jr. on floor 2",
 		{ fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, JACOB), steps = {
 		look("start", function(ctx, label)
 			ctx.jacob, ctx.esau = keyOf(Isaac.GetPlayer(0)), keyOf(ofType(ESAU))
@@ -194,7 +194,7 @@ local tests = {
 		end),
 	} },
 	-- Two copies, each keeping the character it last swapped out; Schoolbag holds both on A.
-	{ name = "two Esau Jr. copies each bring back their own character", tags = CHECKED_FINAL, limit = 350, fixture = holding("Isaac", ISAAC), steps = {
+	{ name = "two Esau Jr. copies each bring back their own character", tags = ASSERTING_FINAL, limit = 350, fixture = holding("Isaac", ISAAC), steps = {
 		named("Isaac"), lookC("start"),
 		esauJr("copy 1: Isaac -> A"), named("A"), give(5), give(SCHOOLBAG), give(ESAU_JR), info("A's slots", slots), lookC("A with two copies"),
 		esauJr("copy 2: A -> B"), named("B"), give(6), lookC("B"),
@@ -211,7 +211,7 @@ local tests = {
 		esauJr("A presses the picked-up copy"), who("Isaac"), lookC("Isaac back"),
 	} },
 	-- LJ shares D's seed; each keeps its own character number and items through Flips and presses.
-	{ name = "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses", tags = CHECKED_FINAL, limit = 350,
+	{ name = "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses", tags = ASSERTING_FINAL, limit = 350,
 		fixture = TLAZ_FLIPS, steps = {
 		flip("Flip by D"), whoInfo("Flip by D"), lookC("after Flip by D"),
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. by player 0")), whoInfo("Esau Jr. by player 0"), lookC("after Esau Jr."),
@@ -221,7 +221,7 @@ local tests = {
 	-- once (roster.lua partnerOf), so a failure here is expected. TRACE lines log the engine and ReHUD every update from its restart on,
 	-- setup included, and none of the previous test's run.
 	{ name = "Flip twins change after Esau Jr., then Clicker", tags = { "esau_jr", "rehud", "rehud-2.8", "opt-in" }, limit = 450,
-		fixture = fixture(TLAZ_FLIPS.name .. ", traced", { TLAZ_FLIPS.setup[1], startChecked, { table.unpack(TLAZ_FLIPS.setup, 2) } }, DEAD_T_LAZ), steps = {
+		fixture = fixture(TLAZ_FLIPS.name .. ", traced", { TLAZ_FLIPS.setup[1], startAsserting, { table.unpack(TLAZ_FLIPS.setup, 2) } }, DEAD_T_LAZ), steps = {
 		give(ESAU_JR), esauJr("Esau Jr. D -> DJ"), named("DJ"), give(7), lookC("DJ"),
 		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
 		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),

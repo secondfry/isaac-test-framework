@@ -24,7 +24,7 @@ local function charOf(p)
 end
 
 -- Every update of a run: names each new character, refreshes the live ones and marks one that left play as stored (gone during an
--- Esau Jr. or Flip swap, storedBy that item) or gone (merged, summoned Esau gone, removed).
+-- Esau Jr. or Flip swap, storedBy that item) or gone (merged, temporary Esau gone, removed).
 local function track()
 	local C, name, swapItem = HARNESS.chars, HARNESS.session.ctx.name, HARNESS.press.swapItem
 	if not C or game:GetNumPlayers() == 0 then return end

@@ -34,7 +34,15 @@ local function fixtureReady(fixture)
 	end
 end
 
--- Each test of `spec` as its own copy, named "<spec> > <test>", its fixture's setup and done poll ahead of its steps.
+local function tagged(test, tag)
+	for _, t in ipairs(test.tags or {}) do
+		if t == tag then return true end
+	end
+end
+
+-- Each test of `spec` as its own copy, named "<spec> > <test>", its fixture's setup and done poll ahead of its steps. Exit & Continue
+-- tests play last (plan D7), in the order added: the user's exits come back to back at the end of the session.
+local lastCount = 0
 local function add(spec)
 	for _, t in ipairs(spec.tests) do
 		local test, f = {}, t.fixture
@@ -42,13 +50,9 @@ local function add(spec)
 		test.spec, test.name = spec.name, spec.name .. " > " .. t.name
 		local ready = f and { f.setup or {}, fixtureReady(f), function() fire("fixtureDone", test) end } or {}
 		test.steps = flatten({ ready, t.steps })
-		tests[#tests + 1] = test
-	end
-end
-
-local function tagged(test, tag)
-	for _, t in ipairs(test.tags or {}) do
-		if t == tag then return true end
+		local last = tagged(test, "exit-continue")
+		table.insert(tests, last and #tests + 1 or #tests - lastCount + 1, test)
+		if last then lastCount = lastCount + 1 end
 	end
 end
 

@@ -27,10 +27,10 @@ FINAL_MODE = "tags rehud-2.8"
 FINAL_RUN = ["P4c", "S3", "r1", "r1 mirror", *FINAL, *FINAL_OBS]
 SCENARIOS = ["probes", "test3", "birthright", "P3", "P4a", "P4c", *OBS, "S4", "P1", "P2", "S1", "S1b", "S2", "S3", "r1", "r1 mirror",
              *FINAL, *FINAL_OBS, "continue", "continue settled", "L1"]
-FULL = [SPEC + n for n in SCENARIOS]
 NO_SWAP = {"S1", "S1b", "S2", "L1", "final D Strawman", *OBS, *FINAL_OBS}  # an obs press that never swaps is data, not a fail
 NEW = {"continue", "continue settled", "L1"}  # mirrors legacy.lua's new tags
 LARGE = NEW | OBSY_LARGE | FINAL_LARGE
+FULL = [SPEC + n for n in sorted(SCENARIOS, key=lambda n: n in LARGE)]  # play order: Exit & Continue tests last (D7)
 # Test limits in updates (legacy.lua budget, obsScenario budget); rehud-2.8's worst case is their sum.
 BUDGET = {"P4c": 600, "S3": 200, "r1": 250, "r1 mirror": 200, "final A two Esau Jr. copies": 350, "final B Esau Jr. dropped and picked up": 1100,
           "final C Tainted Lazarus Esau Jr.": 350, "final D Strawman": 200, "final E Soul of Jacob and Esau": 350, "final F Flip partners": 450,

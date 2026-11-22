@@ -74,7 +74,11 @@ MASKS = [
     # its look is built once, not by a step: G's frames and trace updates come one update sooner
     ("D6", "final G Jacob and Esau Clicker split", r"frame \d+|TRACE u\d+"),
 ]
-ALLOW = VOCABULARY + BOTH + DROP + MASKS
+# D7 moves tests: FIRST rewrites a test's first ACTION line in both (its restart names the type the test before it left); OUTSIDE drops
+# lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
+FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
+OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
+ALLOW = VOCABULARY + BOTH + DROP + MASKS + FIRST + OUTSIDE
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -149,8 +153,11 @@ def by_test(log):
         for k, seg in enumerate(segments):
             for m in masks.get(name, []):
                 seg = [m.sub("<allowed>", s) for s in seg]
+            first = next((i for i, s in enumerate(seg) if s.startswith("PROBE ACTION ")), None)
+            for _, r, s in FIRST if first is not None else []:
+                seg[first] = re.sub(r, s, seg[first])
             segments[k] = sort_entries(seg)
-    return tests, outside
+    return tests, {s for s in outside if not any(re.match(r, s) for _, r in OUTSIDE)}
 
 
 def assertion_sums(base, new):

@@ -251,10 +251,11 @@ local function innerInfo(what) return function(ctx) P("INFO", ctx.name, "INNER "
 
 local function snap(ctx, key, value) P("SNAP", ctx.name, "|", key, "=", value) end
 
--- Player `p` after step `step`: the harness tags it (GetData) with its label once, and reads the tag back each time.
+-- Player `p` after step `step`: the tag (GetData) as read before any write, so a wipe shows as none; untagged, it is tagged with its label.
 local function describe(ctx, step, p)
 	local L = label(ctx, p)
 	local d = p:GetData()
+	local tag = type(d) == "table" and d.harness or "none"
 	if type(d) == "table" and d.harness == nil then d.harness = L end
 	local function put(name, f) snap(ctx, step .. " / " .. L .. " " .. name, try(f)) end
 	local function slotsOf(read, n)
@@ -278,7 +279,7 @@ local function describe(ctx, step, p)
 	put("main twin", function() return label(ctx, p:GetMainTwin()) end)
 	put("parent", function() return label(ctx, p.Parent) end)
 	put("sub player", function() return label(ctx, p:GetSubPlayer()) end)
-	put("tag", function() return type(d) == "table" and d.harness or "none" end)
+	put("tag", function() return tag end)
 end
 
 -- The runner's snap event: a snapshot test's state after step `step`, or that it never happened.

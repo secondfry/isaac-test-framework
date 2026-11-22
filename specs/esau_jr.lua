@@ -1,5 +1,5 @@
 -- Esau Jr. presses and the characters they store and bring back (plan S4). An Esau Jr. copy's first use creates a new character, its
--- Esau Jr. character; each test starts from its own fresh run (fixture). The legacy scenario each test came from: tests/test_esau_jr.py NAMES.
+-- Esau Jr. character; each test starts from its own fresh run (fixture).
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local seedOf, ofType, owned, slots, itemCounts, countsText = engine.seedOf, engine.ofType, engine.owned, engine.slots, engine.itemCounts,

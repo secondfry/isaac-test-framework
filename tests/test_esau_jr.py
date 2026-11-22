@@ -1,67 +1,35 @@
-"""Dry checks of specs/esau_jr.lua: its tests' verdicts, the legacy scenarios they came from, and the checks of their own lines."""
+"""Dry checks of specs/esau_jr.lua: its tests' verdicts and the checks of their own lines."""
 import dry
 
-# Each legacy scenario moved here, by its old name: [the names of its tests in this spec]
-NAMES = {
-    "P4a": ["Tainted Lazarus keeps one c4 through two Esau Jr. presses"],
-    "obs esaujr cross": ["Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back"],
-    "obs esaujr out": ["Esau Jr. character turned Isaac presses back"],
-    "obs esaujr flip": ["Esau Jr. character flips there and back, then presses back"],
-    "obs esaujr flipped cross": ["Esau Jr. character of a flipped-back Tainted Lazarus turned Dead Tainted Lazarus"],
-    "obs esaujr birthright": ["Birthright given and removed after Esau Jr.", "Esau Jr. with Birthright held from the start"],
-    "obs esaujr clicker": ["Clicker on the Esau Jr. character, then more presses"],
-    "obs esaujr birthright keep": ["Birthright on the Esau Jr. character, then it presses back"],
-    "obs esaujr cross35": ["Esau Jr. character turned Tainted Forgotten presses back"],
-    "obs esaujr dead seed": ["Tainted Lazarus flips after an Esau Jr. round trip"],
-    "obs esaujr birthright flip": ["Birthright on the Esau Jr. character, then Flip"],
-    "obsx Clicker on returned original": ["Clicker on Tainted Lazarus back from its Esau Jr. character"],
-    "obsx Clicker after Flip": ["Clicker on the Esau Jr. character after its Flip"],
-    "obsx Clicker with Birthright": ["Clicker on a Birthright twin of the Esau Jr. character"],
-    "obsx Isaac Esau Jr Clicker": ["Clicker on Isaac's Esau Jr. character"],
-    "obsx form loses Esau Jr.": ["Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back"],
-    "obsx form uses Clicker effect": ["Tainted Lazarus's Esau Jr. character uses Clicker's effect"],
-    "obsx Isaac form loses Esau Jr.": ["Isaac's Esau Jr. character loses Esau Jr. and gets it back"],
-    "obsx original loses Esau Jr.": ["Tainted Lazarus loses Esau Jr. after a round trip, returns recorded"],
-    "obsy a schoolbag": ["Esau Jr. through the Schoolbag's second slot"],
-    "obsy a schoolbag Clicker": ["Esau Jr. through the Schoolbag with a Clicker press"],
-    "obsy a Dead form after A lost": ["Esau Jr. character's Flips after losing Esau Jr."],
-    "obsy a Isaac Clicker effect": ["Isaac's Esau Jr. character uses Clicker's effect"],
-    "obsy a J&E by Jacob": ["Esau Jr. presses by Jacob"],
-    "obsy a J&E by Esau": ["Esau Jr. presses by Esau"],
-    "obsy a Forgotten and Soul": ["Esau Jr. presses by The Forgotten and The Soul"],
-    "obsy a Tainted Forgotten": ["Esau Jr. presses by Tainted Forgotten"],
-    "obsy a Lazarus Risen": ["Esau Jr. presses by Lazarus Risen"],
-    "obsy b Tainted Jacob": ["Esau Jr. presses by Tainted Jacob"],
-    "obsy b Eden": ["Esau Jr. presses by Eden"],
-    "S4": ["Jacob's Esau Jr. character beside Esau gets character number 2"],
-    "final A two Esau Jr. copies": ["two Esau Jr. copies each bring back their own character"],
-    "final B Esau Jr. dropped and picked up": ["Esau Jr. dropped and picked up brings Isaac back"],
-    "final C Tainted Lazarus Esau Jr.": ["Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses"],
-    "final F Flip partners": ["Flip twins change after Esau Jr., then Clicker"],
-    "final I Birthright twins Esau Jr.": ["Esau Jr. and Flip with Birthright twins"],
-    "final L flipped cross": ["Esau Jr. character of a flipped-back Tainted Lazarus flips, then turns Dead Tainted Lazarus"],
-    "final M original loses Esau Jr.": ["Tainted Lazarus loses Esau Jr. after a round trip, verdict per press"],
+COPIES, WALKED = "two Esau Jr. copies each bring back their own character", "Esau Jr. dropped and picked up brings Isaac back"
+FLIP_TWINS = "Flip twins change after Esau Jr., then Clicker"
+CHECKED = {  # the tests with assertions: their PASS counts
+    "Tainted Lazarus keeps one c4 through two Esau Jr. presses": 18, "Jacob's Esau Jr. character beside Esau gets character number 2": 29,
+    COPIES: 46, WALKED: 25, "Tainted Lazarus's Esau Jr. character keeps its own items through Flips and presses": 39, FLIP_TWINS: 47,
 }
-CHECKED = {  # the tests with assertions, by old name: their PASS counts (every other test here is RECORDED)
-    "P4a": 18, "S4": 29, "final A two Esau Jr. copies": 46, "final B Esau Jr. dropped and picked up": 25, "final C Tainted Lazarus Esau Jr.": 39,
-    "final F Flip partners": 47,
-}
+CROSS = "Esau Jr. character turned Dead Tainted Lazarus, then Isaac, presses back"
+OBSY = [  # the obsy-a and obsy-b tests: each reaches its verdicts
+    "Esau Jr. through the Schoolbag's second slot", "Esau Jr. through the Schoolbag with a Clicker press", "Esau Jr. character's Flips after losing Esau Jr.",
+    "Isaac's Esau Jr. character uses Clicker's effect", "Esau Jr. presses by Jacob", "Esau Jr. presses by Esau", "Esau Jr. presses by The Forgotten and The Soul",
+    "Esau Jr. presses by Tainted Forgotten", "Esau Jr. presses by Lazarus Risen", "Esau Jr. presses by Tainted Jacob", "Esau Jr. presses by Eden",
+]
+RECORDED = [  # the other snapshot tests
+    CROSS, "Esau Jr. character turned Isaac presses back", "Esau Jr. character flips there and back, then presses back",
+    "Esau Jr. character of a flipped-back Tainted Lazarus turned Dead Tainted Lazarus", "Birthright given and removed after Esau Jr.",
+    "Esau Jr. with Birthright held from the start", "Clicker on the Esau Jr. character, then more presses",
+    "Birthright on the Esau Jr. character, then it presses back", "Esau Jr. character turned Tainted Forgotten presses back",
+    "Tainted Lazarus flips after an Esau Jr. round trip", "Birthright on the Esau Jr. character, then Flip",
+    "Clicker on Tainted Lazarus back from its Esau Jr. character", "Clicker on the Esau Jr. character after its Flip",
+    "Clicker on a Birthright twin of the Esau Jr. character", "Clicker on Isaac's Esau Jr. character",
+    "Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back", "Tainted Lazarus's Esau Jr. character uses Clicker's effect",
+    "Isaac's Esau Jr. character loses Esau Jr. and gets it back", "Tainted Lazarus loses Esau Jr. after a round trip, returns recorded",
+    "Esau Jr. and Flip with Birthright twins", "Esau Jr. character of a flipped-back Tainted Lazarus flips, then turns Dead Tainted Lazarus",
+    "Tainted Lazarus loses Esau Jr. after a round trip, verdict per press", *OBSY,
+]
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
 RECON = "Esau Jr. press, press, Exit & Continue, press"
-WANT = {**{f"esau_jr > {new}": f"PASS {CHECKED[old]} assertions" if old in CHECKED else "RECORDED" for old, news in NAMES.items() for new in news},
+WANT = {**{f"esau_jr > {n}": f"PASS {c} assertions" for n, c in CHECKED.items()}, **{f"esau_jr > {n}": "RECORDED" for n in RECORDED},
         **dry.recon("esau_jr", RECON)}
-# Bug 7: VERDICT lines label characters by entity (GetPtrHash), not seed. D2: the fixture's done poll is a step, so a failed step's index
-# is one higher (press ignored, no spend). D2 isolation: final F's trace starts after its restart, not before it in the previous
-# test's run, so its TRACE lines start later than HEAD's: compared by its assertion count alone. Bug 8: the stub now takes a drop press
-# (obsya1), so these tests' drops land in 1 update, not by their fallback at 61, and every later line moves: compared by assertion count.
-ALLOW = [
-    ("D2", "final F Flip partners", None),
-    *(("bug 8", old, None) for old in ("obsy a schoolbag", "obsy a schoolbag Clicker", "obsy a Forgotten and Soul", "final A two Esau Jr. copies")),
-    *(("bug 7", old, r"(?<= VERDICT ).*$") for old in ("obsy a Dead form after A lost", "final I Birthright twins Esau Jr.", "final L flipped cross",
-                                                       "final M original loses Esau Jr.")),
-    *(("D2", old, r"(?<=error in step )\d+") for old in ("P4a", "S4", "final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up")),
-]
-OBSY = [NAMES[old][0] for old in NAMES if old.startswith("obsy ")]
 MODE = "tags esau_jr"  # every test here, final F (opt-in) included
 
 
@@ -82,18 +50,17 @@ def test_esau_jr(path):
     assert has("Esau Jr. through the Schoolbag with a Clicker press", "VERDICT Clicker index 0 B -> unchanged")
     print("PASS esau_jr obsy and recon verdicts, timing, Schoolbag, Soul switch and Esau's presses")
 
-    cross = NAMES["obs esaujr cross"][0]
-    assert f"PROBE SNAP esau_jr > {cross} | 1 Esau Jr. / lineup = A" in log, "no SNAP line after the first step"
+    assert f"PROBE SNAP esau_jr > {CROSS} | 1 Esau Jr. / lineup = A" in log, "no SNAP line after the first step"
     assert any(s.startswith("PROBE NUMBERS esau_jr > ") and " LJ stored key 4294967" in s for s in log), "LJ never listed on its own key beside D"
     # A press that brings back a character on the presser's seed is the presser's stored drop, not the returned one's charge
     swaps = [s for s in log if s.startswith("PROBE SWAP Flip LJ -> D ")]
     assert swaps and all(" spent stored presser charge, " in s for s in swaps), swaps
-    copies, walked = (f"esau_jr > {NAMES[old][0]}" for old in ("final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up"))
+    copies, walked = f"esau_jr > {COPIES}", f"esau_jr > {WALKED}"
     assert any(s.startswith(f"PROBE INFO {copies} swap the Esau Jr. copies after 1 updates by drop press | ") for s in log)
     hand = [s for s in log if s.startswith(f"PROBE INFO {walked} YOU: ")]
     assert len(hand) == 2, hand
     assert not any(s.startswith(f"PROBE STUCK {walked} ") for s in log), "a manual step logged STUCK"
-    traced = dry.segment(log, f"esau_jr > {NAMES['final F Flip partners'][0]}")
+    traced = dry.segment(log, f"esau_jr > {FLIP_TWINS}")
     first_start = next(i for i, s in enumerate(traced) if s.startswith("PROBE GAME START "))
     assert not any(s.startswith("PROBE TRACE ") for s in traced[:first_start]), "final F's trace records the previous test's run"
     print(f"PASS {MODE}: SNAP, LJ's own number, stored presser spends, the copies' swap and the walks")

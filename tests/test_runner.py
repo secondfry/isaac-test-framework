@@ -2,8 +2,8 @@
 fixtures (teardown once, setup throw, precondition) and which steps prompt the user. Spec-agnostic: the tests, their tags and limits
 come from the runner (dry.plan), their verdicts from every module's WANT."""
 import dry
-from legacy_names import FINAL_MODE
 
+FINAL_MODE = "tags rehud-2.8"
 ASK = "PROBE ACTION exit to the menu and Continue now by type"
 
 # A spec played in place of specs/hello.lua: each fixture case, and a step whose label names Continue without being manual (bug 2).

@@ -1,17 +1,27 @@
 """The real presses: the Clicker veto, a same-update type change, a Birthright Flip, the Clicker effect, a press the engine ignores and
 a use that spends nothing."""
 import dry
-from legacy_names import SCENARIOS, DISPUTES, NO_SWAP, ONLY_PICKED, full, expect_parts
 
 WANT = {}  # no spec of its own: it plays every spec
-STORED = "spent nothing: stored presser seen with no drop after its use"
-# Every old scenario but NO_SWAP swaps, and each swap must FAIL without a spend: a stored presser (Esau Jr., Flip without Birthright) on
-# its watched drop, a staying one (Clicker) on its charge, a card on its count.
-SPEND_SEEN = {"probes": (STORED, "spent nothing: charge"), "test3": STORED, "birthright": STORED, "P3": STORED, "P4a": STORED, "P4c": STORED, "S4": STORED,
-              "P1": "spent nothing: card count", "P2": "spent nothing: charge", "S3": STORED, "r1": STORED, "r1 mirror": STORED,
-              "continue": STORED, "continue settled": STORED, "final A two Esau Jr. copies": STORED, "final B Esau Jr. dropped and picked up": STORED,
-              "final C Tainted Lazarus Esau Jr.": STORED, "final E Soul of Jacob and Esau": "spent nothing: card count", "final F Flip partners": STORED,
-              "final G Jacob and Esau Clicker split": "spent nothing: charge"}
+# The checked tests (not opt-in) that never swap; every other one swaps, and each swap must FAIL without a spend: a stored presser
+# (Esau Jr., Flip without Birthright) on its watched drop, a staying one (Clicker) on its charge, a card on its count.
+NO_SWAP = {"engine > MaxCharges reads pre-REP+ charges", "engine > a card beside Flip sits in pocket slot 1",
+           "characters > Strawman's Keeper is a character with his own items", "continue > item copies survive Exit & Continue"}
+CHARGE = {"hello > Clicker on Isaac", "engine > Clicker stays held after a real press", "base_change > Clicker on Jacob and Esau until they split"}
+CARD = {"characters > temporary Esau from Soul of Jacob and Esau keeps his own items", "characters > temporary Esau has a number until he leaves"}
+EFFECT = "esau_jr > Tainted Lazarus's Esau Jr. character uses Clicker's effect"
+VETOED = ["base_change > a cancelled Clicker on the Esau Jr. character", "base_change > a cancelled Clicker, then ChangePlayerType in the same update"]
+
+
+def swapping(path):
+    """The checked tests a press swaps in, every one but the opt-in ones, NO_SWAP and item_copies (no press there)."""
+    return [t.name for t in dry.plan(path) if not t.snapshot and "opt-in" not in t.tags and t.name not in NO_SWAP
+            and not t.name.startswith("item_copies > ")]
+
+
+def spend_why(name):
+    return "spent nothing: charge" if name in CHARGE else "spent nothing: card count" if name in CARD else \
+        "spent nothing: stored presser seen with no drop after its use"
 
 
 def test_obsx(path):
@@ -27,16 +37,17 @@ def test_obsx(path):
     assert crossed[0].endswith("type 35"), crossed
     assert crossed[0].rsplit(" update ", 1)[1].split()[0] == cancelled[1].rsplit(" update ", 1)[1].split()[0], (crossed, cancelled)
     assert any(s.startswith("PROBE SWAP put type 29 in player 0 ") for s in log), "conditional Birthright Flip did not complete"
-    effect = full("obsx form uses Clicker effect")
-    assert any(f"{effect} UseActiveItem Clicker type 29 -> 35 changed true primary 703 -> 703" in s for s in log)
-    assert any(f"{effect} MC_USE_ITEM " in s and s.endswith("slot -1 charge n/a") for s in log)
+    assert any(f"{EFFECT} UseActiveItem Clicker type 29 -> 35 changed true primary 703 -> 703" in s for s in log)
+    assert any(f"{EFFECT} MC_USE_ITEM " in s and s.endswith("slot -1 charge n/a") for s in log)
     # each copy keeps the character it last swapped out (console 2026-11-22): after a D6 the fresh copy makes a new form first; as in obsx
-    # runs 2-6, where the original's fresh copy brought a form on its first form's seed (B present true)
-    expected = {"obsx original loses Esau Jr.": ["false", "true"], "obsx form uses Clicker effect": ["true", "false"]}
-    for name in DISPUTES[-4:]:
-        history = [s for s in log if s.startswith(f"PROBE INFO {full(name)} press #") and " A seed " in s]
-        assert [s.rsplit(" ", 1)[1] for s in history] == expected.get(name, ["false", "false"]), history
-    b_returns = [s for s in log if s.startswith(f"PROBE INFO {full('obsx original loses Esau Jr.')} press #") and " B seed " in s]
+    # runs 2-6, where the original's fresh copy brought a form on its first form's seed (B present true); A present per press
+    original = "esau_jr > Tainted Lazarus loses Esau Jr. after a round trip, returns recorded"
+    expected = {"esau_jr > Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back": ["false", "false"], EFFECT: ["true", "false"],
+                "esau_jr > Isaac's Esau Jr. character loses Esau Jr. and gets it back": ["false", "false"], original: ["false", "true"]}
+    for name, want in expected.items():
+        history = [s for s in log if s.startswith(f"PROBE INFO {name} press #") and " A seed " in s]
+        assert [s.rsplit(" ", 1)[1] for s in history] == want, history
+    b_returns = [s for s in log if s.startswith(f"PROBE INFO {original} press #") and " B seed " in s]
     assert [s.rsplit(" ", 1)[1] for s in b_returns] == ["true", "false"], b_returns
     print("PASS tags obsx, re-armed veto, same-update change, Birthright Flip, and controls")
 
@@ -44,32 +55,24 @@ def test_obsx(path):
 def test_clicker_effect_ignored(path):
     log = dry.run(path, mode="tags obsx", ignoreClickerEffect=True)
     dry.finished(log, "Clicker effect does nothing", path)
-    prefix = f"PROBE INFO {full('obsx form uses Clicker effect')} "
+    prefix = f"PROBE INFO {EFFECT} "
     assert any(s.startswith(prefix + "UseActiveItem Clicker type 29 -> 29 changed false") for s in log)
     assert not any(s.startswith(prefix + "press #") for s in log)
     print("PASS an unchanged Clicker effect stops its test")
 
 
-CLICKER_ON_ISAAC = "hello > Clicker on Isaac"  # a checked press in no legacy scenario
-
-
 def unswapped(path):
-    """The verdicts when no swap completes: a snapshot test whose assertion follows its first press only records; Clicker on Isaac
-    (checked on its own) left out."""
-    want = {**dry.expected(path), **{full(n): "RECORDED" for n in ("obsx cancelled Clicker", "obsx cancelled Clicker then change")}}
-    del want[CLICKER_ON_ISAAC]
-    return want
+    """The verdicts when no swap completes: a snapshot test whose assertion follows its first press only records."""
+    return {**dry.expected(path), **{n: "RECORDED" for n in VETOED}}
 
 
 def test_press_ignored(path):
     # every swapping test fails on its first press
     log = dry.run(path, ignorePress=True)
-    assert any(f"{full('obsx form loses Esau Jr.')} 2 Esau Jr. never happened:" in s for s in log)
+    assert any("esau_jr > Tainted Lazarus's Esau Jr. character loses Esau Jr. and gets it back 2 Esau Jr. never happened:" in s for s in log)
     assert not any(s == "PROBE CMD giveitem c105" for s in log)
     got = dry.finished(log, "press ignored", path)
-    expect_parts(got, "press ignored", unswapped(path),
-                 {n: ("no new character, arms ", "test limit ") for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
-    assert dry.fails(got[CLICKER_ON_ISAAC], "Clicker: no new character, arms "), got[CLICKER_ON_ISAAC]
+    dry.expect_results(got, "press ignored", unswapped(path), ("no new character, arms ", "test limit "), swapping(path))
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
     assert dry.run.saved.startswith(f"tags all\nSTUCK {len(stuck)} ") and " | " in dry.run.saved, dry.run.saved
@@ -78,9 +81,10 @@ def test_press_ignored(path):
 
 def test_no_spend(path):
     got = dry.finished(dry.run(path, noSpend=True), "no spend", path)
-    expect_parts(got, "no spend", unswapped(path), {n: SPEND_SEEN[n] for n in SCENARIOS if n not in NO_SWAP and n not in ONLY_PICKED})
-    assert dry.fails(got[CLICKER_ON_ISAAC], "spent nothing: charge"), got[CLICKER_ON_ISAAC]
-    print("PASS no spend fails every swap:", got[full("test3")][:110])
+    swaps = swapping(path)
+    for name, verdict in unswapped(path).items():
+        assert dry.fails(got[name], spend_why(name)) if name in swaps else got[name] == verdict, f"no spend: {name}: {got[name]}"
+    print("PASS no spend fails every swap:", got[swaps[0]][:110])
 
 
 TESTS = [test_obsx, test_clicker_effect_ignored, test_press_ignored, test_no_spend]

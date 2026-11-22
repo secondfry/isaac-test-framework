@@ -1,11 +1,10 @@
-"""Dry checks of specs/item_copies.lua: its tests' verdicts, the legacy scenarios they came from, and the checks of their own lines."""
+"""Dry checks of specs/item_copies.lua: its tests' verdicts."""
 import dry
 
 S1 = "one icon per owned, innate and wisp copy, the oldest lost first"
 ZODIAC, BILL = "Zodiac copy is clocked", "3 Dollar Bill copies are clocked"
 S2 = "base character change learns the innate copy, clocked copies stay"
-NAMES = {"S1": [S1], "S1b": [ZODIAC, BILL], "S2": [S2]}  # each legacy scenario moved here, by its old name: [the names of its tests in this spec]
-# each test's verdict under `tags all` when nothing fails, by "item_copies > <test>"; S1b's 37 split 20 + 17
+# each test's verdict under `tags all` when nothing fails, by "item_copies > <test>"
 WANT = {
     f"item_copies > {S1}": "PASS 53 assertions",
     f"item_copies > {ZODIAC}": "PASS 20 assertions",

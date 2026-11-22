@@ -29,7 +29,7 @@ def recon(spec, name, characters=RECON):
 @functools.lru_cache(maxsize=None)
 def modules():
     """Every tests/test_<name>.py module but NOT_MODULES, by name: each exports TESTS (its test functions) and WANT (its tests' verdicts
-    under `tags all` when nothing fails, by "<spec> > <test>"); a spec's module also NAMES (its legacy scenarios, legacy_names.py)."""
+    under `tags all` when nothing fails, by "<spec> > <test>")."""
     names = sorted(f[:-3] for f in os.listdir(HERE) if f.startswith("test_") and f.endswith(".py") and f[:-3] not in NOT_MODULES)
     return tuple(importlib.import_module(n) for n in names)
 

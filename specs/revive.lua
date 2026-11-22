@@ -1,6 +1,7 @@
 -- Lazarus with every revive dies until none is left (plan S5b): which revive the engine takes, in what order and into which type.
 -- Recon: whether Kill() brings a revive, how long one takes, and the restart from a game over are unobserved (plan open point 3), so
--- each death logs what changed and nothing is asserted. Play it last or alone: a death with no revive may leave a game over screen.
+-- each death logs what changed and nothing is asserted. Opt-in, played alone (tags revive): a death with no revive may leave a game
+-- over screen. It kills on while player 0 lives, with or without a source held, so Lazarus's own revive is seen too.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local owned, cards = engine.owned, engine.cards
@@ -19,17 +20,13 @@ local ANKH, JUDAS_SHADOW, LAZARUS_RAGS, MISSING_POSTER, SOUL_LAZARUS, LAZARUS = 
 local game = Game()
 local MAX_DEATHS, WATCH = 8, 240 -- updates watched after each Kill(), 8 s: no revive's duration has been observed
 
--- The revive sources `p` holds, as text, and whether it holds any.
+-- The revive sources `p` holds, as text.
 local function sources(p)
-	local t, any = {}, false
-	for _, id in ipairs({ ANKH, JUDAS_SHADOW, LAZARUS_RAGS }) do
-		t[#t + 1] = "c" .. id .. " " .. owned(p, id)
-		any = any or owned(p, id) > 0
-	end
-	local poster, souls = holdsTrinket(p, MISSING_POSTER), cards(p, SOUL_LAZARUS)
-	t[#t + 1] = "trinket " .. MISSING_POSTER .. " " .. tostring(poster)
-	t[#t + 1] = "card " .. SOUL_LAZARUS .. " " .. souls
-	return table.concat(t, " "), any or poster or souls > 0
+	local t = {}
+	for _, id in ipairs({ ANKH, JUDAS_SHADOW, LAZARUS_RAGS }) do t[#t + 1] = "c" .. id .. " " .. owned(p, id) end
+	t[#t + 1] = "trinket " .. MISSING_POSTER .. " " .. tostring(holdsTrinket(p, MISSING_POSTER))
+	t[#t + 1] = "card " .. SOUL_LAZARUS .. " " .. cards(p, SOUL_LAZARUS)
+	return table.concat(t, " ")
 end
 
 -- Player 0 as one line, each read that may throw on a dying player pcall'd.
@@ -39,14 +36,13 @@ local function state(p)
 		.. " players " .. game:GetNumPlayers() .. " hash " .. GetPtrHash(p) .. " room " .. game:GetLevel():GetCurrentRoomIndex() .. " | " .. (sources(p))
 end
 
--- Kill() player 0, then watch WATCH updates, logging each change; again while a source is held, the last death came back alive
--- (IsDead false after the watch), and fewer than MAX_DEATHS deaths.
+-- Kill() player 0, then watch WATCH updates, logging each change; again while the last death came back alive (IsDead false after
+-- the watch) and fewer than MAX_DEATHS deaths.
 local function dieUntilNoneLeft(ctx)
 	if not ctx.t then
 		local p = Isaac.GetPlayer(0)
 		if not p then return P("INFO", ctx.name, "REVIVE ends: no player 0") end
-		local held, any = sources(p)
-		if not any then return P("INFO", ctx.name, "REVIVE ends: no source held |", held) end
+		local held = sources(p)
 		if (ctx.deaths or 0) >= MAX_DEATHS then return P("INFO", ctx.name, "REVIVE ends:", MAX_DEATHS, "deaths |", held) end
 		ctx.deaths, ctx.t, ctx.last = (ctx.deaths or 0) + 1, 0, nil
 		P("INFO", ctx.name, "REVIVE death", ctx.deaths, "Kill() on type", p:GetPlayerType(), "frame", game:GetFrameCount(), "|", held, "| Kill()",
@@ -72,6 +68,6 @@ local LAZARUS_WITH_EVERY_REVIVE = fixture("Lazarus holding every revive", { fres
 	addTrinket(MISSING_POSTER), addCard(SOUL_LAZARUS) }, LAZARUS)
 
 return { name = "revive", tests = {
-	snapshotTest("Lazarus with every revive dies until none is left", { "revive" }, LAZARUS_WITH_EVERY_REVIVE,
+	snapshotTest("Lazarus with every revive dies until none is left", { "revive", "opt-in" }, LAZARUS_WITH_EVERY_REVIVE,
 		{ { "die until no revive is left", dieUntilNoneLeft, nil, WATCH + 1 } }, { strict = true, limit = 300 + MAX_DEATHS * WATCH }),
 } }

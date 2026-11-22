@@ -64,7 +64,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
-Play `revive` alone: its game over may break the next test's restart.
+`revive` plays only with `tags revive`; play it alone: its game over may break the next test's restart.
 
 ## Manual steps
 

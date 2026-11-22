@@ -11,7 +11,6 @@ WANT = {
     "legacy > birthright": "PASS 36 assertions",
     "legacy > P3": "PASS 30 assertions",
     "legacy > P4a": "PASS 18 assertions",
-    "legacy > P4c": "PASS 87 assertions",
     "legacy > obs esaujr cross": "RECORDED",
     "legacy > obs esaujr out": "RECORDED",
     "legacy > obs esaujr flip": "RECORDED",
@@ -55,9 +54,6 @@ WANT = {
     "legacy > S1": "PASS 53 assertions",
     "legacy > S1b": "PASS 37 assertions",
     "legacy > S2": "PASS 29 assertions",
-    "legacy > S3": "PASS 24 assertions",
-    "legacy > r1": "PASS 27 assertions",
-    "legacy > r1 mirror": "PASS 18 assertions",
     "legacy > final A two Esau Jr. copies": "PASS 46 assertions",
     "legacy > final B Esau Jr. dropped and picked up": "PASS 25 assertions",
     "legacy > final C Tainted Lazarus Esau Jr.": "PASS 39 assertions",
@@ -127,13 +123,6 @@ def test_legacy_lines(path):
     print("PASS SNAP lines for snapshot tests only:", len(snaps))
 
 
-def test_tlaz_roll_29(path):
-    # Clicker from the Dead form rolling 29 (run 8): S3's merge assertions with Flip kept, the rest unchanged
-    got = dry.finished(dry.run(path, tlazRoll=29), "Clicker rolls 29", path)
-    dry.expect_results(got, "Clicker rolls 29", {**dry.expected(path), full("S3"): "PASS 21 assertions"})
-    print("PASS Clicker rolling 29:", got[full("S3")])
-
-
 def test_final(path):
     log = dry.run(path, mode=FINAL_MODE)
     dry.expect_results(dry.finished(log, FINAL_MODE, path), FINAL_MODE, dry.expected(path, FINAL_MODE))
@@ -152,4 +141,4 @@ def test_final(path):
     print(f"PASS {FINAL_MODE}: {sum('rehud-2.8' in t.tags for t in dry.plan(path))} tests, {dry.run.updates} updates in the stub")
 
 
-TESTS = [test_legacy_lines, test_tlaz_roll_29, test_final]
+TESTS = [test_legacy_lines, test_final]

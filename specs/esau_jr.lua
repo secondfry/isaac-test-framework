@@ -217,9 +217,10 @@ local tests = {
 		onlyIf("player 0 holds no Esau Jr.", holdsJr, esauJr("Esau Jr. again")), whoInfo("Esau Jr. again"), lookC("after Esau Jr. again"),
 	} },
 	-- Recon: Flip twins change after Esau Jr. (LJ <-> D, then DJ <-> LJ), then Clicker out of the live character; ReHUD sets each twin
-	-- once (roster.lua partnerOf), so a failure here is expected. TRACE lines log the engine and ReHUD every update, setup included.
+	-- once (roster.lua partnerOf), so a failure here is expected. TRACE lines log the engine and ReHUD every update from its restart on,
+	-- setup included, and none of the previous test's run.
 	{ name = "Flip twins change after Esau Jr., then Clicker", tags = { "esau_jr", "rehud", "rehud-2.8", "opt-in" }, limit = 450,
-		fixture = fixture(TLAZ_FLIPS.name .. ", traced", { startChecked, TLAZ_FLIPS.setup }, DEAD_T_LAZ), steps = {
+		fixture = fixture(TLAZ_FLIPS.name .. ", traced", { TLAZ_FLIPS.setup[1], startChecked, { table.unpack(TLAZ_FLIPS.setup, 2) } }, DEAD_T_LAZ), steps = {
 		give(ESAU_JR), esauJr("Esau Jr. D -> DJ"), named("DJ"), give(7), lookC("DJ"),
 		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
 		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),

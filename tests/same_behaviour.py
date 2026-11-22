@@ -81,16 +81,13 @@ MASKS = [
     *(a for a in MODULE_ALLOW if a[2] is not None),
 ]
 UNCOMPARED = {a[1] for a in MODULE_ALLOW if a[2] is None}
-# A trace started before its test's restart first records the previous test's run, which moving tests changed: those TRACE lines,
-# before the test's first GAME START, are dropped in both (measured: final F's lines after it match).
-PRE_RUN = [("D2", "final F Flip partners")]
 # D7 moves tests: FIRST rewrites a test's first ACTION line in both (its restart names the type the test before it left); OUTSIDE drops
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
 FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
 # The session's first run is first seen before the first test starts: HEAD logged no test name there (nil), now the first test's.
 OUTSIDE_NAME = [("CHAR name", r"^PROBE INFO .*? CHAR (\d+) first seen ", r"PROBE INFO <first test> CHAR \1 first seen ")]
-ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME + PRE_RUN + [a for a in MODULE_ALLOW if a[2] is None]
+ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME + [a for a in MODULE_ALLOW if a[2] is None]
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -164,12 +161,8 @@ def by_test(log):
     masks = {}
     for _, test, regex in MASKS:
         masks.setdefault(test, []).append(re.compile(regex))
-    pre_run = {test for _, test in PRE_RUN}
     for name, segments in tests.items():
         for k, seg in enumerate(segments):
-            if name in pre_run:
-                start = next((i for i, s in enumerate(seg) if s.startswith("PROBE GAME START")), len(seg))
-                seg = [s for i, s in enumerate(seg) if i >= start or not s.startswith("PROBE TRACE ")]
             for m in masks.get(name, []):
                 seg = [m.sub("<allowed>", s) for s in seg]
             first = next((i for i, s in enumerate(seg) if s.startswith("PROBE ACTION ")), None)

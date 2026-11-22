@@ -49,9 +49,10 @@ CHECKED = {  # the tests with assertions, by old name: their PASS counts (every 
 # Each test's verdict under `tags all` when nothing fails, by "esau_jr > <test>"
 WANT = {f"esau_jr > {new}": f"PASS {CHECKED[old]} assertions" if old in CHECKED else "RECORDED" for old, news in NAMES.items() for new in news}
 # Bug 7: VERDICT lines label characters by entity (GetPtrHash), not seed. D2: the fixture's done poll is a step, so a failed step's index
-# is one higher (press ignored, no spend). Final F's trace starts in its setup, before the restart, so its first lines record the
-# previous test's run, which the moves changed: same_behaviour drops them (PRE_RUN).
+# is one higher (press ignored, no spend). D2 isolation: final F's trace starts after its restart, not before it in the previous
+# test's run, so its TRACE lines start later than HEAD's: compared by its assertion count alone.
 ALLOW = [
+    ("D2", "final F Flip partners", None),
     *(("bug 7", old, r"(?<= VERDICT ).*$") for old in ("obsy a Dead form after A lost", "final I Birthright twins Esau Jr.", "final L flipped cross",
                                                        "final M original loses Esau Jr.")),
     *(("D2", old, r"(?<=error in step )\d+") for old in ("P4a", "S4", "final A two Esau Jr. copies", "final B Esau Jr. dropped and picked up")),
@@ -87,6 +88,9 @@ def test_esau_jr(path):
     hand = [s for s in log if s.startswith(f"PROBE INFO {walked} YOU: ")]
     assert len(hand) == 2, hand
     assert not any(s.startswith(f"PROBE STUCK {walked} ") for s in log), "a manual step logged STUCK"
+    traced = dry.segment(log, f"esau_jr > {NAMES['final F Flip partners'][0]}")
+    first_start = next(i for i, s in enumerate(traced) if s.startswith("PROBE GAME START "))
+    assert not any(s.startswith("PROBE TRACE ") for s in traced[:first_start]), "final F's trace records the previous test's run"
     print(f"PASS {MODE}: SNAP, LJ's own number, stored presser spends, the copies' swap and the walks")
 
 

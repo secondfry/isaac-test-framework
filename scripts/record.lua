@@ -291,12 +291,19 @@ end
 -- The runner's snap event: a snapshot test's state after step `step`, or that it never happened.
 local function snapStep(ctx, step, reached)
 	if not reached then return snap(ctx, step, "never happened") end
-	local lineup, found = {}, {}
-	for i = 0, game:GetNumPlayers() - 1 do lineup[#lineup + 1] = label(ctx, Isaac.GetPlayer(i)) end
-	for _, e in ipairs(Isaac.FindByType(EntityType.ENTITY_PLAYER)) do found[#found + 1] = label(ctx, e) end
+	local lineup, found, listed, others = {}, {}, {}, {}
+	for i = 0, game:GetNumPlayers() - 1 do
+		local p = Isaac.GetPlayer(i)
+		lineup[#lineup + 1], listed[GetPtrHash(p)] = label(ctx, p), true
+	end
+	for _, e in ipairs(Isaac.FindByType(EntityType.ENTITY_PLAYER)) do
+		found[#found + 1] = label(ctx, e)
+		if not listed[GetPtrHash(e)] then others[#others + 1] = e:ToPlayer() end
+	end
 	snap(ctx, step .. " / lineup", table.concat(lineup, " "))
 	snap(ctx, step .. " / players", table.concat(found, " "))
 	for i = 0, game:GetNumPlayers() - 1 do describe(ctx, step, Isaac.GetPlayer(i)) end
+	for _, p in ipairs(others) do describe(ctx, step, p) end -- a player entity GetPlayer does not list
 end
 
 return {

@@ -3,6 +3,8 @@
 pickups = {} -- spawned pedestals: {Type, Variant, SubType, Position}
 function Isaac.FindByType(t, v, s)
   if t == 3 then return {table.unpack(wisps)} end
+  -- shortcut: live players only; whether FindByType lists stored or other player entities is session 2's recon, model it from that
+  if t == 1 then return {table.unpack(players)} end
   local r = {}
   for _, e in ipairs(pickups) do if e.Type == t and ((v or -1) < 0 or e.Variant == v) and ((s or -1) < 0 or e.SubType == s) then r[#r+1] = e end end
   return r

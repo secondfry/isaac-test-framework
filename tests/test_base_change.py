@@ -1,4 +1,47 @@
 """Dry checks of specs/base_change.lua: its tests' verdicts, the legacy scenarios they came from, and the checks of their own lines."""
-NAMES = {}  # each legacy scenario moved here, by its old name: [the names of its tests in this spec]
-WANT = {}  # each test's verdict under `tags all` when nothing fails, by "base_change > <test>"
-TESTS = []
+import dry
+
+SPEC = "base_change"
+MODE = f"tags {SPEC}"
+P2 = "Clicker on Jacob and Esau until they split"
+VETOED = ["a cancelled Clicker on the Esau Jr. character", "a cancelled Clicker, then ChangePlayerType in the same update"]
+NAMES = {  # each legacy scenario moved here, by its old name: [the names of its tests in this spec]
+    "test3": ["ChangePlayerType out of Tainted Lazarus merges the stored twin"],
+    "P2": [P2],
+    "final G Jacob and Esau Clicker split": ["Clicker merges and splits Jacob and Esau holding Inner Eye"],
+    "obs mirror": ["ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip"],
+    "obsx cancelled Clicker": [VETOED[0]],
+    "obsx cancelled Clicker then change": [VETOED[1]],
+    "obsx merge 38 to 29 then Flip": ["ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once"],
+    "obsx merge 29 to 38 then Esau Jr.": ["ChangePlayerType into Dead Tainted Lazarus merges the stored twin, then Esau Jr. at once"],
+}
+# Each test's verdict under `tags all` when nothing fails, by "base_change > <test>". P2 counts 8 or 9 per Clicker use: 22 here (the stub's
+# Clicker splits on its second use), any number in game.
+WANT = {
+    f"{SPEC} > {NAMES['test3'][0]}": "PASS 15 assertions",
+    f"{SPEC} > {P2}": "PASS 22 assertions",
+    f"{SPEC} > {NAMES['final G Jacob and Esau Clicker split'][0]}": "PASS 18 assertions",
+    f"{SPEC} > {NAMES['obs mirror'][0]}": "RECORDED",
+    f"{SPEC} > {VETOED[0]}": "PASS 1 assertions",
+    f"{SPEC} > {VETOED[1]}": "PASS 1 assertions",
+    f"{SPEC} > {NAMES['obsx merge 38 to 29 then Flip'][0]}": "RECORDED",
+    f"{SPEC} > {NAMES['obsx merge 29 to 38 then Esau Jr.'][0]}": "RECORDED",
+}
+# The plan's first fired assertion, "a vetoed Clicker fires no MC_USE_ITEM", adds an INFO line and turns RECORDED into PASS; a fixture's
+# done poll and its trace start take an update each, so test3's first look waits two updates less for ReHUD's settle.
+ALLOW = [("plan fired", "obsx cancelled Clicker", None), ("plan fired", "obsx cancelled Clicker then change", None),
+         ("plan fixture", "test3", r"SETTLED before ChangePlayerType after \d+ updates")]
+
+
+def test_base_change_lines(path):
+    log = dry.run(path, mode=MODE)
+    dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
+    p2 = dry.segment(log, f"{SPEC} > {P2}")
+    assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in p2), "P2 never split"
+    for name in VETOED:
+        line = f"PROBE INFO {SPEC} > {name} vetoed Clicker: callback 3 with 482 fired 0"
+        assert line in dry.segment(log, f"{SPEC} > {name}"), name
+    print("PASS base_change: P2 reaches the split, a vetoed Clicker fires no MC_USE_ITEM")
+
+
+TESTS = [test_base_change_lines]

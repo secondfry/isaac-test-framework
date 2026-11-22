@@ -12,7 +12,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ($Start -eq $End) { throw 'pass -Start or -End' }
-if (Get-Process isaac-ng -ErrorAction SilentlyContinue) { throw 'close the game first: it reads the mods folder only at launch' }
+# a -Mods folder other than the game's is not read by it
+if (-not $PSBoundParameters.ContainsKey('Mods') -and (Get-Process isaac-ng -ErrorAction SilentlyContinue)) { throw 'close the game first: it reads the mods folder only at launch' }
 
 if ($End) {
 	if (-not (Test-Path -LiteralPath $State)) { 'no vanilla session to end'; return }

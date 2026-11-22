@@ -44,7 +44,8 @@ function Isaac.GetItemConfig() return {GetCollectibles=function() return {Size=7
 ignoreRestart = false -- set by the test: `restart` does nothing
 ignorePress = false -- set by the test: the engine polls input but ignores a forced press
 ignoreDrop = false -- set by the test: the engine ignores a forced drop press, so drop presses take their fallback
-lockedType = nil -- set by the test: `restart` of this type starts Isaac instead, as a locked character might (unobserved)
+lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
+-- shortcut: a locked type's restart starts Isaac (unobserved); model what session 2's Tainted Isaac and Tainted Jacob restarts show
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do
@@ -72,7 +73,7 @@ function fire(id, ...)
 end
 function startRun(t, cont)
   if not cont then
-    -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone
+    -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it once a session logs GetFrameCount across a restart
     resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
     stageN = 1; stored, wisps, pickups = {}, {}, {}; resetFakeReHUD()

@@ -153,7 +153,8 @@ def check_finished(log, label, names):
 def wanted(mode, tests):
     """Each test's verdict under the tags line `mode` when nothing fails, as the runner picks: `tests` maps a name to (verdict, its tags)."""
     line = mode.splitlines()[0].strip() if mode else ""
-    tags = line[len("tags"):].replace(",", " ").split() if line.startswith("tags") else []
+    text = line.replace("--update-snapshots", "").strip()
+    tags = text[len("tags"):].replace(",", " ").split() if text.startswith("tags") else []
     out = {}
     for name, (want, own) in tests.items():
         opt_in = "opt-in" in own

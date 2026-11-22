@@ -113,6 +113,11 @@ def test_tags(path):
         dry.expect_results(dry.finished(log, line, path), line, dry.expected(path, mode))
         assert any(s.startswith("PROBE HARNESS START") and f"tags '{line}'" in s for s in log), "tags not logged"
         print(f"PASS {line} runs just its tests")
+    mode = "--update-snapshots tags hello"  # the flag first on the line
+    log = dry.run(path, mode=mode)
+    dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))
+    assert any(s.startswith(f"PROBE HARNESS START") and f"tags '{mode}', update snapshots yes," in s for s in log), "flag first not read"
+    print(f"PASS {mode} runs just its tests and updates snapshots")
 
 
 def limited(got, t):

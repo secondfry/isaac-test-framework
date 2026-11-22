@@ -214,7 +214,7 @@ end
 -- `tags a,b`, and `--update-snapshots` to let the reader replace snapshots. A STUCK line left below it never changes them.
 local function readTags(S, raw)
 	S.line = raw:match("^[^\r\n]*"):match("^%s*(.-)%s*$")
-	local text = S.line:gsub("%-%-update%-snapshots", "")
+	local text = S.line:gsub("%-%-update%-snapshots", ""):match("^%s*(.-)%s*$") -- the flag may come first
 	S.updateSnapshots, S.tags = text ~= S.line, {}
 	for tag in (text:match("^tags%s+(.*)$") or ""):gmatch("[^,%s]+") do S.tags[#S.tags + 1] = tag end
 end

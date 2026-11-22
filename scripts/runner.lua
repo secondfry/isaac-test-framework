@@ -130,11 +130,10 @@ local function runStep(test, step, ctx)
 	return true
 end
 
--- One update of play; `...` run first on every update while the session runs.
+-- One update of play; `...` run first on every update a test plays, under its name.
 local function tick(...)
 	local S = HARNESS.session
 	if not S.running then return end
-	for _, f in ipairs({ ... }) do f() end
 	local test = tests[S.testIndex]
 	if not test then
 		S.running, S.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
@@ -148,6 +147,8 @@ local function tick(...)
 		return
 	end
 	local ctx = S.ctx
+	ctx.name = test.name -- from the test's first update: the session's first run is first seen there
+	for _, f in ipairs({ ... }) do f() end
 	if test.onUpdate then test.onUpdate(ctx) end
 	if test.onStepError == "end" and ctx.interrupted then return finish() end
 	if overLimit(S, test) then return end
@@ -156,8 +157,11 @@ local function tick(...)
 	end
 	local step = test.steps[S.stepIndex]
 	if not step then return finish() end
-	if not ctx.name then P("TEST START", test.name, "| tags " .. table.concat(test.tags or {}, ",")) end -- tools/report.py pairs it with a RESULT
-	ctx.name, ctx.leftOk, ctx.onStepError = test.name, test.leftOk, test.onStepError
+	if not ctx.started then -- tools/report.py pairs it with a RESULT
+		ctx.started = true
+		P("TEST START", test.name, "| tags " .. table.concat(test.tags or {}, ","))
+	end
+	ctx.leftOk, ctx.onStepError = test.leftOk, test.onStepError
 	-- Only a started manual step prompts; its label gets its own line, so it is not lost at the end of a long status.
 	S.manual = type(step) == "table" and ctx.label and step.manual or nil
 	S.status = test.name .. " step " .. S.stepIndex .. "/" .. #test.steps .. ((ctx.label and not S.manual) and (": " .. ctx.label) or "")

@@ -79,7 +79,9 @@ MASKS = [
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
 FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
-ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE
+# The session's first run is first seen before the first test starts: HEAD logged no test name there (nil), now the first test's.
+OUTSIDE_NAME = [("CHAR name", r"^PROBE INFO .*? CHAR (\d+) first seen ", r"PROBE INFO <first test> CHAR \1 first seen ")]
+ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE + OUTSIDE_NAME
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -158,7 +160,10 @@ def by_test(log):
             for _, r, s in FIRST if first is not None else []:
                 seg[first] = re.sub(r, s, seg[first])
             segments[k] = sort_entries(seg)
-    return tests, {s for s in outside if not any(re.match(r, s) for _, r in OUTSIDE)}
+    outside = {s for s in outside if not any(re.match(r, s) for _, r in OUTSIDE)}
+    for _, r, s in OUTSIDE_NAME:
+        outside = {re.sub(r, s, line) for line in outside}
+    return tests, outside
 
 
 def assertion_sums(base, new):

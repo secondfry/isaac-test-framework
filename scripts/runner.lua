@@ -14,6 +14,23 @@ local handlers = { teardown = {}, busy = {}, stepBegins = {}, giveUp = {}, snap 
 local function on(event, f) table.insert(assert(handlers[event], event), f) end
 local function fire(event, ...) for _, f in ipairs(handlers[event]) do f(...) end end
 
+-- The mod data's one writer: the tags line, the Exit & Continue marker, then the STUCK line, last as tools\stuck-shots.ps1 reads only the last line.
+local function saveData()
+	local S = HARNESS.session
+	local t = { S.line }
+	t[#t + 1] = S.waitLine
+	t[#t + 1] = S.stuckLine
+	Isaac.SaveModData(S.mod, table.concat(t, "\n"))
+end
+-- On while a step waits for the user's Exit & Continue: a new `WAIT exit-continue <n>` line, which tools\auto-continue.ps1 answers.
+local function markWait(on)
+	local S = HARNESS.session
+	if on then S.waits = (S.waits or 0) + 1 end
+	S.waitLine = on and ("WAIT exit-continue " .. S.waits) or nil
+	saveData()
+end
+local function clearWait() if HARNESS.session.waitLine then markWait(false) end end
+
 -- A step list may nest step lists (a fixture's steps); a table with `run` is one step. Flattened into a new list, the caller's tables untouched.
 local function flatten(list, out)
 	out = out or {}
@@ -97,6 +114,7 @@ local function finish(err)
 	if test.fixture and test.fixture.teardown then down(test.fixture.teardown) end
 	for _, f in ipairs(handlers.teardown) do down(f) end -- a timed-out press must not reach the next test
 	S.lateContinue = S.expectStart == "continue" or nil -- the user may still Continue after the step gave up, during the next test
+	clearWait()
 	S.testIndex, S.stepIndex, S.expectStart, S.manual = S.testIndex + 1, 1, nil, nil
 	S.ctx = newCtx()
 end
@@ -143,6 +161,7 @@ local function runStep(test, step, ctx)
 	P("INFO", ctx.name, step.label, "never happened:", res)
 	table.insert(ctx.notes, step.label .. " never happened")
 	ctx.interrupted = test.onStepError == "end"
+	clearWait()
 	fire("giveUp", ctx)
 	if test.snapshot then fire("snap", ctx, step.label, false) end
 	return true
@@ -239,7 +258,8 @@ local function stuck(ctx, t, label)
 	if t ~= 60 or S.manual then return end
 	S.stuck = (S.stuck or 0) + 1
 	P("STUCK", ctx.name, label, t)
-	Isaac.SaveModData(S.mod, S.line .. "\nSTUCK " .. S.stuck .. " " .. tostring(ctx.name) .. " | " .. tostring(label))
+	S.stuckLine = "STUCK " .. S.stuck .. " " .. tostring(ctx.name) .. " | " .. tostring(label)
+	saveData()
 end
 
 local function setMod(mod) HARNESS.session.mod = mod end
@@ -250,6 +270,7 @@ local function onGameStart(isContinued)
 	local S = HARNESS.session
 	S.gen, S.continued = S.gen + 1, isContinued
 	P("GAME START", S.gen, "continued", isContinued)
+	if isContinued then clearWait() end
 	if not S.started then
 		if isContinued then P("HARNESS idle: start a new run to test") return end
 		local raw = S.mod:LoadData()
@@ -270,5 +291,5 @@ end
 -- tests: the play list, which tests/dry.py reads (names, tags, limits) so no Python file lists the specs' tests again.
 return {
 	add = add, on = on, tick = tick, guard = guard, render = render, onGameStart = onGameStart, stuck = stuck, setMod = setMod,
-	expectStart = expectStart, abort = abort, tests = tests,
+	expectStart = expectStart, abort = abort, markWait = markWait, tests = tests,
 }

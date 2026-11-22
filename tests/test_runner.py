@@ -59,6 +59,7 @@ def test_all(path):
     assert [t.name for t in plan[len(plan) - len(last):]] == last, "an Exit & Continue test plays before another test (D7)"
     asks, resumed = sum(s.startswith(ASK) for s in log), sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log)
     assert asks == resumed >= sum("opt-in" not in t.tags for t in tagged(path, "exit-continue")), ("the continues did not resume", asks, resumed)
+    dry.check_waits(dry.run.saves, asks)  # each marker cleared after its Continue
     presses = [s for s in log if s.startswith("PROBE PRESS ")]
     swaps = [s for s in log if s.startswith("PROBE SWAP ")]
     stored = [s for s in swaps if " spent stored presser charge, " in s]
@@ -177,6 +178,7 @@ def test_recon_worst(path):
 def test_new_run_instead_of_continue(path):
     log = dry.run(path, on_exit="new")
     got = dry.finished(log, "new run instead of Continue", path)
+    dry.check_waits(dry.run.saves, sum(s.startswith(ASK) for s in log))  # each marker cleared as its test ends
     want = dry.expected(path)
     asked = [t for t in tagged(path, "exit-continue") if "opt-in" not in t.tags]
     for t in asked:

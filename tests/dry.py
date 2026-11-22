@@ -126,8 +126,26 @@ def run(path, mode="tags all", on_exit="continue", render_every=1, continue_afte
         seen = size
         if log[size] == "PROBE HARNESS DONE":
             break
-    run.saved, run.updates = g.SAVED, update
+    run.saved, run.saves, run.updates = g.SAVED, list(g.SAVES.values()), update
     return list(g.LOG.values())
+
+
+def check_waits(saves, asked):
+    """The mod data writes of a session with `asked` Exit & Continues: each writes `WAIT exit-continue <n>`, n rising from 1, cleared
+    before the next one and by the session's end, and a STUCK line stays last."""
+    seen, shown = 0, None
+    for s in saves:
+        lines = s.split("\n")
+        wait = [x for x in lines if x.startswith("WAIT ")]
+        assert len(wait) <= 1 and not any(x.startswith("STUCK ") for x in lines[:-1]), s
+        if not wait:
+            shown = None
+        elif wait[0] != shown:
+            assert shown is None, f"{wait[0]} before {shown} was cleared"
+            seen += 1
+            assert wait[0] == f"WAIT exit-continue {seen}", (s, seen)
+            shown = wait[0]
+    assert seen == asked and shown is None, (seen, asked, shown)
 
 
 def results(log):

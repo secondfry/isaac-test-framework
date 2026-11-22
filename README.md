@@ -34,7 +34,7 @@ Line 1 of `data\rehud_test_harness\save<slot>.dat` in the game folder (the vanil
 - An `opt-in` test plays only when one of its other tags is named.
 - `--update-snapshots` anywhere on the line lets `report.py` replace the snapshots that differ.
 
-`HARNESS START` logs the line; a skipped test logs `RESULT <spec> > <test> SKIP <why> (tags '<line>')` and takes no update. The lines below line 1 are the harness's `STUCK` lines and never change the tags.
+`HARNESS START` logs the line; a skipped test logs `RESULT <spec> > <test> SKIP <why> (tags '<line>')` and takes no update. The lines below line 1 are the harness's own (`WAIT`, `STUCK`) and never change the tags.
 
 The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud`; `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; tagged `vanilla` too, as they read no ReHUD); `stored-character` (snapshot tests of a stored Esau Jr. or Flip character through Clicker, ChangePlayerType and losing Esau Jr.); `drop` (asks for a drop press).
 
@@ -69,9 +69,10 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 ## Manual steps
 
 - Exit & Continue: the screen shows `exit to the menu and Continue now` on its own line; exit to the menu and pick Continue. A snapshot test gives up after 600 updates of play, a test with assertions after 9000. A new run instead fails a test with assertions (`a new run started, not a Continue`) and ends a snapshot test. A Continue after its step gave up lands in the next test: logged `late Continue, ignored` and noted `; late Continue mid-test` on that test's `RESULT`.
+- Automatic Exit & Continue (opt-in; watch its first run, as its key path is unconfirmed): `pwsh -File isaac-test-harness\tools\auto-continue.ps1`, started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file (`-DryRun` prints the plan only).
 - Pedestal walks (`walk`): `YOU: walk onto the yum-heart pedestal`, then `YOU: step off, then walk back onto the Esau Jr. pedestal`; 450 updates each.
 
-A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and rewrites the line under line 1 of the tags file as `STUCK <n> <test> | <step>`, the latest only, which `stuck-shots.ps1` reads as the file's last line; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
+A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and writes `STUCK <n> <test> | <step>` as the tags file's last line, the latest only, which `stuck-shots.ps1` reads; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
 
 ## Results
 

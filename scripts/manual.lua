@@ -3,7 +3,8 @@
 local P = include("scripts.log").P
 local wait = include("scripts.wait")
 local act, CONTINUE_TIMEOUT = wait.act, wait.CONTINUE_TIMEOUT
-local expectStart = include("scripts.runner").expectStart
+local runner = include("scripts.runner")
+local expectStart, markWait = runner.expectStart, runner.markWait
 local engine = include("scripts.game")
 local seeds, owned, pedestals, slots = engine.seeds, engine.owned, engine.pedestals, engine.slots
 local ids = include("scripts.ids")
@@ -14,6 +15,7 @@ local ESAU_JR, YUM_HEART, PRIMARY, PEDESTAL = ids.ESAU_JR, ids.YUM_HEART, ids.PR
 local function exitAndContinue(soft)
 	return { manual = { kind = "continue" }, run = act("exit to the menu and Continue now", function()
 		expectStart("continue")
+		markWait(true)
 		return { gen = HARNESS.session.gen, seeds = seeds() }
 	end, function(ctx, b)
 		local S = HARNESS.session

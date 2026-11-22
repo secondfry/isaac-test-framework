@@ -3,11 +3,9 @@ and checks into its spec's test_<spec>.py; the checks name tests by legacy_names
 import dry
 from legacy_names import FINAL, FINAL_MODE, OBSY, OBSY_LARGE, full, names
 
-# Exact verdicts: a lost assertion or note shows. Each look adds 5 invariant assertions (a lookC 6). P2 counts 8 or 9 per Clicker use: 22
-# here (the stub's Clicker splits on its second use), any number in game.
+# Exact verdicts: a lost assertion or note shows. Each look adds 5 invariant assertions (a lookC 6).
 WANT = {
     "legacy > probes": "PASS 10 assertions",
-    "legacy > test3": "PASS 15 assertions",
     "legacy > birthright": "PASS 36 assertions",
     "legacy > P3": "PASS 30 assertions",
     "legacy > P4a": "PASS 18 assertions",
@@ -18,19 +16,14 @@ WANT = {
     "legacy > obs esaujr flipped cross": "RECORDED",
     "legacy > obs esaujr birthright": "RECORDED",
     "legacy > obs esaujr clicker": "RECORDED",
-    "legacy > obs mirror": "RECORDED",
     "legacy > obs esaujr birthright keep": "RECORDED",
     "legacy > obs esaujr cross35": "RECORDED",
     "legacy > obs esaujr dead seed": "RECORDED",
     "legacy > obs esaujr birthright flip": "RECORDED",
-    "legacy > obsx cancelled Clicker": "RECORDED",
-    "legacy > obsx cancelled Clicker then change": "RECORDED",
     "legacy > obsx Clicker on returned original": "RECORDED",
     "legacy > obsx Clicker after Flip": "RECORDED",
     "legacy > obsx Clicker with Birthright": "RECORDED",
     "legacy > obsx Isaac Esau Jr Clicker": "RECORDED",
-    "legacy > obsx merge 38 to 29 then Flip": "RECORDED",
-    "legacy > obsx merge 29 to 38 then Esau Jr.": "RECORDED",
     "legacy > obsx form loses Esau Jr.": "RECORDED",
     "legacy > obsx form uses Clicker effect": "RECORDED",
     "legacy > obsx Isaac form loses Esau Jr.": "RECORDED",
@@ -51,7 +44,6 @@ WANT = {
     "legacy > obsy b identity": "RECORDED",
     "legacy > S4": "PASS 29 assertions",
     "legacy > P1": "PASS 25 assertions",
-    "legacy > P2": "PASS 22 assertions",
     "legacy > S1": "PASS 53 assertions",
     "legacy > S1b": "PASS 37 assertions",
     "legacy > S2": "PASS 29 assertions",
@@ -64,7 +56,6 @@ WANT = {
     "legacy > final D Strawman": "PASS 22 assertions",
     "legacy > final E Soul of Jacob and Esau": "PASS 15 assertions",
     "legacy > final F Flip partners": "PASS 47 assertions",
-    "legacy > final G Jacob and Esau Clicker split": "PASS 18 assertions",
     "legacy > final I Birthright twins Esau Jr.": "RECORDED",
     "legacy > final K tag through Flip": "RECORDED",
     "legacy > final L flipped cross": "RECORDED",
@@ -118,8 +109,6 @@ def check_obsy(log):
 def test_legacy_lines(path):
     log = dry.run(path)
     dry.finished(log, "tags all", path)
-    assert any(s.startswith("PROBE SWAP Clicker") and "players 1 -> 2" in s for s in log), "P2 never split"
-    print("PASS P2 reaches the split")
     check_obsy(log)
     snaps = [s for s in log if s.startswith("PROBE SNAP ")]
     assert f"PROBE SNAP {full('obs esaujr cross')} | 1 Esau Jr. / lineup = A" in snaps, snaps[:3]

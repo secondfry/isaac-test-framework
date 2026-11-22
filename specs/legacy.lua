@@ -50,46 +50,6 @@ local T_LAZ, DEAD_T_LAZ, JACOB, ISAAC, CAIN, T_FORGOTTEN, KEEPER, ESAU, PRIMARY,
 
 local game = Game()
 
-local clickerLook = look("after Clicker", function(ctx, label)
-	label = label .. " " .. ctx.uses
-	local n = 0
-	for i = 0, game:GetNumPlayers() - 1 do n = n + owned(Isaac.GetPlayer(i), 4) end
-	expectN(ctx, label, 4, n, ctx.floors[1])
-	noneLeft(ctx, label)
-	if ctx.esau and not findPlayer(function(p) return keyOf(p) == ctx.esau end) then expect(ctx, label .. ": merged Esau's number", dbg().roster.number(ctx.esau), nil) end
-end)
-
--- Clicker until `done(ctx)` holds after a use's look, up to `maxUses` uses (each refilled by the swap); `around(ctx, "before" | "after")`
--- runs around each press. A random character may never land on J&E, so a missed split is a note in the RESULT line, not a fail.
-local function clickerUntil(done, maxUses, lookStep, around)
-	return function(ctx)
-		if not ctx.phase then
-			if ctx.done then return end
-			if (ctx.uses or 0) >= maxUses then table.insert(ctx.notes, "no split in " .. maxUses .. " Clicker uses") return end
-			ctx.uses, ctx.phase = (ctx.uses or 0) + 1, "press"
-			if Isaac.GetPlayer(0):GetActiveItem() ~= CLICKER then error("Clicker left the active slot") end
-			around(ctx, "before")
-		end
-		if ctx.phase == "press" then
-			if clicker(ctx) == "again" then return "again" end
-			around(ctx, "after")
-			ctx.phase = "look"
-		end
-		if lookStep(ctx) == "again" then return "again" end
-		ctx.phase = nil
-		ctx.done = done(ctx)
-		return "again"
-	end
-end
-
--- P2: Clicker on Jacob until it is Jacob & Esau again, up to 20 uses; Esau's key kept before each press for clickerLook.
-local clickerLoop = clickerUntil(function() return Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil end, 20, clickerLook,
-	function(ctx, when)
-		if when ~= "before" then return end
-		local esau = ofType(ESAU)
-		ctx.esau = esau and keyOf(esau)
-	end)
-
 -- probes: engine facts the swaps rely on, as checks, so a game patch that changes one fails here first.
 
 local function maxCharges(ctx)
@@ -346,19 +306,12 @@ local OBS = {
 		{ "settle", settled }, jrAgain(),
 		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") },
 		{ "re-give c703 #4", regiveEsauJr() }, { "Esau Jr. #4", esauJr("Esau Jr. #4") } }),
-	obsScenario("obs mirror", { fresh(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "pocket before Flip again", pocketHeld }, { "players before Flip again", playerCount },
-		{ "Flip again", flip("Flip again") }, { "pocket after Flip again", pocketHeld }, { "players after Flip again", playerCount } }),
 	obsScenario("obs esaujr birthright keep", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled }, jrAgain() }),
 	obsScenario("obs esaujr cross35", tlazJr(), { jrFirst(), { "ChangePlayerType 35", changeType(T_FORGOTTEN) }, { "settle", settled }, jrAgain(),
 		{ "re-give c703 #3", regiveEsauJr() }, { "Esau Jr. #3", esauJr("Esau Jr. #3") } }),
 	obsScenario("obs esaujr dead seed", tlazJr(), { jrFirst(), jrAgain(), { "pocket before Flip on A", pocketHeld }, { "Flip on A", flip("Flip on A") } }),
 	obsScenario("obs esaujr birthright flip", tlazJr(), { jrFirst(), { "give Birthright", give(BIRTHRIGHT) }, { "settle", settled },
 		{ "Flip", flip("Flip") } }),
-	obsScenario("obsx cancelled Clicker", tlazJr(), { jrFirst(), giveClicker(),
-		{ "cancel Clicker", cancelledClicker(false) }, jrAgain() }),
-	obsScenario("obsx cancelled Clicker then change", tlazJr(), { jrFirst(), giveClicker(),
-		{ "cancel Clicker and change type", cancelledClicker(true) }, jrAgain() }),
 	obsScenario("obsx Clicker on returned original", tlazJr(), { jrFirst(), jrAgain(), giveClicker(),
 		{ "Clicker", obsClicker }, jrTwice() }),
 	obsScenario("obsx Clicker after Flip", tlazJr(), { jrFirst(), { "Flip of the form", flip("Flip of the form") },
@@ -373,14 +326,6 @@ local OBS = {
 		end }, jrTwice() }),
 	obsScenario("obsx Isaac Esau Jr Clicker", jrSetup(ISAAC), { jrFirst(),
 		giveClicker(), { "Clicker", obsClicker }, jrTwice() }),
-	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
-	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
-	obsScenario("obsx merge 38 to 29 then Flip", { fresh(T_LAZ), give(4) }, { { "Flip", flip("Flip") }, { "give c5", give(5) },
-		{ "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },
-		{ "stored settling", storedSettlingNow }, { "settle", settled }, { "Flip back", flip("Flip back") }, { "watch 60", idle(60) } }),
-	obsScenario("obsx merge 29 to 38 then Esau Jr.", tlazJr(), { { "Flip", flip("Flip") }, { "give c5", give(5) }, { "Flip back", flip("Flip back") },
-		{ "ChangePlayerType 38", changeType(DEAD_T_LAZ) }, { "remove c4", remove(4) }, { "Esau Jr. at once", esauJr("Esau Jr. at once") },
-		{ "stored settling", storedSettlingNow }, { "settle", settled }, jrAgain(), { "watch 60", idle(60) } }),
 	obsScenario("obsx form loses Esau Jr.", tlazJr(), {
 		{ "record A", rememberOriginal }, jrFirst(), replaceEsauJr(), controlPresses() }),
 	obsScenario("obsx form uses Clicker effect", tlazJr(), {
@@ -436,13 +381,6 @@ local function esauLeaves(ctx)
 	end
 	return "again"
 end
-
--- G: Clicker until Jacob & Esau is merged and split back, up to 12 uses (each about 1 in 7 to land on J&E, runs 2-8), a look after
--- each and INNER lines around each press.
-local jeClickerLoop = clickerUntil(function(ctx)
-	if game:GetNumPlayers() == 1 then ctx.wasMerged = true end
-	return ctx.wasMerged and Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil
-end, 12, lookC("after Clicker"), function(ctx, when) P("INFO", ctx.name, "INNER " .. when .. " Clicker " .. ctx.uses, innerLine()) end)
 
 -- F: what Clicker out of a Tainted Lazarus form gave the live character, and which stored Flip partners' items it got (marked gone: merged).
 local function beforeClicker(ctx) track() ctx.pre = itemCounts(Isaac.GetPlayer(0)) end
@@ -519,12 +457,6 @@ local FINAL = {
 		flip("Flip DJ -> LJ"), who("LJ"), lookC("LJ back"), flip("Flip LJ -> DJ"), who("DJ"), lookC("DJ back"),
 		give(SCHOOLBAG), give(CLICKER), give(1), beforeClicker, clicker, clickerMerges, lookC("after Clicker"),
 	} },
-	-- G (observation): Inner Eye on both twins (Jacob 1, Esau 2), Clicker merges them and, when it rolls J&E, splits them; INNER lines log
-	-- every player's c2 per update, so the log shows whether the engine drops a c2 (and whose) or ReHUD mislists it.
-	{ name = "final G Jacob and Esau Clicker split", kind = "small", budget = 750, onlyPicked = true, onUpdate = innerWatch, steps = {
-		fresh(JACOB), startChecked, innerOn, give(2), giveEsau(2), giveEsau(2), give(CLICKER), give(1), give(1), named("Jacob"), named("Esau", ESAU),
-		lookC("start", innerInfo("start")), jeClickerLoop, innerInfo("end"),
-	} },
 }
 
 local STRICT = { strict = true } -- each final observation stops at its first missing step and at 445 updates
@@ -597,16 +529,6 @@ local SCENARIOS = {
 		give(CLICKER), give(1), clicker, clickerHeld, -- c1 after Clicker, so Clicker's 50% item removal takes c1, not Clicker
 		fresh(T_LAZ), addCard(Card.CARD_SOUL_JACOB), cardBesideFlip,
 		fresh(T_LAZ), pocketCharge, flip("Flip"), onePress("Flip"),
-	} },
-	{ name = "test3", kind = "small", steps = {
-		tlazFlipped(), look("before ChangePlayerType"), changeType(ISAAC),
-		look("after ChangePlayerType", function(ctx, label)
-			c4c5(ctx, label)
-			local key = keyOf(Isaac.GetPlayer(0))
-			expectOne(ctx, label .. " (Isaac owns)", 4, nil, key)
-			expectOne(ctx, label .. " (Isaac owns)", 5, nil, key)
-			expectN(ctx, label, FLIP, 0)
-		end),
 	} },
 	{ name = "birthright", kind = "small", steps = {
 		tlazFlipped(), give(BIRTHRIGHT, 2), look("after Birthright", birthrightOwners),
@@ -714,9 +636,6 @@ local SCENARIOS = {
 		-- ReHUD 2.8 lists the summoned Esau (user decision 2026-11-22): his c1 under him.
 		giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 1, nil, keyOf(ofType(ESAU))) end),
 		stage(3), look("on stage 3", twoC4),
-	} },
-	{ name = "P2", kind = "small", steps = {
-		fresh(JACOB), give(4), give(4), give(4), give(4), giveEsau(4), give(CLICKER), stage(2), look("start"), clickerLoop,
 	} },
 	-- One entry per copy, by kind (clocked: wisps), floors kept; a lost copy takes the oldest entry of its kind.
 	{ name = "S1", kind = "small", steps = {

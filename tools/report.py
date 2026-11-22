@@ -49,7 +49,7 @@ def fold_digits(text):
 
 class Test:
     def __init__(self, spec, name):
-        self.spec, self.name = spec, name
+        self.spec, self.name, self.tags = spec, name, None  # tags from its TEST START line; a SKIPped test has none
         self.status, self.verdict, self.assertions, self.late = None, "", None, False
         self.failures, self.unreached, self.teardown = [], [], []
         self.snaps, self.lines, self.out = {}, [], []
@@ -120,8 +120,10 @@ class Reader:
         self.s.harness_errors.append(text)
 
     def test_start(self, text):
-        spec, _, name = text[len("TEST START "):].partition(" > ")
+        key, _, tags = text[len("TEST START "):].partition(" | tags ")
+        spec, _, name = key.partition(" > ")
         self.open = self.test(spec, name)
+        self.open.tags = tags.split(",") if tags else []
         self.s.started.append(self.open.key)
 
     def result(self, text):
@@ -349,7 +351,7 @@ def report_lines(s, reasons):
 
 
 def report_json(s, reasons):
-    tests = [{"spec": t.spec, "name": t.name, "tags": None, "status": "FAIL" if t.failed() else t.status, "assertions": t.assertions,
+    tests = [{"spec": t.spec, "name": t.name, "tags": t.tags, "status": "FAIL" if t.failed() else t.status, "assertions": t.assertions,
               "failures": t.failures, "unreached": t.unreached, "snapshot": t.snapshot, "teardown": t.teardown, "trace": t.trace,
               "updates": t.updates} for t in s.tests.values()]
     session = {"version": s.version, "tags": s.tags, "update": s.update, "guard": s.guard, "start": s.start, "done": s.done}

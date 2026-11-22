@@ -156,7 +156,7 @@ local function tick(...)
 	end
 	local step = test.steps[S.stepIndex]
 	if not step then return finish() end
-	if not ctx.name then P("TEST START", test.name) end -- tools/report.py pairs it with a RESULT
+	if not ctx.name then P("TEST START", test.name, "| tags " .. table.concat(test.tags or {}, ",")) end -- tools/report.py pairs it with a RESULT
 	ctx.name, ctx.leftOk, ctx.onStepError = test.name, test.leftOk, test.onStepError
 	-- Only a started manual step prompts; its label gets its own line, so it is not lost at the end of a long status.
 	S.manual = type(step) == "table" and ctx.label and step.manual or nil

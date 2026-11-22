@@ -70,6 +70,7 @@ BOTH = [
     ("D7", r"^PROBE GAME START \d+ ", "PROBE GAME START N "),  # the session's game count tells a test's position, not its behaviour
 ]
 DROP = [("D4", r"^PROBE SNAP ")]  # snapshot lines are new
+NEW_SIDE = [("S4.0 tags", r"^(PROBE TEST START .*?) \| tags .*$", r"\1")]  # TEST START names the test's tags for report.json
 MASKS = [
     # its look is built once, not by a step: G's frames and trace updates come one update sooner
     ("D6", "final G Jacob and Esau Clicker split", r"frame \d+|TRACE u\d+"),
@@ -78,7 +79,7 @@ MASKS = [
 # lines outside every test in both (a late Continue during the SKIPs after the last test may now come after HARNESS DONE).
 FIRST = [("D7", r"^(PROBE ACTION restart \d+ by type )\d+$", r"\1<previous test's>")]
 OUTSIDE = [("D7", r"^PROBE (GAME START N continued true|INFO .* late Continue, ignored)$")]
-ALLOW = VOCABULARY + BOTH + DROP + MASKS + FIRST + OUTSIDE
+ALLOW = VOCABULARY + BOTH + DROP + NEW_SIDE + MASKS + FIRST + OUTSIDE
 WHERE = re.compile(r'(\[string "[^"]*"\]|\S+\.lua):\d+: ')  # an error's file:line moves with the code
 # The stub's fakeTrack lists stored characters by pairs() over table keys, so entry order varies between runs of HEAD itself (untagged
 # mode): a block of ENTRY lines is compared as a set.
@@ -118,7 +119,7 @@ def base_mode(mode):
 def normalise(log, side):
     """Each line with the allowed differences rewritten, a new test's name as its old scenario's."""
     out = []
-    rewrites = [(re.compile(r), s) for _, r, s in (VOCABULARY if side == "base" else []) + BOTH]
+    rewrites = [(re.compile(r), s) for _, r, s in (VOCABULARY if side == "base" else NEW_SIDE) + BOTH]
     drops = [re.compile(r) for _, r in DROP] if side == "new" else []
     for line in log:
         line = WHERE.sub("<at> ", line)

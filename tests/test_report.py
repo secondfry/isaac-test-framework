@@ -14,9 +14,9 @@ def probe(*texts):
     return ["[INFO] - Lua Debug: PROBE " + t for t in texts]
 
 
-def test_lines(spec, name, verdict, snaps=(), body=()):
+def test_lines(spec, name, verdict, snaps=(), body=(), tags=("hello", "vanilla")):
     key = f"{spec} > {name}"
-    return probe(f"TEST START {key}") + list(body) + probe(*(f"SNAP {key} | {k} = {v}" for k, v in snaps)) + probe(f"RESULT {key} {verdict}")
+    return probe(f"TEST START {key} | tags {','.join(tags)}") + list(body) + probe(*(f"SNAP {key} | {k} = {v}" for k, v in snaps)) + probe(f"RESULT {key} {verdict}")
 
 
 def session(*tests, update="no", engine=True, total=None, done=True):
@@ -136,8 +136,11 @@ def test_guard():
 def test_json():
     specs = tempfile.mkdtemp()
     torn = test_lines("hello", "fresh Isaac", "PASS 3 assertions") + probe("TEARDOWN FAIL hello > fresh Isaac endPress: boom")
-    code, out, data, _ = run(session(torn, SNAPPED), specs)
+    untagged = test_lines("hello", "no tags", "PASS 0 assertions", tags=())
+    skipped = probe("RESULT hello > Clicker on Isaac SKIP not tagged (tags 'tags hello')")
+    code, out, data, _ = run(session(torn, SNAPPED, untagged, skipped), specs)
     assert code == 1 and out[-1] == "NEEDS ANALYSIS: hello > fresh Isaac teardown failed", out
+    assert [t["tags"] for t in data["tests"]] == [["hello", "vanilla"], ["hello", "vanilla"], [], None], data["tests"]  # SKIP: no TEST START
     assert set(data) == {"session", "tests", "verdict", "reasons"}, data
     assert set(data["session"]) == {"version", "tags", "update", "guard", "start", "done"}, data["session"]
     assert data["session"]["version"] == ENGINE[len("[INFO] - "):] and data["session"]["tags"] == "tags hello", data["session"]
@@ -145,7 +148,7 @@ def test_json():
     assert set(t) == {"spec", "name", "tags", "status", "assertions", "failures", "unreached", "snapshot", "teardown", "trace", "updates"}, t
     assert (t["status"], t["assertions"], t["failures"], t["teardown"]) == ("PASS", 3, [], ["TEARDOWN FAIL hello > fresh Isaac endPress: boom"]), t
     assert data["verdict"] == "NEEDS ANALYSIS" and data["reasons"] == ["hello > fresh Isaac teardown failed"], data
-    print("PASS report.json fields, teardown failures kept apart from the verdict")
+    print("PASS report.json fields, tags from TEST START, teardown failures kept apart from the verdict")
 
 
 def test_timeline():

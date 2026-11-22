@@ -120,7 +120,7 @@ def expect_results(got, label, want, why=None, names=()):
 
 def segment(log, name):
     """The lines of test `name` (its full name), TEST START to RESULT."""
-    i = log.index(f"PROBE TEST START {name}")
+    i = next(k for k, s in enumerate(log) if s.startswith(f"PROBE TEST START {name} | tags "))
     return log[i:next(k for k in range(i, len(log)) if log[k].startswith(f"PROBE RESULT {name} ")) + 1]
 
 

@@ -122,7 +122,7 @@ Steps the player does by hand; the screen prompts each once it starts ([sessions
 | Name | Waits for | Ceiling |
 |---|---|---|
 | `exitAndContinue(soft)` | Exit to the menu and Continue. Passes on a Continue with the same players (item seeds) as before; `soft`: any players, logged. A new run instead errors `a new run started, not a Continue`. Writes a `WAIT exit-continue <n>` line for `auto-continue.ps1`; logs the `ACTION` line again every 300 updates. Tag the test `exit-continue`. | 9000 (`wait.CONTINUE_TIMEOUT`) |
-| `dropByHand` | Spawns a Yum Heart pedestal beside player 0 (who must hold Esau Jr. in the primary slot); the player walks onto it, dropping Esau Jr.: passes when player 0 owns no Esau Jr. and one lies on a pedestal. Tag `walk`. | 450 |
+| `dropByHand` | Spawns a Yum Heart pedestal beside player 0 (who must hold Esau Jr. in the primary slot); the player walks onto it, dropping Esau Jr.: passes when player 0 owns no Esau Jr., one lies on a pedestal and Yum Heart has left the item queue (is owned). Tag `walk`. | 450 |
 | `pickByHand` | The player steps off and walks back onto the Esau Jr. pedestal: passes when player 0 owns Esau Jr. Tag `walk`. | 450 |
 
 In a snapshot test use `snapshot.continued` instead of `exitAndContinue()`.

@@ -34,7 +34,7 @@ end
 local function walk(label, target, start, done)
 	return { manual = { kind = "walk", target = target }, run = act(label, start, function(ctx)
 		local p = Isaac.GetPlayer(0)
-		if not done(p) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) end
+		if not done(p) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) .. ", c45 owned " .. owned(p, YUM_HEART) end
 		P("INFO", ctx.name, label, "after", ctx.t, "updates |", slots(p), "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART))
 		return true
 	end, 450) }
@@ -43,7 +43,10 @@ local dropByHand = walk("YOU: walk onto the yum-heart pedestal", YUM_HEART, func
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
 	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, p.Position + Vector(80, 0), Vector(0, 0), nil)
-end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 end)
+-- Also waits for Yum Heart to be owned: a walked-on item sits in the item queue first, and one still queued at an Esau Jr. press went
+-- to the new character, displacing its Esau Jr. (session 5a). shortcut: that the queue empties by itself, with no press, is
+-- unobserved; if this walk times out at "c45 owned 0", find what flushes it.
+end, function(p) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 and owned(p, YUM_HEART) > 0 end)
 local pickByHand = walk("YOU: step off, then walk back onto the Esau Jr. pedestal", ESAU_JR, function() end, function(p) return owned(p, ESAU_JR) > 0 end)
 
 return { exitAndContinue = exitAndContinue, dropByHand = dropByHand, pickByHand = pickByHand }

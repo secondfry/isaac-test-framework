@@ -275,6 +275,7 @@ local function onGameStart(isContinued)
 		if isContinued then P("HARNESS idle: start a new run to test") return end
 		local raw = S.mod:LoadData()
 		readTags(S, raw)
+		saveData() -- drops the last session's WAIT and STUCK lines, so no tool acts on a stale one
 		S.started, S.running = true, true
 		P("HARNESS START", #tests, "tests, tags '" .. S.line .. "', update snapshots", S.updateSnapshots and "yes," or "no,",
 			"mod data '" .. raw:gsub("\r", "\\r"):gsub("\n", "\\n") .. "'")

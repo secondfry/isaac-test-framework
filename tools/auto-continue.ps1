@@ -39,34 +39,49 @@ function Send-Key([string]$name, [bool]$up) {
 	if ([W.K]::SendInput(1, @($i), [System.Runtime.InteropServices.Marshal]::SizeOf([type][W.K+INPUT])) -ne 1) { throw "SendInput failed for $name" }
 }
 
-# The keys into isaac-ng's window, each event only while it is in front.
+# The keys into isaac-ng's window, each event only while it is in front; returns 'retry' when nothing was sent because the window was
+# not in front, else 'done' (sent, partly sent, dry run or no window).
 function Send-Plan {
 	$p = Get-Process isaac-ng -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
 	if ($DryRun) {
-		"target: $(if ($p) { "isaac-ng window $($p.MainWindowHandle)" } else { 'no isaac-ng window' })"
-		"plan: $($Keys -join ', ')"
-		return
+		Write-Host "target: $(if ($p) { "isaac-ng window $($p.MainWindowHandle)" } else { 'no isaac-ng window' })"
+		Write-Host "plan: $($Keys -join ', ')"
+		return 'done'
 	}
-	if (-not $p) { 'not sent: no isaac-ng window'; return }
-	$h = $p.MainWindowHandle
+	if (-not $p) { Write-Host 'not sent: no isaac-ng window'; return 'done' }
+	$h, $sent = $p.MainWindowHandle, 0
 	# shortcut: Windows may refuse SetForegroundWindow from a background process; then the sequence is skipped, not forced
 	[void][W.K]::SetForegroundWindow($h)
 	foreach ($k in $Keys) {
-		if ($k -match '^wait:(\d+)$') { Start-Sleep -Milliseconds ([int]$Matches[1]); "sent $k"; continue }
+		if ($k -match '^wait:(\d+)$') { Start-Sleep -Milliseconds ([int]$Matches[1]); Write-Host "sent $k"; continue }
 		foreach ($up in $false, $true) {
-			if ([W.K]::GetForegroundWindow() -ne $h) { 'not sent: isaac-ng not in front'; return }
+			if ([W.K]::GetForegroundWindow() -ne $h) {
+				if ($sent -eq 0) { Write-Host 'not sent: isaac-ng not in front'; return 'retry' }
+				Write-Host 'PARTIAL: finish the Exit & Continue by hand'
+				return 'done'
+			}
 			Send-Key $k $up
+			$sent++
 			Start-Sleep -Milliseconds $(if ($up) { 250 } else { 80 }) # held for a few frames, then a gap the menu can follow
 		}
-		"sent $k"
+		Write-Host "sent $k"
 	}
+	return 'done'
 }
 
-$end, $last = (Get-Date).AddMinutes($Minutes), $null
-while ((Get-Date) -lt $end) {
+function Read-Marker {
 	$lines = try { (Get-Content -Raw -LiteralPath $File -ErrorAction Stop) -split '\r?\n' } catch { @() }
-	$marker = $lines | Where-Object { $_ -match '^WAIT exit-continue \d+$' } | Select-Object -First 1
-	if (-not $marker) { $last = $null } # cleared after the Continue; a relaunch's marker 1 then acts again
-	elseif ($marker -ne $last) { $last = $marker; "act on $marker"; Send-Plan }
+	$lines | Where-Object { $_ -match '^WAIT exit-continue \d+$' } | Select-Object -First 1
+}
+
+# A marker already there at start is the last session's: the harness drops it at HARNESS START.
+$end, $last = (Get-Date).AddMinutes($Minutes), (Read-Marker)
+while ((Get-Date) -lt $end) {
+	$marker = Read-Marker
+	if (-not $marker) { $last = $null } # the harness cleared it (Continue, step given up, HARNESS START): the next marker acts, whatever its number
+	elseif ($marker -ne $last) {
+		"act on $marker"
+		if ((Send-Plan) -ne 'retry') { $last = $marker }
+	}
 	Start-Sleep -Milliseconds 150
 }

@@ -114,6 +114,9 @@ def test_tags(path):
         dry.expect_results(dry.finished(log, line, path), line, dry.expected(path, mode))
         assert any(s.startswith("PROBE HARNESS START") and f"tags '{line}'" in s for s in log), "tags not logged"
         print(f"PASS {line} runs just its tests")
+    dry.run(path, mode="tags x\nWAIT exit-continue 3\nSTUCK 1 a | b")  # the last session's lines below the tags
+    assert dry.run.saves[0] == "tags x", dry.run.saves
+    print("PASS HARNESS START drops the last session's WAIT and STUCK lines")
     mode = "--update-snapshots tags hello"  # the flag first on the line
     log = dry.run(path, mode=mode)
     dry.expect_results(dry.finished(log, mode, path), mode, dry.expected(path, mode))

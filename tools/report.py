@@ -267,11 +267,13 @@ def snapshot_state(old, diff, update, writable):
 
 
 def apply_snapshots(s, specs_dir):
-    """Compares every test with SNAP lines against its spec's file; writes new and updated sections of passing tests of a real session."""
-    for spec in dict.fromkeys(t.spec for t in s.tests.values() if t.snaps):
+    """Compares every test with SNAP lines against its spec's file; writes new and updated sections of passing tests of a real session. A
+    test that ended SKIP mid-play is neither: its snaps hold a case the test does not cover."""
+    snapped = [t for t in s.tests.values() if t.snaps and t.status != "SKIP"]
+    for spec in dict.fromkeys(t.spec for t in snapped):
         path = os.path.join(specs_dir, spec + ".snap.txt")
         sections, changed = read_snapshots(path), False
-        for t in (t for t in s.tests.values() if t.spec == spec and t.snaps):
+        for t in (t for t in snapped if t.spec == spec):
             changed |= apply_snapshot(t, sections, s)
         if changed:
             write_snapshots(path, spec, sections)

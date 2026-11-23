@@ -5,6 +5,7 @@ CallbackPriority = {EARLY=-100, LATE=100}
 EntityType = {ENTITY_PLAYER=1, ENTITY_FAMILIAR=3, ENTITY_PICKUP=5}; FamiliarVariant = {ITEM_WISP=237}; PickupVariant = {PICKUP_COLLECTIBLE=100}
 CollectibleType = {COLLECTIBLE_FLIP=711, COLLECTIBLE_ESAU_JR=703, COLLECTIBLE_CLICKER=482, COLLECTIBLE_BIRTHRIGHT=619, COLLECTIBLE_D6=105, COLLECTIBLE_YUM_HEART=45, COLLECTIBLE_SCHOOLBAG=534, COLLECTIBLE_STRAW_MAN=667,
   COLLECTIBLE_ANKH=161, COLLECTIBLE_JUDAS_SHADOW=311, COLLECTIBLE_LAZARUS_RAGS=332}
+TrinketType = {TRINKET_MISSING_POSTER=23}
 PlayerType = {PLAYER_ISAAC=0, PLAYER_ISAAC_B=21, PLAYER_CAIN=2, PLAYER_KEEPER=14, PLAYER_LAZARUS=8, PLAYER_EDEN=9, PLAYER_LAZARUS2=11, PLAYER_THEFORGOTTEN=16, PLAYER_THESOUL=17, PLAYER_JACOB=19, PLAYER_ESAU=20,
   PLAYER_LAZARUS_B=29, PLAYER_LAZARUS2_B=38, PLAYER_THEFORGOTTEN_B=35, PLAYER_JACOB_B=37, PLAYER_THESOUL_B=40}
 ActiveSlot = {SLOT_PRIMARY=0, SLOT_SECONDARY=1, SLOT_POCKET=2}
@@ -45,6 +46,7 @@ ignorePress = false -- set by the test: the engine polls input but ignores a for
 ignoreDrop = false -- set by the test: the engine ignores a forced drop press, so drop presses take their fallback
 lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
 -- shortcut: a locked type's restart starts Isaac (unobserved: the recon characters are all unlocked, session 2); model it if a test needs a locked character
+posterLocked = false -- set by the test: Missing Poster gives no revive and stays held (session 2 saw no revive with it held; why, and whether it stayed, unobserved)
 restartRolls = false -- set by the test: a restart rolls a new seed even after a seed command
 extraPlayer = false -- set by the test: FindByType(1) also lists one player entity per run that GetPlayer misses (`extra`; unobserved, a test knob for record.lua's others path)
 noSpend = false -- set by the test: uses swap characters but spend no charge or card

@@ -45,6 +45,8 @@ function PM:Kill()
   if consume(self, 332) then return end -- Lazarus' Rags: type kept
   if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
   if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
+  -- shortcut: Missing Poster revives last, at once, into The Lost (10), the trinket used (unobserved: Detailed Respawn's order); model it from the Missing Poster session
+  if not posterLocked and self:HasTrinket(23) then table.remove(self.trinkets, 1) self.t = 10 return end
   -- shortcut: a game over leaves player 0 dead with updates and renders running and the console working, all unobserved (session 3a's log suggests updates stop on the certificate); model it from the restart-from-certificate session
   self.dead = true
 end
@@ -73,4 +75,6 @@ function PM:NeedsCharge(s) return self:GetActiveCharge(s) < full(self, s) end
 function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
 function PM:GetTrinket(i) return self.trinkets[i + 1] or 0 end
+function PM:AddTrinket(id) table.insert(self.trinkets, 1, id) end
+function PM:HasTrinket(id) for _, t in ipairs(self.trinkets) do if t == id then return true end end return false end
 function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip press test

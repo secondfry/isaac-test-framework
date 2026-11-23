@@ -47,6 +47,11 @@ local function addCard(card)
 	end, function(_, n) return cards(Isaac.GetPlayer(0), card) == n + 1, "card count did not rise by 1 (locked card?)" end)
 end
 
+local function addTrinket(id)
+	return act("AddTrinket " .. id, function() Isaac.GetPlayer(0):AddTrinket(id) end,
+		function() return Isaac.GetPlayer(0):HasTrinket(id), "trinket " .. id .. " not held (locked trinket?)" end)
+end
+
 -- UseCard on player 0, the card not held (works for Soul of Jacob and Esau, lua-api-notes.md), then up to 30 updates for the player
 -- count to change; logs the count either way, as what other cards add is unobserved.
 local function useCard(card)
@@ -87,6 +92,6 @@ local function holdsJr() return Isaac.GetPlayer(0):GetActiveItem(PRIMARY) == ESA
 local keeperJoins = condition("Strawman Keeper", function() return withParent(KEEPER) ~= nil end)
 
 return {
-	keeperJoins = keeperJoins, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, useCard = useCard, info = info, stepOff = stepOff,
+	keeperJoins = keeperJoins, giveEsau = giveEsau, giveType = giveType, changeType = changeType, addCard = addCard, addTrinket = addTrinket, useCard = useCard, info = info, stepOff = stepOff,
 	onlyIf = onlyIf, holdsJr = holdsJr,
 }

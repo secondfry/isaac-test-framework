@@ -39,7 +39,7 @@ Line 1 of `data\rehud_test_harness\save<slot>.dat` in the game folder (the vanil
 
 The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud`; `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; tagged `vanilla` too, as they read no ReHUD); `stored-character` (snapshot tests of a stored Esau Jr. or Flip character through Clicker, ChangePlayerType and losing Esau Jr.); `drop` (asks for a drop press).
 
-What each tags line plays, from the runner's plan (`dry.plan`): the tests, the user's Exit & Continues and pedestal walks, and the worst case: the updates when every test with a limit runs to it (`HARNESS DONE` included; 30 updates a second; menu time for the Continues not counted). A test without a limit has no cap of its own: each of its waits gives up after at most 600 updates, an Exit & Continue after 9000, except `revive > restart from the death certificate`, which waits for its new game (Manual steps).
+What each tags line plays, from the runner's plan (`dry.plan`): the tests, the user's Exit & Continues and pedestal walks, and the worst case: the updates when every test with a limit runs to it (`HARNESS DONE` included; 30 updates a second; menu time for the Continues not counted). A test without a limit has no cap of its own: each of its waits gives up after at most 600 updates, an Exit & Continue after 9000, except a `revive` test on the death certificate, which waits for its new game (Manual steps); updates stop there, so no limit counts.
 
 | Tags line | Tests | Exit & Continues | Walks | Worst case, tests with a limit | Tests without a limit |
 |---|---|---|---|---|---|
@@ -59,20 +59,20 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 76 | 7 | 2 | 21261 (11.8 min) | 31 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
-| `revive` | 6 | 0 | 0 | 3911 (2.2 min) | 1 |
+| `revive` | 7 | 0 | 0 | 4693 (2.6 min) | 1 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
 | `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
-`revive` (five tests, one per source on Lazarus, then one restart from the death certificate) is opt-in and plays with `tags revive`; each source test ends at its source's revive. The last test, `restart from the death certificate`, kills Isaac on the fixed seed, sends `restart` once he has been dead 120 updates or 240 render frames (whether either runs on the certificate is unobserved; session 3a suggests updates stop) and logs whether a new game came; 600 updates or 600 render frames later without one it draws `HARNESS: press Space`, if renders run there.
+`revive` (five tests, one per source on Lazarus, one restart from the death certificate, then Missing Poster on Lazarus) is opt-in and plays with `tags revive`; each source test ends at its source's revive. `restart from the death certificate` kills Isaac on the fixed seed, sends `restart` once he has been dead 120 updates or 240 render frames (whether either runs on the certificate is unobserved; session 3a suggests updates stop) and logs whether a new game came; 600 updates or 600 render frames later without one it draws `HARNESS: press Space`, if renders run there. The last test, `Lazarus with Missing Poster dies until it revives him`, plays after it so the restart has worked in the session first: Lazarus holding only Missing Poster dies through his own revive, then again; a Poster revive ends it RECORDED; a death still dead 120 updates or 240 render frames on is a game over, restarted from the certificate the same way, and the test ends at that new game: `SKIP Missing Poster gave no revive, Poster kept: The Lost likely locked` when he still held the Poster, else RECORDED.
 
 ## Manual steps
 
 - Exit & Continue: the screen shows `exit to the menu and Continue now` on its own line; exit to the menu and pick Continue. A snapshot test gives up after 600 updates of play, a test with assertions after 9000. A new run instead fails a test with assertions (`a new run started, not a Continue`) and ends a snapshot test. A Continue after its step gave up lands in the next test: logged `late Continue, ignored` and noted `; late Continue mid-test` on that test's `RESULT`.
 - Automatic Exit & Continue (opt-in; watch its first run, as its key path is unconfirmed): `pwsh -File isaac-test-harness\tools\auto-continue.ps1`, started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file (`-DryRun` prints the plan only). On `waiting for isaac-ng in front`, bring the game to the front and press nothing; it sends as soon as it is in front. Only `not sent: no isaac-ng window` and `PARTIAL` need the Exit & Continue by hand, within the step's wait (600 / 9000 updates).
 - Pedestal walks (`walk`): `YOU: walk onto the yum-heart pedestal`, then `YOU: step off, then walk back onto the Esau Jr. pedestal`; 450 updates each.
-- Game over under `tags revive`: the certificate test's game over is expected, so wait. Press Space when the screen says `HARNESS: press Space`, or when no new game has come 30 s after the certificate shows (the harness may not run there); the test ends at that new game. A source test reaching game over means its source gave no revive: press Space, and that test FAILs `unexpected game start`.
+- Game over under `tags revive`: the certificate test's and the Missing Poster test's game overs are expected, so wait. Press Space when the screen says `HARNESS: press Space`, or when no new game has come 30 s after the certificate shows (the harness may not run there); the test ends at that new game. A source test reaching game over means its source gave no revive: press Space, and that test FAILs `unexpected game start`.
 
 A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and writes `STUCK <n> <test> | <step>` as the tags file's last line, the latest only, which `stuck-shots.ps1` reads; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
 
@@ -94,7 +94,7 @@ A snapshot test logs `SNAP <spec> > <test> | <n> <step> / <key> = <value>` after
 
 - No section yet (a recon test): the first played session in which the test passes writes it.
 - A section: compared key by key; a difference FAILs the test (`snapshot differs in <n> keys`) showing both values, and only a session whose tags line had `--update-snapshots` replaces it.
-- Never written for a failed test, nor for a test with an unreached step, nor from a log without the engine's version line (a dry log).
+- Never written for a failed test, nor for a test with an unreached step, nor compared or written for a played test that ended SKIP, nor from a log without the engine's version line (a dry log).
 
 Report the vanilla log first: the first log reported writes a missing section; the play-set log then compares, and a difference points at a mod.
 

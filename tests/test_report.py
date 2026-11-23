@@ -114,7 +114,12 @@ def test_snapshots():
     code, out, data, _ = run(session(changed, update="yes"), specs)
     assert (code, data["tests"][0]["snapshot"]["state"]) == (0, "updated"), out
     assert "0 start / A type = 21" in snap_file(specs), snap_file(specs)
-    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test or one with an unreached step")
+
+    skipped = test_lines("hello", "fresh run", "SKIP no case", snaps=[("0 start / A type", "8")])
+    code, out, data, _ = run(session(skipped, test_lines("hello", "skip new", "SKIP no case", snaps=[("0 start / lineup", "A")]), update="yes"), specs)
+    assert (code, [t["snapshot"] for t in data["tests"]]) == (0, [None, None]), out
+    assert "0 start / A type = 21" in snap_file(specs) and "## skip new" not in snap_file(specs), snap_file(specs)
+    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test, one with an unreached step or a SKIP")
 
 
 def test_stub_log():

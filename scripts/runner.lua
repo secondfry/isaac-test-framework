@@ -97,11 +97,12 @@ local function skipReason(S, test)
 	return optIn and "opt-in" or "not tagged"
 end
 
--- The RESULT verdict: the error or failed assertions, else PASS with their count (RECORDED for a snapshot test without any); notes either way.
+-- The RESULT verdict: the error or failed assertions, else SKIP when a step set ctx.skip, else PASS with their count (RECORDED for a snapshot test without any); notes either way.
 local function verdictOf(test, ctx, err)
 	local v
 	if err then v = "FAIL " .. err
 	elseif #ctx.fails > 0 then v = "FAIL " .. table.concat(ctx.fails, "; ")
+	elseif ctx.skip then v = "SKIP " .. ctx.skip
 	elseif ctx.assertions or not test.snapshot then v = "PASS " .. (ctx.assertions or 0) .. " assertions"
 	else v = "RECORDED" end
 	return v .. (#ctx.notes > 0 and ("; unreached: " .. table.concat(ctx.notes, ", ")) or "") .. (ctx.lateContinue and "; late Continue mid-test" or "")

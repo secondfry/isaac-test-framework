@@ -67,15 +67,16 @@ local function dieUntilRevived(holds)
 	end
 end
 
--- Each source on a fresh Lazarus: its test name's words, the fixture, and whether player 0 still holds it.
+-- A fresh Lazarus after `step`, which gives him `what`.
 local function holding(what, step) return fixture("Lazarus holding " .. what, { fresh(LAZARUS), step }, LAZARUS) end
-local function item(id) return function(p) return owned(p, id) > 0 end end
+local function holdsItem(id) return function(p) return owned(p, id) > 0 end end
+-- Each source on a fresh Lazarus: its test name's words, the fixture, and whether player 0 still holds it.
 local SOURCES = {
 	{ "Soul of Lazarus", holding("Soul of Lazarus", addCard(SOUL_LAZARUS)), function(p) return cards(p, SOUL_LAZARUS) > 0 end },
 	{ "his own revive only", freshRun(LAZARUS), function(p) return p:GetPlayerType() == LAZARUS end },
-	{ "Lazarus' Rags", holding("Lazarus' Rags", give(LAZARUS_RAGS)), item(LAZARUS_RAGS) },
-	{ "Ankh", holding("Ankh", give(ANKH)), item(ANKH) },
-	{ "Judas' Shadow", holding("Judas' Shadow", give(JUDAS_SHADOW)), item(JUDAS_SHADOW) },
+	{ "Lazarus' Rags", holding("Lazarus' Rags", give(LAZARUS_RAGS)), holdsItem(LAZARUS_RAGS) },
+	{ "Ankh", holding("Ankh", give(ANKH)), holdsItem(ANKH) },
+	{ "Judas' Shadow", holding("Judas' Shadow", give(JUDAS_SHADOW)), holdsItem(JUDAS_SHADOW) },
 }
 
 local tests = {}

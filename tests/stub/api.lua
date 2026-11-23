@@ -46,7 +46,7 @@ ignoreDrop = false -- set by the test: the engine ignores a forced drop press, s
 lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
 -- shortcut: a locked type's restart starts Isaac (unobserved: the recon characters are all unlocked, session 2); model it if a test needs a locked character
 restartRolls = false -- set by the test: a restart rolls a new seed even after a seed command
-extraPlayer = false -- set by the test: FindByType(1) also lists one player entity per run that GetPlayer misses (`extra`)
+extraPlayer = false -- set by the test: FindByType(1) also lists one player entity per run that GetPlayer misses (`extra`) (unobserved: a test knob for record.lua's others path)
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do

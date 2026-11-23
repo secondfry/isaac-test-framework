@@ -3,7 +3,7 @@
 pickups = {} -- spawned pedestals: {Type, Variant, SubType, Position}
 function Isaac.FindByType(t, v, s)
   if t == 3 then return {table.unpack(wisps)} end
-  -- live players only, as observed with three stored characters (console 2026-11-22); other player entities GetPlayer misses: session 2's SNAP players
+  -- GetPlayer's players only, as seen at the console (three stored characters, 2026-11-22) and in session 2's SNAP players lines
   if t == 1 then
     local all = {table.unpack(players)}
     if extraPlayer then extra = extra or newPlayer(0); all[#all+1] = extra end

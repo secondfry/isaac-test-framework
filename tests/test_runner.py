@@ -28,10 +28,11 @@ return { name = "runner", tests = {
 	{ name = "pre fails", tags = { "runner" }, steps = { function() assert_.pre(false, "a held Clicker") end } },
 	{ name = "Continue in a label", tags = { "runner" }, steps = { waits("Flip after Continue", 5) } },
 	{ name = "manual step", tags = { "runner" }, steps = { { manual = { kind = "continue" }, run = waits("YOU: wait", 5) } } },
+	{ name = "render error", tags = { "runner" }, steps = { waits("render", 5) }, onRender = function() error("render broke") end },
 } }
 """
 RUNNER = [f"runner > {n}" for n in ("setup throws", "precondition", "teardown throws", "fixture done", "pre fails", "Continue in a label",
-                                    "manual step")]
+                                    "manual step", "render error")]
 WANT = {
     "runner > setup throws": "FAIL error in step 1: ",
     "runner > precondition": "FAIL precondition: Clicker held",
@@ -40,6 +41,7 @@ WANT = {
     "runner > pre fails": "FAIL precondition: a held Clicker",
     "runner > Continue in a label": "PASS 0 assertions",
     "runner > manual step": "PASS 0 assertions",
+    "runner > render error": "PASS 0 assertions",
 }
 
 
@@ -75,13 +77,15 @@ def test_all(path):
 
 
 def test_fixtures(path):
-    prompts, drawn = [], set()
+    prompts, drawn, broken = [], set(), set()
 
     def watch(g):  # every update's prompt, with the test it came in, and the screen the last render drew for it
         S = g.HARNESS.session
         if S.manual:
             prompts.append((S.ctx.name, S.manual.kind))
             drawn.add(tuple(g.DRAWN.values()))
+        if S.ctx.name == "runner > render error":
+            broken.add(tuple(g.DRAWN.values()))
         return dry.walk_target(g)
     lua = {}
 
@@ -89,7 +93,12 @@ def test_fixtures(path):
         dry.load(l, p, {"hello": RUNNER_SPEC})
         lua["g"] = l.globals()
     log = dry.run(path, mode="tags runner", loader=loader, walk=watch)
-    assert log[-1] == "PROBE HARNESS DONE" and not any("HARNESS ERROR" in s for s in log), "runner spec: run did not finish"
+    errors = [s for s in log if "HARNESS ERROR" in s]
+    assert log[-1] == "PROBE HARNESS DONE" and len(errors) == 1, ("runner spec: run did not finish", errors)
+    # a throwing onRender: logged once for the test, the block still drawn with the error as its last line
+    assert errors[0].startswith("PROBE HARNESS ERROR onRender runner > render error ") and errors[0].endswith("render broke"), errors
+    assert broken and all(s[:3] == ("Isaac Test Framework:", "runner", "render error") and s[3].startswith("step 1 of 1")
+                          and s[-1].startswith("render error: ") and s[-1].endswith("render broke") for s in broken), broken
     got = {name: verdict for name, verdict in dry.results(log).items() if name.startswith("runner > ")}
     assert list(got) == RUNNER, list(got)
     assert all(v.startswith("SKIP ") for name, v in dry.results(log).items() if name not in got), "another spec's test ran"
@@ -106,7 +115,7 @@ def test_fixtures(path):
     lua["g"].fire(2)
     done = list(lua["g"].DRAWN.values())
     assert done == ["Isaac Test Framework:", "Done: exit to the menu, then tell Claude"], done
-    assert not any("HARNESS" in s for screen in drawn for s in screen), drawn
+    assert not any("HARNESS" in s for shown in drawn for s in shown), drawn
     print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt, on screen as lines")
 
 

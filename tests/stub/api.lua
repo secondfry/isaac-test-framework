@@ -37,7 +37,7 @@ Isaac = {}
 function Isaac.DebugString(s) LOG[#LOG+1] = s end
 DRAWN = {} -- the last render's text, for the tests
 function Isaac.RenderText(s) DRAWN[#DRAWN+1] = s end
-function Isaac.GetScreenHeight() return 270 end -- shortcut: a fixed screen; the dry run checks the drawn text, not its place
+function Isaac.GetScreenHeight() return 270 end -- shortcut: a fixed screen; the dry run checks the drawn text, not its place; vary it if a test checks placement
 SAVED, SAVES = nil, {} -- the last Isaac.SaveModData text, and every one in order
 function Isaac.SaveModData(_, s) SAVED = s; SAVES[#SAVES+1] = s end
 MAX = {[482]=6, [703]=1, [711]=6}

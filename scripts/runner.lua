@@ -242,18 +242,28 @@ local function guard(f)
 	end
 end
 
--- The status as human-readable lines near the window's bottom, clear of the HUD; log.txt keeps the machine-readable lines.
-local TITLE, LINE, BOTTOM = "Isaac Test Framework:", 14, 20 -- 14: the old line spacing; 20: px kept clear of the window's bottom edge
+-- The status as human-readable lines at the window's bottom-left, above the HUD's trinket slot; log.txt keeps the machine-readable lines.
+local TITLE, LINE, BOTTOM = "Isaac Test Framework:", 14, 50 -- 14: the old line spacing; 50: px above the bottom edge, clearing the trinket slot (20-45 px up on the session 3e screenshot)
 local function render()
 	local S = HARNESS.session
 	local test = S.running and tests[S.testIndex]
-	local prompt = test and test.onRender and test.onRender(S.ctx) -- renders run where updates stop (death certificate, session 3c)
+	local prompt
+	if test and test.onRender then -- renders run where updates stop (death certificate, session 3c)
+		-- pcall'd: main.lua's render callback is not, so a throw would repeat every frame and hide the whole block
+		local ok, res = pcall(test.onRender, S.ctx)
+		prompt = res
+		if not ok then prompt = "render error: " .. tostring(res) end
+		if not ok and not S.ctx.renderError then -- once per test, not once per frame
+			S.ctx.renderError = true
+			P("HARNESS ERROR", "onRender", test.name, res)
+		end
+	end
 	local lines = { TITLE }
 	for line in S.status:gmatch("[^\n]+") do lines[#lines + 1] = line end
 	if S.manual and S.running and S.ctx.label then lines[#lines + 1] = S.ctx.label end -- the label clears an update before S.manual does
 	if prompt then lines[#lines + 1] = prompt end
 	local y = Isaac.GetScreenHeight() - BOTTOM - LINE * #lines
-	for i, line in ipairs(lines) do Isaac.RenderText(line, 60, y + LINE * (i - 1), 1, 1, 0, 1) end
+	for i, line in ipairs(lines) do Isaac.RenderText(line, 0, y + LINE * (i - 1), 1, 1, 0, 1) end
 end
 
 -- The tags are line 1 of data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:

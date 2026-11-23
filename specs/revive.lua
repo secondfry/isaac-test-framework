@@ -95,7 +95,7 @@ local tests = {}
 for _, s in ipairs(SOURCES) do tests[#tests + 1] = sourceTest(s[1], s[2], dieUntilRevived(s[3])) end
 
 -- Restart from the death certificate (user decision 2026-11-23: a Missing Poster test is built only if a console restart works there).
--- shortcut: updates stop on the certificate at 57 dead and renders run on (session 3c), but 2 renders per update there is unobserved (no updates); the CERT lines log both counts
+-- shortcut: the restart's render bound (2 x DEAD_UPDATES) assumes session 3c's 2 renders per update from before the certificate, unobserved on it, where updates stop at 57 dead; retune it if a CERT line shows another rate
 local DEAD_UPDATES, NEW_GAME_WAIT = 120, 600 -- dead past session 3b's 57-update revive window before the restart; updates or renders it then waits for a new game
 
 -- One CERT line: how long player 0 has been dead in updates and renders, the frame and IsDead.

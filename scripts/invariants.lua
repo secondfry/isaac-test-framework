@@ -11,7 +11,7 @@ local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_T_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.
 
 local game = Game()
 
--- A stored form comes back only by Flip (a present Tainted Lazarus of its group without Birthright) or a held Esau Jr. (docs/engine-facts.md): stricter than roster.lua's rule, so a form ReHUD forgot to merge or drop shows.
+-- A stored form comes back only by Flip (a present Tainted Lazarus of its group without Birthright) or a held Esau Jr. (docs/engine-facts.md; a Birthright return, seen in sessions 5a and 5b, passed because Tainted Lazarus Jr. held Esau Jr.): stricter than roster.lua's rule, so a form ReHUD forgot to merge or drop shows.
 local function revivable(key, present)
 	for k, p in pairs(present) do
 		if p and group(k) == group(key) then

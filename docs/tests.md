@@ -55,4 +55,4 @@ Updates run 30 a second. A test without `limit` has no cap of its own: each of i
 
 ## Testing ReHUD, or your own mod
 
-The `rehud` tests read ReHUD through its `ReHUD.dbg` debug hook (ReHUD cf965b0 or later, on the ReHUD fork's branch `feat/multiple-copies`, https://github.com/secondfry/ReHUD PR #4), only through `scripts\rehud.lua`. Without the hook each `rehud` test with assertions ends `SKIP ReHUD.dbg not loaded`; the `rehud` snapshot tests, which record game state only, still play. For your own mod, expose its state in a global table and read it from the steps the same way.
+The `rehud` tests read ReHUD through its `ReHUD.dbg` debug hook (ReHUD a97424c or later, on the ReHUD fork's branch `feat/multiple-copies`, https://github.com/secondfry/ReHUD PR #4), only through `scripts\rehud.lua`. Without the hook each `rehud` test with assertions ends `SKIP ReHUD.dbg not loaded`; the `rehud` snapshot tests, which record game state only, still play. For your own mod, expose its state in a global table and read it from the steps the same way.

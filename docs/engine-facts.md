@@ -1,10 +1,10 @@
 # Engine facts
 
-The Repentance+ engine behaviour (vanilla, no REPENTOGON; v1.9.7.19.J510 (runs, obs*, console probes to 2026-11-22) and J511 (sessions 1, 2, 3a-3e, 5a, 2026-11-23)) that the harness code and its stub rely on. Each fact was observed in game; the label names where. The labels the code's comments cite:
+The Repentance+ engine behaviour (vanilla, no REPENTOGON; v1.9.7.19.J510 (runs, obs*, console probes to 2026-11-22) and J511 (sessions 1, 2, 3a-3f, 4a-4d, 5a, 5b, 2026-11-23)) that the harness code and its stub rely on. Each fact was observed in game; the label names where. The labels the code's comments cite:
 
 - `run <n>`, `runs <n>-<m>`: harness runs 1-8 on J510 (2026-11-21 on).
 - `obs<n>` (`obs2`, `obs3`), `obsx<n>` (`obsx1`-`obsx3`), `obsya<n>` (`obsya1`, `obsya2`), `obsyb<n>` (`obsyb1`, `obsyb2`): recon sessions of the harness on J510, each of one or more runs; `obsx`, `obsy` alone mean the series, `obsx run2`, `obsy b run 1` = one run of that series (`obsy b run 1` is `obsyb1`).
-- `session <n>`, `session <n><letter>` (sessions 1, 2, 3a-3e, 5a): harness sessions on J511, 2026-11-23.
+- `session <n>`, `session <n><letter>` (sessions 1, 2, 3a-3f, 4a-4d, 5a, 5b): harness sessions on J511, 2026-11-23.
 - `console probe`, `console <date>`: a manual probe from the debug console, outside the harness, on J510.
 - `user, in game`: the user's own observation while playing.
 - A name after a label (`run 7's P4b`, `obsx1 Q3`, `"obs esaujr flip"`) is one test or question within that session.
@@ -20,13 +20,15 @@ What no session has shown is marked unobserved, and stays a recon test (no asser
 ## Stored characters
 
 - A stored character (Tainted Lazarus's other form without Birthright, an Esau Jr. original) is invisible to Lua: `Isaac.FindByType(1)` and `GetNumPlayers` return only the one playing. Its items are known only from when it last played. Observed in game (console probe, Tainted Lazarus with three stored characters).
-- So far a stored form has come back only by Flip (Tainted Lazarus without Birthright) or by pressing the Esau Jr. copy that holds it (obsx1-3, obsya1, obsyb1-2); the invariants assert this as a rule.
+- A stored character has come back by Flip (Tainted Lazarus without Birthright), by pressing the Esau Jr. copy that holds it (obsx1-3, obsya1, obsyb1-2), and by Birthright given to Tainted Lazarus Jr. (on Dead Tainted Lazarus's seed): the stored Dead Tainted Lazarus came back as his twin with his own `GetPtrHash`, item seed, GetData tag and items, and no new player entity (sessions 5a, 5b). The invariants assert the first two.
 - Each Esau Jr. copy holds the character it last swapped out, wherever the copy lies (pedestal, Schoolbag, through a Continue). A copy's first press makes a new character; a later press brings back the one it holds. A destroyed copy (displaced by `giveitem`, rerolled by D6) is followed by a fresh copy making a new one; a destroyed copy's character has not been seen again (whether it is gone for good is unobserved). Observed in game: `giveitem` and D6 (obsx1-3), the Schoolbag (obsya1), the pedestal and the Continue (console probe 2026-11-22).
 - After the returned original loses Esau Jr. and gets it back, the next press brings a form with the stored form's seed and type but other items. Observed in game (obsx2, obsx3).
 - Clicker with Esau Jr. kept: the next press brings the original back, typed as the presser's new type. Observed in game (obsx1, obsx2, obsya1).
 - A stored original survives save and Continue and returns on the next press. Observed in game (obsyb1-2).
-- Every new Esau Jr. form holds Esau Jr. on its first update. Observed in game (obsya1).
-- An active walked onto from a pedestal waits in the item queue (the character's old active leaves at once, the new one is not yet owned); a press of Esau Jr. 5 updates after the walk, with Yum Heart still queued, gave the queued Yum Heart to the new Isaac Jr. in its primary slot, no Esau Jr. on it and no new Esau Jr. pedestal, and no charge drop was read on the presser. The queue step is read from the log's `item queue flush` line, not seen directly. Observed in game (session 5a, one sample, Yum Heart).
+- Every new Esau Jr. form holds Esau Jr. on its first update. Observed in game (obsya1). One exception: see the next fact.
+- An active walked onto from a pedestal waits in the item queue (the character's old active leaves at once, the new one is not yet owned); a press of Esau Jr. 5 updates after the walk, with Yum Heart still queued, gave the queued Yum Heart to the new Isaac Jr. in its primary slot, no Esau Jr. on it and no new Esau Jr. pedestal, and no charge drop was read on the presser. The queue step is read from the log's `item queue flush` line, not seen directly. Observed in game (sessions 5a and 5b, one setup, Yum Heart).
+- A character's items are already in place on the update it returns (Flip, Birthright twin, Continue). Observed in game (sessions 5a, 5b).
+- After an Exit & Continue, Dead Tainted Lazarus Jr. (on a fresh seed) flipped to the stored Tainted Lazarus Jr. with his own items. Observed in game (sessions 5a, 5b).
 
 ## Seeds
 
@@ -37,6 +39,7 @@ What no session has shown is marked unobserved, and stays a recon test (no asser
 - Tainted Lazarus switched between its own forms (no Birthright): `ChangePlayerType(29)` on the active Dead form with the 29 form stored, and a real Clicker from 38 that rolled 29, both keep the active entity's seed and type it 29 with both forms' owned items. Flip stays (removed and re-added) and the engine makes a fresh Dead form: the next Flip brings it on a new seed holding only Flip; the old stored form's seed has not come back. A change to a non-Lazarus type removes Flip instead. Observed in game (run 8).
 - Clicker's rolls on save slot 1 (about 50, runs 2-8): from a non-tainted character never a tainted one or the current type (0, 2, 5, 6, 8, 11, 13, 16 and 19 rolled, at about 1 in 7); from the Dead form 29 (one sample, run 8). From 29 or 38 it rolled 35 in 11 of 11 tries (obsx1, Birthright too) and 38 to 29 once (obsx3); into 35 it adds the Soul (type 40) as another player. Observed in game.
 - The `seed <start seed>` console command restarts on that seed after 1 update; later `restart <type>` commands keep it, and so do Exit & Continues. Observed in game (session 1, session 2).
+- Exit & Continue kept every character's item, card, pill and trinket RNG seeds. `GetPtrHash` and `InitSeed` (= `DropSeed`) changed on all three characters seen, and `Index` on both Birthright twins (8 or 13 -> 0, 0 -> 1). obsyb2 saw one twin's InitSeed unchanged. Observed in game (sessions 5a, 5b).
 
 ## Driving the game from Lua
 

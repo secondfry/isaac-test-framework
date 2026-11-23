@@ -100,7 +100,7 @@ local function skipReason(S, test)
 end
 
 -- Why `test` does not play this session, or nil: its tags, else a rehud test without ReHUD's debug hook (ReHUD not installed). A
--- snapshot test still plays: it records game state only, and the vanilla run must write its baseline (README Snapshots).
+-- snapshot test still plays: it records game state only, and the vanilla run must write its baseline (docs/results.md Snapshots).
 local function skipWhy(S, test)
 	local why = skipReason(S, test)
 	if why then return why .. " (tags '" .. S.line .. "')" end

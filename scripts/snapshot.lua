@@ -3,7 +3,7 @@ local settled = include("scripts.settle").settled
 local exitAndContinue = include("scripts.manual").exitAndContinue
 
 -- A strict test's step limit and test limit in updates, setup and settle waits included: twelve 445-update tests fit three minutes
--- (README budgets, tests/test_runner.py worst cases).
+-- (docs/tags.md What each line plays, tests/test_runner.py worst cases).
 local STEP_LIMIT, TEST_LIMIT = 120, 445
 
 -- A snapshot test's step: tags later TRACE lines with `label`, unique within its test; a manual step keeps its prompt. A strict step

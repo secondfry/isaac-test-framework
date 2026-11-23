@@ -11,7 +11,7 @@ param(
 	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:1500', 'Return'),
 	# the exit to the menu alone, at HARNESS DONE: exiting flushes log.txt
 	[string[]]$ExitKeys = @('Escape', 'Up', 'Return'),
-	[double]$Minutes = 60, # `tags all` worst case is 27.7 min of updates plus menus
+	[double]$Minutes = 60, # `tags all` worst case: docs/tags.md What each line plays, plus menus
 	[switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'

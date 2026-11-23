@@ -39,9 +39,8 @@ function Send-Key([string]$name, [bool]$up) {
 	if ([W.K]::SendInput(1, @($i), [System.Runtime.InteropServices.Marshal]::SizeOf([type][W.K+INPUT])) -ne 1) { throw "SendInput failed for $name" }
 }
 
-# The keys into isaac-ng's window, each event only while it is in front; returns 'retry' when nothing was sent because the window was
-# not in front, else 'done' (sent, partly sent, dry run or no window).
-function Send-Plan {
+# The keys into isaac-ng's window (-Raise: bring it to the front first), each event only while it is in front: 'retry' if none was sent, else 'done'.
+function Send-Plan([switch]$Raise) {
 	$p = Get-Process isaac-ng -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
 	if ($DryRun) {
 		Write-Host "target: $(if ($p) { "isaac-ng window $($p.MainWindowHandle)" } else { 'no isaac-ng window' })"
@@ -50,13 +49,14 @@ function Send-Plan {
 	}
 	if (-not $p) { Write-Host 'not sent: no isaac-ng window'; return 'done' }
 	$h, $sent = $p.MainWindowHandle, 0
-	# shortcut: Windows may refuse SetForegroundWindow from a background process; then the sequence is skipped, not forced
-	[void][W.K]::SetForegroundWindow($h)
+	# shortcut: Windows may refuse SetForegroundWindow from a background process; then it waits for the game in front and sends then, never forced
+	if ($Raise) { [void][W.K]::SetForegroundWindow($h) }
 	foreach ($k in $Keys) {
 		if ($k -match '^wait:(\d+)$') { Start-Sleep -Milliseconds ([int]$Matches[1]); Write-Host "sent $k"; continue }
 		foreach ($up in $false, $true) {
 			if ([W.K]::GetForegroundWindow() -ne $h) {
-				if ($sent -eq 0) { Write-Host 'not sent: isaac-ng not in front'; return 'retry' }
+				if ($sent -eq 0) { return 'retry' }
+				if ($up) { Send-Key $k $true } # never leave the key held down
 				Write-Host 'PARTIAL: finish the Exit & Continue by hand'
 				return 'done'
 			}
@@ -75,13 +75,15 @@ function Read-Marker {
 }
 
 # A marker already there at start is the last session's: the harness drops it at HARNESS START.
-$end, $last = (Get-Date).AddMinutes($Minutes), (Read-Marker)
+$end, $last, $acting = (Get-Date).AddMinutes($Minutes), (Read-Marker), $null
 while ((Get-Date) -lt $end) {
 	$marker = Read-Marker
-	if (-not $marker) { $last = $null } # the harness cleared it (Continue, step given up, HARNESS START): the next marker acts, whatever its number
+	if (-not $marker) { $last = $acting = $null } # the harness cleared it (Continue, step given up, HARNESS START): the next marker acts, whatever its number
 	elseif ($marker -ne $last) {
-		"act on $marker"
-		if ((Send-Plan) -ne 'retry') { $last = $marker }
+		$first = $marker -ne $acting # its first poll: announce, raise the window, and on a retry say so once
+		if ($first) { Write-Host "act on $marker"; $acting = $marker }
+		if ((Send-Plan -Raise:$first) -ne 'retry') { $last = $marker }
+		elseif ($first) { Write-Host 'waiting for isaac-ng in front: bring it to the front, press no keys' }
 	}
 	Start-Sleep -Milliseconds 150
 }

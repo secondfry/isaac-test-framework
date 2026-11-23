@@ -103,8 +103,7 @@ local typeNow = info("player 0 type", function(p) return p:GetPlayerType() end)
 local playerCount = info("players in game", function() return game:GetNumPlayers() end)
 local storedSettlingNow = info("stored forms still settling", storedSettling)
 
--- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions. `kind`'s values get labels in
--- first-seen order within the test: entities (by character record, else GetPtrHash) A, B..., other kinds kind1, kind2...
+-- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions; `kind`'s values get labels in first-seen order within the test: entities (by character record, else GetPtrHash) A, B..., other kinds kind1, kind2...
 local function labelOf(ctx, kind, value)
 	if value == nil then return "none" end
 	ctx.snapLabels = ctx.snapLabels or {}
@@ -123,8 +122,7 @@ local function label(ctx, e)
 	return labelOf(ctx, "entity", c and ("#" .. c.id) or GetPtrHash(e))
 end
 
--- Every GetPlayer index as index:label(type), each character labelled by its record (characters.lua) as the snapshot labels it (bug 7:
--- seeds are shared); a label first seen in a lineup also shows its seed.
+-- Every GetPlayer index as index:label(type), each character labelled by its record (characters.lua) as the snapshot labels it (bug 7: seeds are shared); a label first seen in a lineup also shows its seed.
 local function lineup(ctx)
 	ctx.lineupSeen = ctx.lineupSeen or {}
 	local t = {}

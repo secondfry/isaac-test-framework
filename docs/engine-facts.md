@@ -1,6 +1,6 @@
 # Engine facts
 
-The Repentance+ engine behaviour (vanilla, no REPENTOGON; v1.9.7.19.J510 (runs, obs*, console probes to 2026-11-22) and J511 (sessions 1-5, 2026-11-23)) that the harness code and its stub rely on. Each fact was observed in game; the label names where. The labels the code's comments cite:
+The Repentance+ engine behaviour (vanilla, no REPENTOGON; v1.9.7.19.J510 (runs, obs*, console probes to 2026-11-22) and J511 (sessions 1, 2, 3a-3e, 5a, 2026-11-23)) that the harness code and its stub rely on. Each fact was observed in game; the label names where. The labels the code's comments cite:
 
 - `run <n>`, `runs <n>-<m>`: harness runs 1-8 on J510 (2026-11-21 on).
 - `obs<n>` (`obs2`, `obs3`), `obsx<n>` (`obsx1`-`obsx3`), `obsya<n>` (`obsya1`, `obsya2`), `obsyb<n>` (`obsyb1`, `obsyb2`): recon sessions of the harness on J510, each of one or more runs; `obsx`, `obsy` alone mean the series, `obsx run2`, `obsy b run 1` = one run of that series (`obsy b run 1` is `obsyb1`).
@@ -26,7 +26,7 @@ What no session has shown is marked unobserved, and stays a recon test (no asser
 - Clicker with Esau Jr. kept: the next press brings the original back, typed as the presser's new type. Observed in game (obsx1, obsx2, obsya1).
 - A stored original survives save and Continue and returns on the next press. Observed in game (obsyb1-2).
 - Every new Esau Jr. form holds Esau Jr. on its first update. Observed in game (obsya1).
-- An active walked onto from a pedestal waits in the item queue (the walker's old active leaves at once, the new one is not yet owned); a press of Esau Jr. 5 updates after the walk, with Yum Heart still queued, gave the queued Yum Heart to the new character in its primary slot, no Esau Jr. on it and no new Esau Jr. pedestal, and no charge drop was read on the presser. Observed in game (session 5a).
+- An active walked onto from a pedestal waits in the item queue (the character's old active leaves at once, the new one is not yet owned); a press of Esau Jr. 5 updates after the walk, with Yum Heart still queued, gave the queued Yum Heart to the new Isaac Jr. in its primary slot, no Esau Jr. on it and no new Esau Jr. pedestal, and no charge drop was read on the presser. The queue step is read from the log's `item queue flush` line, not seen directly. Observed in game (session 5a, one sample, Yum Heart).
 
 ## Seeds
 

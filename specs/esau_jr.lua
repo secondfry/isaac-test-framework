@@ -42,7 +42,7 @@ local FORGOTTEN, SOUL, LAZARUS, LAZARUS_RISEN, T_JACOB, EDEN = ids.FORGOTTEN, id
 
 local game = Game()
 
--- Snapshot test kinds: a strict step has a limit and its miss ends the test, so no later press runs on a wrong setup; DROP asks for a drop press.
+-- Snapshot test kinds: a strict step has a limit and its miss ends the test, so no later press runs on a wrong setup; a SNAPSHOT step's miss is logged and skipped; DROP asks for a drop press.
 local SNAPSHOT = { tags = { "esau_jr", "rehud" } }
 local STORED_CHARACTER = { tags = { "esau_jr", "rehud", "stored-character" }, strict = true }
 local STRICT = { tags = { "esau_jr", "rehud" }, strict = true }

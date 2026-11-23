@@ -53,7 +53,7 @@ local function startNew(command)
 	return HARNESS.session.gen
 end
 
--- A new game by `restart t` on FIXED_SEED (a `seed` command first when off it), each start's seed logged; player 0 of type `t` when `typed`.
+-- A new game by `restart t` on FIXED_SEED (a `seed` command first when off it), each start's seed logged; player 0 of type `t` when `typed`; records floor 1.
 local function newGame(t, typed)
 	return act("restart " .. t, function()
 		local seeding = game:GetSeeds():GetStartSeedString() ~= FIXED_SEED

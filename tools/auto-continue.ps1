@@ -5,8 +5,8 @@
 # -Keys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
 param(
 	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\isaac_test_framework\save1.dat',
-	# shortcut: the pause menu's path to Exit and the main menu's Continue position are unobserved; confirm with the user watching in the first session that runs the tool
-	[string[]]$Keys = @('Escape', 'Down', 'Down', 'Return', 'wait:4000', 'Return'),
+	# Esc opens the pause menu, Up reaches Exit, Enter exits; Enter on the main menu picks Continue (the user, from play); the 4 s menu load is unobserved
+	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:4000', 'Return'),
 	[double]$Minutes = 30,
 	[switch]$DryRun
 )

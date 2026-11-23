@@ -169,8 +169,8 @@ local function onPlayerUpdate(_, p) timingSee(p) end
 local function verdict(press, step, index, timed)
 	index = index or 0
 	return function(ctx)
-		track()
 		if not ctx.t then
+			track()
 			local presser = Isaac.GetPlayer(index)
 			ctx.vBefore, ctx.vHash, ctx.vLabel, ctx.vType, ctx.vAt = lineup(ctx), GetPtrHash(presser), label(ctx, presser), presser:GetPlayerType(), {}
 			for i = 0, game:GetNumPlayers() - 1 do ctx.vAt[GetPtrHash(Isaac.GetPlayer(i))] = i end

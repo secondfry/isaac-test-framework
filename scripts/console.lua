@@ -132,4 +132,5 @@ local function flush()
 	Isaac.ExecuteCommand(c)
 end
 
-return { give = give, remove = remove, stage = stage, fresh = fresh, restart = restart, seed = seed, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset }
+return { give = give, remove = remove, stage = stage, fresh = fresh, restart = restart, seed = seed, giveAnyone = giveAnyone, flush = flush, busy = busy, reset = reset,
+	startNew = startNew }

@@ -245,6 +245,8 @@ local function render()
 	local S = HARNESS.session
 	Isaac.RenderText("HARNESS: " .. S.status, 60, 30, 1, 1, 0, 1)
 	if S.manual and S.running then Isaac.RenderText(tostring(S.ctx.label), 60, 44, 1, 1, 0, 1) end
+	local test = S.running and tests[S.testIndex]
+	if test and test.onRender then test.onRender(S.ctx) end -- renders may run where updates stop (a death certificate)
 end
 
 -- The tags are line 1 of data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:

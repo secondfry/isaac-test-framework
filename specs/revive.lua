@@ -1,9 +1,10 @@
--- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a); what session 2 saw: lua-api-notes.md "Revives".
+-- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a); the last test restarts from that certificate; what session 2 saw: lua-api-notes.md "Revives".
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local owned, cards = engine.owned, engine.cards
 local console = include("scripts.console")
-local fresh, give = console.fresh, console.give
+local fresh, give, startNew = console.fresh, console.give, console.startNew
+local expectStart = include("scripts.runner").expectStart
 local addCard = include("scripts.steps").addCard
 local record = include("scripts.record")
 local snap, try = record.snap, record.try
@@ -11,7 +12,8 @@ local fixtures = include("scripts.fixtures")
 local fixture, freshRun = fixtures.fixture, fixtures.freshRun
 local snapshotTest = include("scripts.snapshot").test
 local ids = include("scripts.ids")
-local ANKH, JUDAS_SHADOW, LAZARUS_RAGS, SOUL_LAZARUS, LAZARUS = ids.ANKH, ids.JUDAS_SHADOW, ids.LAZARUS_RAGS, ids.SOUL_LAZARUS, ids.LAZARUS
+local ANKH, JUDAS_SHADOW, LAZARUS_RAGS, SOUL_LAZARUS, LAZARUS, ISAAC = ids.ANKH, ids.JUDAS_SHADOW, ids.LAZARUS_RAGS, ids.SOUL_LAZARUS, ids.LAZARUS,
+	ids.ISAAC
 
 local game = Game()
 local MAX_DEATHS = 2 -- the innate revive plus one source (session 3b)
@@ -84,5 +86,67 @@ for _, s in ipairs(SOURCES) do
 	tests[#tests + 1] = snapshotTest("Lazarus with " .. s[1] .. " dies until it revives him", { "revive", "opt-in" }, s[2],
 		{ { "die until revived", dieUntilRevived(s[3]), nil, WATCH + 1 } }, { strict = true, limit = 300 + MAX_DEATHS * (WATCH + 1) })
 end
+
+-- Restart from the death certificate (user decision 2026-11-23: a Missing Poster test is built only if a console restart works there).
+-- shortcut: whether updates and renders run on the certificate is unobserved (session 3a: 58 updates from Kill() to the Space-started game, as if updates stop there), and so are 2 renders per update; the CERT lines log both counts
+local DEAD_UPDATES, NEW_GAME_WAIT = 120, 600 -- dead past session 3b's 57-update revive window before the restart; updates or renders it then waits for a new game
+
+-- One CERT line: how long player 0 has been dead in updates and renders, the frame and IsDead.
+local function certLine(ctx, at)
+	local c, p = ctx.cert, Isaac.GetPlayer(0)
+	P("INFO", ctx.name, "CERT at", at, "dead for", c.u, "updates,", c.r, "renders, frame", game:GetFrameCount(), "IsDead", p and try(function() return p:IsDead() end))
+end
+
+-- On each update and render while dead: the restart once dead DEAD_UPDATES updates or twice as many renders, then the press-Space prompt.
+local function certificateTick(ctx)
+	local c = ctx.cert
+	if not c.sent and (c.u >= DEAD_UPDATES or c.r >= 2 * DEAD_UPDATES) then
+		c.sent = { u = c.u, r = c.r }
+		certLine(ctx, "restart")
+		startNew("restart " .. ISAAC)
+	elseif c.sent and not c.space and (c.u - c.sent.u >= NEW_GAME_WAIT or c.r - c.sent.r >= NEW_GAME_WAIT) then
+		c.space = true
+		P("INFO", ctx.name, "restart from the certificate gave no new game: press Space")
+	end
+end
+
+-- Kill() player 0, who has no revive, then restart from his certificate; ends at the new game, a Space-started one included.
+local function restartFromCertificate(ctx)
+	local S, c = HARNESS.session, ctx.cert
+	if not c then
+		local p = Isaac.GetPlayer(0)
+		ctx.cert = { u = 0, r = 0, gen = S.gen }
+		expectStart("new") -- a Space-started game is this test's too
+		P("INFO", ctx.name, "CERT Kill() on type", p:GetPlayerType(), "frame", game:GetFrameCount(), "| Kill()", try(function() p:Kill() end))
+		return "again"
+	end
+	if S.gen ~= c.gen then
+		ctx.cert = nil
+		local since = c.sent and ((c.u - c.sent.u) .. " updates, " .. (c.r - c.sent.r) .. " renders") or ""
+		local how = not c.sent and ("new game before the restart was sent, dead for " .. c.u .. " updates, " .. c.r .. " renders")
+			or c.space and ("new game after the press-Space prompt, " .. since .. " after the restart")
+			or ("restart from the certificate: new game after " .. since)
+		return P("INFO", ctx.name, how, "| start seed", game:GetSeeds():GetStartSeedString(), "type", Isaac.GetPlayer(0):GetPlayerType(), "frame", game:GetFrameCount())
+	end
+	c.u = c.u + 1
+	if c.u % 30 == 0 then certLine(ctx, "update") end
+	certificateTick(ctx)
+	return "again"
+end
+
+-- Counts renders while dead, as updates may stop on the certificate; the prompt is drawn only if renders run.
+local function certificateRender(ctx)
+	local c = ctx.cert
+	if not c or HARNESS.session.gen ~= c.gen then return end
+	c.r = c.r + 1
+	if c.r % 60 == 0 then certLine(ctx, "render") end
+	if c.space then Isaac.RenderText("HARNESS: press Space", 60, 58, 1, 1, 0, 1) end
+	certificateTick(ctx)
+end
+
+local certificate = snapshotTest("restart from the death certificate", { "revive", "vanilla", "opt-in" }, freshRun(ISAAC),
+	{ { "die and restart from the certificate", restartFromCertificate } })
+certificate.onRender = certificateRender
+tests[#tests + 1] = certificate
 
 return { name = "revive", tests = tests }

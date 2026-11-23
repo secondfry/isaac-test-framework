@@ -45,9 +45,10 @@ function PM:Kill()
   if consume(self, 332) then return end -- Lazarus' Rags: type kept
   if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
   if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
-  error("stub: a game over is not modelled, as the revive tests stop at their source's revive")
+  -- shortcut: a game over leaves player 0 dead with updates and renders running and the console working, all unobserved (session 3a); model it from the restart-from-certificate session
+  self.dead = true
 end
-function PM:IsDead() return false end -- a dead player is revived or gone here (Kill)
+function PM:IsDead() return self.dead == true end -- a revived player is alive at once here (Kill)
 function PM:GetPlayerType() return self.t end
 function PM:GetCollectibleRNG() local s = self.seed; return {GetSeed=function() return s end} end
 function PM:GetCollectibleCount() local n = 0 for _, c in pairs(self.items) do n = n + c end return n end

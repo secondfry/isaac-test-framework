@@ -5,7 +5,8 @@ import dry
 # Each source's type after each death in the stub: Lazarus's own revive comes first, so a held item revives at the second.
 DEATHS = {"Soul of Lazarus": ["8"], "his own revive only": ["11"], "Lazarus' Rags": ["11", "11"], "Ankh": ["11", "4"], "Judas' Shadow": ["11", "12"]}
 NAMES = {source: f"revive > Lazarus with {source} dies until it revives him" for source in DEATHS}
-WANT = {name: "RECORDED" for name in NAMES.values()}
+CERT = "revive > restart from the death certificate"
+WANT = {**{name: "RECORDED" for name in NAMES.values()}, CERT: "RECORDED"}
 MODE = "tags revive"
 
 
@@ -22,6 +23,13 @@ def test_revive(path):
             for want in (f"type = {t}", "hash kept = true", "alive after 240 updates = true"):
                 assert f"PROBE SNAP {name} | death {n} / {want}" in lines, (name, n, want)
     print(f"PASS {MODE}: {len(NAMES)} tests die until their own source revives Lazarus, none to game over")
+    # the stub keeps updating on the certificate (players.lua shortcut), so the restart goes out after 120 updates dead
+    lines = dry.segment(log, CERT)
+    for want in ("CERT at update dead for 30 updates, 30 renders, frame ", "CERT at restart dead for 120 updates, 120 renders, frame ",
+                 "restart from the certificate: new game after "):
+        assert any(s.startswith(f"PROBE INFO {CERT} {want}") for s in lines), (want, lines)
+    assert any(s.endswith("IsDead true") for s in lines) and not any("press Space" in s for s in lines), lines
+    print(f"PASS {MODE}: Isaac's restart from the death certificate starts a new game")
 
 
 TESTS = [test_revive]

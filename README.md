@@ -59,13 +59,13 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 76 | 7 | 2 | 21261 (11.8 min) | 31 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
-| `revive` | 5 | 0 | 0 | 3911 (2.2 min) | 0 |
+| `revive` | 6 | 0 | 0 | 3911 (2.2 min) | 1 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
-| `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |
+| `vanilla` | 35 | 28 | 0 | 29781 (16.5 min) | 3 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
-`revive` (five tests, one per source on Lazarus) plays only with `tags revive`; each ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a).
+`revive` (five tests, one per source on Lazarus, then one restart from the death certificate) is opt-in and plays with `tags revive`; each source test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a). The last test, `restart from the death certificate` (also with `tags vanilla`), kills Isaac on the fixed seed, sends `restart` once he has been dead 120 updates (or 240 render frames, in case updates stop there) and logs whether a new game came; if none came within 600, the screen says `press Space`: press it, and the test ends at that new game.
 
 ## Manual steps
 
@@ -115,7 +115,7 @@ The dry run (about 8 minutes; name test functions to run a few) plays `main.lua`
 ## Writing tests
 
 - A spec: `specs\<name>.lua` returns `{ name = "<name>", tests = { ... } }`; add the name to `SPECS` in `main.lua` (play order; `exit-continue` tests move to the end).
-- A test: `name`, `tags`, `fixture`, `steps`; optional `limit` (updates: a test with assertions FAILs there; a snapshot test at its limit ends RECORDED with a `test limit` note, writes no snapshot, and the report says NEEDS ANALYSIS), `snapshot = true`, `onStepError = "skip"` or `"end"` (a step that errors or passes its own `limit` is logged as never happened, then skipped, or the test ends), `onUpdate`, `traceUpdates`. Steps may nest lists; a step is `function(ctx)` returning `"again"` to run again next update, or `{ label, run, limit, when, manual }`.
+- A test: `name`, `tags`, `fixture`, `steps`; optional `limit` (updates: a test with assertions FAILs there; a snapshot test at its limit ends RECORDED with a `test limit` note, writes no snapshot, and the report says NEEDS ANALYSIS), `snapshot = true`, `onStepError = "skip"` or `"end"` (a step that errors or passes its own `limit` is logged as never happened, then skipped, or the test ends), `onUpdate`, `onRender` (each render frame while the test plays, which may run where updates stop), `traceUpdates`. Steps may nest lists; a step is `function(ctx)` returning `"again"` to run again next update, or `{ label, run, limit, when, manual }`.
 - A fixture: `{ name, setup = { steps }, done = function(ctx) return ok, why end, teardown }`. The setup runs, `done` is polled for up to 120 updates (still false: `FAIL precondition: <why>`), then the steps; `teardown` runs exactly once however the test ends. Shared ones in `scripts\fixtures.lua`: `fixture`, `owns`, `freshRun` (a restart on the fixed seed `9SZM 3P3S`, after one `seed` command when the run is on another; a restart off the fixed seed fails the test; `newGame` logs each restart's start seed, type and frame, and every fixture logs `start seed` when done), `holdingJr`, `jacobAndEsau`, `character` with `RECON_CHARACTERS`, and the `TLAZ_*` setups.
 - Shared steps: `scripts\snapshot.lua` `test(name, tags, fixture, steps, opts)` builds a snapshot test from labelled steps (`opts.strict`: 120-update steps, a 445-update test) and `perCharacter` one recon test per recon character; `wait.act` and `wait.condition` wait for an effect; `press.lua` makes real presses (`flip`, `esauJr`, `clicker`, ...): a button press through `MC_INPUT_ACTION` that passes only with a new character and the spent charge or card, a stored presser's spend (Esau Jr., Flip without Birthright) read on its own entity before the engine stores it (`..\lua-api-notes.md`); `manual.lua` holds the manual steps; `settle.look` and `lookC` wait for ReHUD to settle, then assert, each look also the invariants (ReHUD's entries against the engine's counts, no duplicates, no phantom stored forms, no `left` entries, no floor later than the current one; `lookC` one row per character too); `assert.lua` has the assertions (`expect`, `expectCount`, ..., `pre` for a precondition).
 - Tag it with its spec, `rehud` or `vanilla`, `exit-continue` if it asks for an Exit & Continue (and `new` until it has passed in game), `walk` if it asks for a walk.

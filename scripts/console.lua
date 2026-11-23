@@ -43,7 +43,7 @@ local function stage(n)
 	end)
 end
 
--- Every test's start seed: `seed` with it restarts onto it from any run, and restarts keep it for every type and after Exit & Continue (sessions 1-2).
+-- Every test's start seed: `seed` with it restarts onto it from any run, and restarts kept it for types 0, 16, 19, 21, 29, 35 and 37 and through 28 Exit & Continues (sessions 1-2).
 local FIXED_SEED = "9SZM 3P3S"
 
 -- Queues `command`, a new game; the generation the step waits to pass.

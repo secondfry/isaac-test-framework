@@ -77,7 +77,8 @@ end
 startSeed, seeded, seedStart, seedRolls = nil, false, false, 0
 function startRun(t, cont)
   if not cont then
-    -- a restart keeps a seed a `seed` command set (sessions 1-2: every type, after Continues) and rolls one otherwise (session 1)
+    -- a restart keeps a seed a `seed` command set (sessions 1-2: types 0, 16, 19, 21, 29, 35 and 37, and 28 Exit & Continues) and rolls one otherwise (session 1)
+    -- shortcut: a second plain restart with no seed command first rolls a new seed here (unobserved); model it once a session shows it
     if seedStart then seedStart = false
     elseif not seeded or restartRolls then seedRolls = seedRolls + 1; startSeed = "STUB " .. seedRolls end
     -- shortcut: unobserved whether the engine's GetFrameCount restarts with a run; it does here, so TIMING frames depend on the test alone, model it from the next session's restart INFO frame

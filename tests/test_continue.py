@@ -10,6 +10,10 @@ WANT = {  # each test's verdict under `tags all` when nothing fails, by "continu
     "continue > Flip once settled, Exit & Continue, then ChangePlayerType": "PASS 20 assertions",
     "continue > item copies survive Exit & Continue": "PASS 30 assertions",
     **dry.recon("continue", "start, then Exit & Continue"),
+    # ReHUD rework recon (O1, O2, O7)
+    "continue > Esau Jr. copy picked up after Exit & Continue brings its character back": "RECORDED",
+    "continue > Tainted Lazarus's Esau Jr. characters across Exit & Continue, then a Flip": "RECORDED",
+    "continue > Lazarus Jr. given Birthright, Flip, then Exit & Continue": "RECORDED",
 }
 MODE = "tags continue"
 

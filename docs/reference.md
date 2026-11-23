@@ -46,25 +46,26 @@ From the runner's plan (`dry.plan`): the tests, the Exit & Continues and pedesta
 | Tags line | Tests | Exit & Continues | Walks | Worst case, tests with a limit | Tests without a limit |
 |---|---|---|---|---|---|
 | (empty) | 73 | 0 | 2 | 17841 updates (9.9 min) | 30 |
-| `tags all` | 108 | 35 | 2 | 49841 (27.7 min) | 33 |
+| `tags all` | 111 | 38 | 4 | 54241 (30.1 min) | 33 |
 | `base_change` | 15 | 7 | 0 | 9531 (5.3 min) | 3 |
 | `characters` | 18 | 8 | 0 | 10776 (6.0 min) | 3 |
-| `continue` | 13 | 13 | 0 | 10001 (5.6 min) | 3 |
+| `continue` | 16 | 16 | 2 | 14401 (8.0 min) | 3 |
 | `drop` | 3 | 0 | 0 | 1336 (0.7 min) | 0 |
 | `engine` | 5 | 0 | 0 | - | 5 |
 | `esau_jr` | 46 | 7 | 2 | 19041 (10.6 min) | 13 |
-| `exit-continue` | 35 | 35 | 0 | 32001 (17.8 min) | 3 |
+| `exit-continue` | 38 | 38 | 2 | 36401 (20.2 min) | 3 |
 | `hello` | 3 | 0 | 0 | 446 (0.2 min) | 2 |
 | `item_copies` | 4 | 0 | 0 | - | 4 |
-| `recon` | 31 | 28 | 0 | 29336 (16.3 min) | 0 |
+| `recon` | 34 | 31 | 2 | 33736 (18.7 min) | 0 |
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 71 | 7 | 2 | 21261 (11.8 min) | 26 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
+| `rehud-rework` | 3 | 3 | 2 | 4401 (2.4 min) | 0 |
 | `revive` | 7 | 0 | 0 | 4693 (2.6 min) | 1 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
-| `vanilla` | 39 | 28 | 0 | 29781 (16.5 min) | 7 |
-| `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
+| `vanilla` | 42 | 31 | 2 | 34181 (19.0 min) | 7 |
+| `walk` | 2 | 1 | 4 | 3501 (1.9 min) | 0 |
 
 ## Writing tests
 

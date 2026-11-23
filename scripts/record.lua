@@ -206,6 +206,33 @@ end
 
 local slotsNow = info("player 0 slots", slots)
 
+-- A test's onUpdate, from its trace's start: on each of the `n` updates from a game start (a Continue) or a change of GetPlayer's
+-- entities on, every player's label, type, item seed label and items as SNAP (watch number and update, so keys compare across
+-- sessions), raw seed and GetPtrHash as INFO WATCH with the step and its update count.
+local function watchLineup(n)
+	return function(ctx)
+		local trace = HARNESS.record.trace
+		if not trace then return end
+		local hashes = {}
+		for i = 0, game:GetNumPlayers() - 1 do hashes[#hashes + 1] = GetPtrHash(Isaac.GetPlayer(i)) end
+		local now, gen, w = table.concat(hashes, " "), HARNESS.session.gen, ctx.watch
+		if not w then ctx.watch = { gen = gen, hashes = now, n = 0 } return end
+		if gen ~= w.gen or now ~= w.hashes then
+			w.why = gen ~= w.gen and ("game start, continued " .. tostring(HARNESS.session.continued)) or ("entities " .. w.hashes .. " -> " .. now)
+			w.n, w.k, w.gen, w.hashes = w.n + 1, 0, gen, now
+		end
+		if not w.k or w.k >= n then return end
+		for i = 0, game:GetNumPlayers() - 1 do
+			local p = Isaac.GetPlayer(i)
+			snap(ctx, "watch " .. w.n .. " +" .. w.k .. " / index " .. i, label(ctx, p) .. "(t" .. p:GetPlayerType() .. ") seed "
+				.. labelOf(ctx, "s", seedOf(p)) .. " items " .. heldItems(p))
+			P("INFO", ctx.name, "WATCH", w.n, "+" .. w.k, "after", trace.step, "update", tostring(ctx.t), w.k == 0 and ("(" .. w.why .. ")") or "",
+				"index", i, "type", p:GetPlayerType(), "seed", seedOf(p), "hash", GetPtrHash(p), "items", heldItems(p))
+		end
+		w.k = w.k + 1
+	end
+end
+
 -- Each player's Parent (as a GetPlayer index), ControllerIndex and ReHUD key and number: which character a temporary one's number follows.
 local function parentsInfo(what)
 	return function(ctx)
@@ -314,6 +341,6 @@ end
 return {
 	logState = logState, update = update, startAsserting = startAsserting, onTraceStarts = onTraceStarts, stepBegins = stepBegins,
 	stopTiming = stopTiming, stop = stop, pocketHeld = pocketHeld, typeNow = typeNow, playerCount = playerCount, storedSettlingNow = storedSettlingNow,
-	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, parentsInfo = parentsInfo, idsInfo = idsInfo, innerLine = innerLine, innerWatch = innerWatch,
+	onPlayerUpdate = onPlayerUpdate, verdict = verdict, slotsNow = slotsNow, watchLineup = watchLineup, parentsInfo = parentsInfo, idsInfo = idsInfo, innerLine = innerLine, innerWatch = innerWatch,
 	innerOn = innerOn, innerInfo = innerInfo, label = label, snap = snap, snapStep = snapStep, try = try,
 }

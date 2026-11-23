@@ -248,7 +248,7 @@ local function render()
 end
 
 -- The tags are line 1 of data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
--- `tags a,b`, and `--update-snapshots` to let the reader replace snapshots. A STUCK line left below it never changes them.
+-- `tags a,b`, and `--update-snapshots` to let the reader replace snapshots. The harness's lines below it (WAIT, STUCK) never change them.
 local function readTags(S, raw)
 	S.line = raw:match("^[^\r\n]*"):match("^%s*(.-)%s*$")
 	local text = S.line:gsub("%-%-update%-snapshots", ""):match("^%s*(.-)%s*$") -- the flag may come first
@@ -256,7 +256,7 @@ local function readTags(S, raw)
 	for tag in (text:match("^tags%s+(.*)$") or ""):gmatch("[^,%s]+") do S.tags[#S.tags + 1] = tag end
 end
 
--- At 60 updates a wait is stuck: log it once and rewrite the line under line 1 as a STUCK line for tools\stuck-shots.ps1 to screenshot. A manual
+-- At 60 updates a wait is stuck: log it once and write the STUCK line, the mod data's last, for tools\stuck-shots.ps1 to screenshot. A manual
 -- step waits for the user, so it is never stuck.
 -- shortcut: each wait passes its own count, as nested waits (a look inside a Clicker loop) have their own labels; count in tick if none nests.
 local function stuck(ctx, t, label)

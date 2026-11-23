@@ -16,12 +16,13 @@ Never `tests\`, `tools\` or `*.snap.txt`. Delete a file there that the repo no l
 
 ## A session
 
-1. Game closed: write the tags line (below), install, then `pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`.
+1. Game closed: write the tags line (below), install, delete `disable.it` in `mods\rehud_test_harness`, then `pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`.
 2. Launch, load save slot 1, start a new run: the session starts there (a Continue first only logs `HARNESS idle`).
 3. Hands off, except the manual steps the screen asks for.
 4. At `HARNESS: DONE` (or a game over), exit to the menu (that flushes `log.txt`) and copy `log.txt`.
 5. Game closed: `vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and the user's play mod set.
 6. Read each copy with `tools\report.py` (Results), the vanilla one first.
+7. Game closed: put `disable.it` back in `mods\rehud_test_harness`.
 
 A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; session 2), Eden (obsyb1). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
 
@@ -109,7 +110,7 @@ From the workspace root, one suite at a time:
     .venv\Scripts\python -B -I isaac-test-harness\tests\test_harness.py isaac-test-harness\main.lua [test function ...]
     .venv\Scripts\python -B -I isaac-test-harness\tests\test_report.py
 
-The dry run (about 8 minutes; name test functions to run a few) plays `main.lua` under lupa (Lua 5.3) against `tests\stub\`, a fake engine, input and ReHUD whose `shortcut:` comments say what it does not model, with a fake user who continues and walks. It checks every test's verdict under each tags line it plays (`WANT` in `tests\test_<spec>.py`, plus each module's checks of its own lines), the runner (`test_runner.py`: tags, limits and worst cases, a late Continue or a new run instead, STUCK, fixture teardown and preconditions, which steps prompt), the presses' spends (`test_presses.py`), each invariant against its negative stub flag (`test_invariants.py`) and `report.py` on dry logs. `test_report.py` checks `report.py`'s verdicts, snapshots, log guard and JSON.
+The dry run (about 8 minutes; name test functions to run a few) plays `main.lua` under lupa (Lua 5.3) against `tests\stub\`, a fake engine, input and ReHUD whose `shortcut:` comments say what it does not model, with a fake user who continues and walks. It checks every test's verdict under each tags line it plays (`WANT` in `tests\test_<spec>.py`, plus each module's checks of its own lines), the runner (`test_runner.py`: tags, limits and worst cases, a late Continue or a new run instead, STUCK, fixture teardown and preconditions, which steps prompt), the presses' spends (`test_presses.py`), each invariant against its negative stub flag (`test_invariants.py`), `auto-continue.ps1 -DryRun` (`test_auto_continue.py`) and `report.py` on dry logs. `test_report.py` checks `report.py`'s verdicts, snapshots, log guard and JSON.
 
 ## Writing tests
 

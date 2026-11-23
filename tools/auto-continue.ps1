@@ -39,8 +39,8 @@ function Send-Key([string]$name, [bool]$up) {
 	if ([W.K]::SendInput(1, @($i), [System.Runtime.InteropServices.Marshal]::SizeOf([type][W.K+INPUT])) -ne 1) { throw "SendInput failed for $name" }
 }
 
-# The keys into isaac-ng's window (-Raise: bring it to the front first), each event only while it is in front: 'retry' if none was sent, else 'done'.
-function Send-Plan([switch]$Raise) {
+# The keys for $marker into isaac-ng's window (-Raise: bring it to the front first), each event only while it is in front: 'retry' if none was sent, else 'done'.
+function Send-Plan([string]$marker, [switch]$Raise) {
 	$p = Get-Process isaac-ng -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
 	if ($DryRun) {
 		Write-Host "target: $(if ($p) { "isaac-ng window $($p.MainWindowHandle)" } else { 'no isaac-ng window' })"
@@ -52,14 +52,19 @@ function Send-Plan([switch]$Raise) {
 	# shortcut: Windows may refuse SetForegroundWindow from a background process; then it waits for the game in front and sends then, never forced
 	if ($Raise) { [void][W.K]::SetForegroundWindow($h) }
 	foreach ($k in $Keys) {
-		if ($k -match '^wait:(\d+)$') { Start-Sleep -Milliseconds ([int]$Matches[1]); Write-Host "sent $k"; continue }
+		if ($k -match '^wait:(\d+)$') {
+			if ($sent -eq 0) { continue } # a leading wait would repeat on every retry poll
+			Start-Sleep -Milliseconds ([int]$Matches[1]); Write-Host "sent $k"; continue
+		}
 		foreach ($up in $false, $true) {
 			if ([W.K]::GetForegroundWindow() -ne $h) {
 				if ($sent -eq 0) { return 'retry' }
-				if ($up) { Send-Key $k $true } # never leave the key held down
+				# shortcut: whether isaac-ng sees a key-up sent while it is not in front is unobserved; confirm in the watched first run
+				if ($up) { Send-Key $k $true }
 				Write-Host 'PARTIAL: finish the Exit & Continue by hand'
 				return 'done'
 			}
+			if ($sent -eq 0 -and (Read-Marker) -ne $marker) { Write-Host "not sent: $marker changed before the first key"; return 'done' }
 			Send-Key $k $up
 			$sent++
 			Start-Sleep -Milliseconds $(if ($up) { 250 } else { 80 }) # held, then a gap; whether the menu takes 80/250 ms is unobserved, confirm in the watched first run
@@ -82,7 +87,7 @@ while ((Get-Date) -lt $end) {
 	elseif ($marker -ne $last) {
 		$first = $marker -ne $acting # its first poll: announce, raise the window, and on a retry say so once
 		if ($first) { Write-Host "act on $marker"; $acting = $marker }
-		if ((Send-Plan -Raise:$first) -ne 'retry') { $last = $marker }
+		if ((Send-Plan $marker -Raise:$first) -ne 'retry') { $last = $marker }
 		elseif ($first) { Write-Host 'waiting for isaac-ng in front: bring it to the front, press no keys' }
 	}
 	Start-Sleep -Milliseconds 150

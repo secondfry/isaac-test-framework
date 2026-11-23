@@ -19,7 +19,7 @@ def test_revive(path):
         assert any(s.startswith(f"PROBE INFO {name} restart 8 start seed ") for s in lines), f"{name}: its fixture did not restart"
         assert not any(s.startswith("PROBE ASSERT") or f"death {len(types) + 1} " in s for s in lines), name
         for n, t in enumerate(types, 1):
-            for want in (f"type = {t}", "hash kept = true", f"alive after 240 updates = true"):
+            for want in (f"type = {t}", "hash kept = true", "alive after 240 updates = true"):
                 assert f"PROBE SNAP {name} | death {n} / {want}" in lines, (name, n, want)
     print(f"PASS {MODE}: {len(NAMES)} tests die until their own source revives Lazarus, none to game over")
 

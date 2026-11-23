@@ -116,4 +116,4 @@ local function whoInfo(what)
 	end
 end
 
-return { track = track, onGameStart = onGameStart, merged = merged, byName = byName, named = named, who = who, whoInfo = whoInfo }
+return { charOf = charOf, track = track, onGameStart = onGameStart, merged = merged, byName = byName, named = named, who = who, whoInfo = whoInfo }

@@ -8,6 +8,8 @@ local rehud = include("scripts.rehud")
 local present, entries, tagText, storedSettling, keyOf, number, rosterRows = rehud.present, rehud.entries, rehud.tagText, rehud.storedSettling,
 	rehud.keyOf, rehud.number, rehud.rows
 local info = include("scripts.steps").info
+local characters = include("scripts.characters")
+local charOf, track = characters.charOf, characters.track
 local ids = include("scripts.ids")
 local FLIP, ESAU_JR, CLICKER, BIRTHRIGHT, PRIMARY, SECONDARY, POCKET = ids.FLIP, ids.ESAU_JR, ids.CLICKER, ids.BIRTHRIGHT, ids.PRIMARY,
 	ids.SECONDARY, ids.POCKET
@@ -102,7 +104,7 @@ local playerCount = info("players in game", function() return game:GetNumPlayers
 local storedSettlingNow = info("stored forms still settling", storedSettling)
 
 -- Snapshot values: game state only, no raw hash, seed or Index, so a value compares across sessions. `kind`'s values get labels in
--- first-seen order within the test: entities (by GetPtrHash) A, B..., other kinds kind1, kind2...
+-- first-seen order within the test: entities (by character record, else GetPtrHash) A, B..., other kinds kind1, kind2...
 local function labelOf(ctx, kind, value)
 	if value == nil then return "none" end
 	ctx.snapLabels = ctx.snapLabels or {}
@@ -115,18 +117,22 @@ local function labelOf(ctx, kind, value)
 	return t[value]
 end
 -- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (lua-api-notes.md).
-local function label(ctx, e) return e and labelOf(ctx, "entity", GetPtrHash(e)) or "none" end
+local function label(ctx, e)
+	if not e then return "none" end
+	local c = charOf(e)
+	return labelOf(ctx, "entity", c and ("#" .. c.id) or GetPtrHash(e))
+end
 
--- Every GetPlayer index as index:label(type), each character labelled by its entity as the snapshot labels it (bug 7: seeds are shared);
--- an entity first seen in a lineup also shows its seed.
+-- Every GetPlayer index as index:label(type), each character labelled by its record (characters.lua) as the snapshot labels it (bug 7:
+-- seeds are shared); a label first seen in a lineup also shows its seed.
 local function lineup(ctx)
 	ctx.lineupSeen = ctx.lineupSeen or {}
 	local t = {}
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
-		local h = GetPtrHash(p)
-		t[#t + 1] = i .. ":" .. label(ctx, p) .. "(t" .. p:GetPlayerType() .. ")" .. (ctx.lineupSeen[h] and "" or ("=" .. seedOf(p)))
-		ctx.lineupSeen[h] = true
+		local L = label(ctx, p)
+		t[#t + 1] = i .. ":" .. L .. "(t" .. p:GetPlayerType() .. ")" .. (ctx.lineupSeen[L] and "" or ("=" .. seedOf(p)))
+		ctx.lineupSeen[L] = true
 	end
 	return table.concat(t, " ")
 end
@@ -165,9 +171,10 @@ local function onPlayerUpdate(_, p) timingSee(p) end
 local function verdict(press, step, index, timed)
 	index = index or 0
 	return function(ctx)
+		track()
 		if not ctx.t then
 			local presser = Isaac.GetPlayer(index)
-			ctx.vBefore, ctx.vHash, ctx.vType, ctx.vAt = lineup(ctx), GetPtrHash(presser), presser:GetPlayerType(), {}
+			ctx.vBefore, ctx.vHash, ctx.vLabel, ctx.vType, ctx.vAt = lineup(ctx), GetPtrHash(presser), label(ctx, presser), presser:GetPlayerType(), {}
 			for i = 0, game:GetNumPlayers() - 1 do ctx.vAt[GetPtrHash(Isaac.GetPlayer(i))] = i end
 			if timed then
 				local R = HARNESS.record
@@ -183,9 +190,10 @@ local function verdict(press, step, index, timed)
 			ctx.sameSeed = nil
 		end
 		if r == "again" then return r end
+		track()
 		local p = Isaac.GetPlayer(index)
 		local h = p and GetPtrHash(p)
-		local known = h and ctx.lineupSeen[h]
+		local known = p and ctx.lineupSeen[label(ctx, p)]
 		local after = lineup(ctx)
 		local what
 		if not p then what = "nobody"
@@ -194,7 +202,7 @@ local function verdict(press, step, index, timed)
 			what = "unchanged" .. (t ~= ctx.vType and (" (t" .. ctx.vType .. "->" .. t .. ")") or "")
 		elseif ctx.vAt[h] then what = label(ctx, p) .. " moved from " .. ctx.vAt[h] -- a Birthright Flip swaps the twins' indices
 		else what = label(ctx, p) .. (known and " returned" or " new") end
-		P("INFO", ctx.name, "VERDICT", press, "index", index, labelOf(ctx, "entity", ctx.vHash), "->", what, "|", ctx.vBefore, "->", after)
+		P("INFO", ctx.name, "VERDICT", press, "index", index, ctx.vLabel, "->", what, "|", ctx.vBefore, "->", after)
 	end
 end
 
@@ -289,6 +297,7 @@ end
 -- The runner's snap event: a snapshot test's state after step `step`, or that it never happened.
 local function snapStep(ctx, step, reached)
 	if not reached then return snap(ctx, step, "never happened") end
+	track()
 	local lineup, found, listed, others = {}, {}, {}, {}
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)

@@ -251,11 +251,12 @@ The only module that reads ReHUD (`ReHUD.dbg`). Copy its pattern to test your ow
 |---|---|---|
 | `present()` | engine | Whether `ReHUD.dbg` is loaded. |
 | `keyOf(p)` / `tagText(p)` | engine | ReHUD's key for `p` (its GetData tag, else its item seed) / the tag as text or `none`. |
-| `entries()` | ReHUD | The tracker's entries: `{ id, owner, floor, number, temporary, left, merged }`. |
+| `entries()` | ReHUD | The tracker's entries: `{ id, owner, floor, number, letter, temporary, left, merged }`. |
 | `countEntries(pred)` / `leftEntries()` | ReHUD | Entries for which `pred(e)` holds / marked left. |
 | `ownerOf(id)` | ReHUD | The owner of the last entry of `c<id>`. |
 | `characterCount()` | ReHUD | ReHUD's character count. |
 | `number(key)`, `isSwapped(key)`, `isSettling(key)`, `group(key)`, `rows()` | ReHUD | The roster by key: number, stored, still settling, group; every row. |
+| `letter(key)` | ReHUD | The twin letter, `a` or `b`, of a duo's two characters sharing one number (Jacob and Esau, Tainted Lazarus and his Dead form), else nil; errors on a ReHUD before twin letters. |
 | `settling()` | engine | What ReHUD still settles (`a merge`, `a new character`) or nil; nil without ReHUD. |
 | `storedSettling()` | engine | Keys of stored forms still settling, comma-joined; empty without ReHUD. |
 
@@ -281,7 +282,7 @@ Callback counts, for `assert.fired`. `mark()`: the counts now; `since(m, id, arg
 
 ## invariants.lua
 
-What every `look` asserts, ReHUD only: `check(ctx, label)` (ReHUD's entries match the engine's counts, copies with a clock clocked, no duplicates, no phantom stored forms, no `left` entries unless the test sets `leftOk`, no floor later than the current one) and `characterNumbers(ctx, label)` (every remembered character has its own row, a stored one listed with the copies it held; logs `NUMBERS`). Called by `settle.look` and `lookC`.
+What every `look` asserts, ReHUD only: `check(ctx, label)` (ReHUD's entries match the engine's counts, copies with a clock clocked, no duplicates, no phantom stored forms, no `left` entries unless the test sets `leftOk`, no floor later than the current one) and `characterNumbers(ctx, label)` (every remembered character has its own row, a number shared only by twins `a` and `b`, a stored one listed with the copies it held; logs `NUMBERS`). Called by `settle.look` and `lookC`.
 
 ## runner.lua
 

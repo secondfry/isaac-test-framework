@@ -18,6 +18,12 @@ local function entries() return dbg().tracker.entries end
 local function characterCount() return dbg().tracker.characterCount end
 -- The roster by key: a character's number (nil when it has none), whether it is stored, still settling, its group; every row.
 local function number(key) return dbg().roster.number(key) end
+-- Its twin letter: "a" or "b" for the two characters of a duo sharing one number, nil for any other.
+local function letter(key)
+	local roster = dbg().roster
+	if not roster.letter then error("ReHUD.dbg.roster.letter missing: install ReHUD a97424c or later") end
+	return roster.letter(key)
+end
 local function isSwapped(key) return dbg().roster.isSwapped(key) end
 local function isSettling(key) return dbg().roster.isSettling(key) end
 local function group(key) return dbg().roster.group(key) end
@@ -80,7 +86,7 @@ local function storedSettling()
 end
 
 return {
-	present = present, entries = entries, characterCount = characterCount, number = number, isSwapped = isSwapped, isSettling = isSettling,
+	present = present, entries = entries, characterCount = characterCount, number = number, letter = letter, isSwapped = isSwapped, isSettling = isSettling,
 	group = group, rows = rows, keyOf = keyOf, tagText = tagText, countEntries = countEntries, leftEntries = leftEntries,
 	ownerOf = ownerOf, settling = settling, storedSettling = storedSettling,
 }

@@ -3,7 +3,8 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ITEM_IDS, owned, wispsOf, isCharacter, countsText = engine.ITEM_IDS, engine.owned, engine.wispsOf, engine.isCharacter, engine.countsText
 local rehud = include("scripts.rehud")
-local entries, keyOf, number, isSwapped, group, rows = rehud.entries, rehud.keyOf, rehud.number, rehud.isSwapped, rehud.group, rehud.rows
+local entries, keyOf, number, letter, isSwapped, group, rows = rehud.entries, rehud.keyOf, rehud.number, rehud.letter, rehud.isSwapped, rehud.group,
+	rehud.rows
 local holds = include("scripts.assert").holds
 local ids = include("scripts.ids")
 local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_T_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.T_LAZ, ids.DEAD_T_LAZ
@@ -130,11 +131,11 @@ local function check(ctx, label)
 	holds(ctx, label, "floors", floors(ctx))
 end
 
--- One assertion: every remembered character not gone has its own row (a number no other character's key holds), a stored one is marked
--- stored and listed with exactly the copies it held when last live, and every ReHUD row is a character's. Live ones are the invariants'
--- engine-count check. A NUMBERS line per character.
+-- One assertion: every remembered character not gone has its own row (a number and twin letter no other character's key holds; a number
+-- is shared only by two twins, a and b), a stored one is marked stored and listed with exactly the copies it held when last live, and
+-- every ReHUD row is a character's. Live ones are the invariants' engine-count check. A NUMBERS line per character.
 local function characterNumbers(ctx, label)
-	local problems, byNumber = {}, {}
+	local problems, byNumber, holders = {}, {}, {}
 	local ids, keys = {}, {}
 	for id in pairs(HARNESS.chars.list) do ids[#ids + 1] = id end
 	table.sort(ids)
@@ -144,14 +145,19 @@ local function characterNumbers(ctx, label)
 		for _, e in ipairs(entries()) do
 			if e.owner == c.key then have[e.id] = (have[e.id] or 0) + 1 end
 		end
-		local num = number(c.key)
-		P("NUMBERS", ctx.name, label, "char", id, c.name, c.state, "key", c.key, "number", num, "swapped", isSwapped(c.key), "type", c.type, "seed", c.seed,
-			"hash", c.hash, "index", c.index, "engine", countsText(c.items), "rehud", countsText(have))
+		local num, twin = number(c.key), letter(c.key)
+		P("NUMBERS", ctx.name, label, "char", id, c.name, c.state, "key", c.key, "number", num, "letter", twin, "swapped", isSwapped(c.key), "type", c.type,
+			"seed", c.seed, "hash", c.hash, "index", c.index, "engine", countsText(c.items), "rehud", countsText(have))
 		if c.state ~= "gone" then
 			keys[c.key] = true
+			local row = num and num .. (twin or "")
 			if num == nil then problems[#problems + 1] = c.name .. " (" .. c.state .. ") has no row"
-			elseif byNumber[num] then problems[#problems + 1] = c.name .. " shares row " .. num .. " with " .. byNumber[num]
-			else byNumber[num] = c.name end
+			elseif byNumber[row] then problems[#problems + 1] = c.name .. " shares row " .. row .. " with " .. byNumber[row]
+			else
+				byNumber[row] = c.name
+				holders[num] = holders[num] or {}
+				table.insert(holders[num], c.name .. (twin or ""))
+			end
 			if c.state == "stored" then
 				if not isSwapped(c.key) then problems[#problems + 1] = c.name .. " not marked stored" end
 				local all = {}
@@ -162,6 +168,10 @@ local function characterNumbers(ctx, label)
 				end
 			end
 		end
+	end
+	for num, names in pairs(holders) do
+		local twins = #names == 2 and byNumber[num .. "a"] and byNumber[num .. "b"]
+		if #names > 1 and not twins then problems[#problems + 1] = "number " .. num .. " held by " .. table.concat(names, ", ") .. ", not twins a and b" end
 	end
 	for _, row in ipairs(rows()) do
 		if not keys[row.key] then problems[#problems + 1] = "row " .. tostring(row.key) .. " (number " .. tostring(row.number) .. ") is no character's" end

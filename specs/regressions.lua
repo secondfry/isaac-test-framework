@@ -3,8 +3,8 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local seedOf, wispsOf = engine.seedOf, engine.wispsOf
 local rehud = include("scripts.rehud")
-local keyOf, countEntries, leftEntries, ownerOf, number, isSwapped = rehud.keyOf, rehud.countEntries, rehud.leftEntries, rehud.ownerOf,
-	rehud.number, rehud.isSwapped
+local keyOf, countEntries, leftEntries, ownerOf, number, letter, isSwapped = rehud.keyOf, rehud.countEntries, rehud.leftEntries, rehud.ownerOf,
+	rehud.number, rehud.letter, rehud.isSwapped
 local console = include("scripts.console")
 local give, stage = console.give, console.stage
 local changeType = include("scripts.steps").changeType
@@ -48,20 +48,23 @@ local function afterTLazClicker(ctx, label)
 end
 
 -- r1, after ChangePlayerType(29) on the Dead form with the 29 form stored: the stored form's c4 (floor 1) and the Dead form's c5 (floor 2)
--- both on player 0, floors kept, and the stored form forgotten.
+-- both on player 0, floors kept, and the stored form forgotten: the survivor shows the plain number.
 local function r1Merged(ctx, label)
 	local key = keyOf(Isaac.GetPlayer(0))
 	ctx.merged = key
 	expectOne(ctx, label, 4, ctx.floors[1], key)
 	expectOne(ctx, label, 5, ctx.floors[2], key)
 	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
+	expect(ctx, label .. ": survivor's letter", letter(key), nil)
 end
 
 -- r1, after the next Flip: a fresh Dead form whose only entry is its Flip; the stored survivor keeps c4 (floor 1), c5 (floor 2) and one
--- Flip (which floor's Flip survives is not checked: the oldest goes once the survivor settles).
+-- Flip (which floor's Flip survives is not checked: the oldest goes once the survivor settles). The fresh form joins the survivor as its twin.
 local function r1Fresh(ctx, label)
 	local key = keyOf(Isaac.GetPlayer(0))
 	expect(ctx, label .. ": a new form", key ~= ctx.merged and key ~= ctx.stored, true)
+	local n = tostring(number(ctx.merged))
+	expect(ctx, label .. ": survivor, new form", n .. tostring(letter(ctx.merged)) .. "," .. tostring(number(key)) .. tostring(letter(key)), n .. "a," .. n .. "b")
 	expectCount(ctx, label, 1, FLIP, nil, nil, key)
 	expect(ctx, label .. ": entries of the new form", countEntries(function(e) return e.owner == key end), 1)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.merged)
@@ -83,6 +86,7 @@ local function mirrorMerged(ctx, label)
 	expectOne(ctx, label, 5, ctx.floors[2], key)
 	expectN(ctx, label, FLIP, 1)
 	expect(ctx, label .. ": stored form's number", number(ctx.stored), nil)
+	expect(ctx, label .. ": survivor's letter", letter(key), nil)
 	expect(ctx, label .. ": left entries", leftEntries(), 0)
 end
 

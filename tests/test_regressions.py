@@ -8,8 +8,8 @@ WANT = {
     "regressions > (P4c 2) Flip of the Esau Jr. character": "PASS 31 assertions",
     "regressions > (P4c 3) crossing on a flipped one's Esau Jr. character": "PASS 26 assertions",
     "regressions > S3": "PASS 24 assertions",
-    "regressions > r1": "PASS 27 assertions",
-    "regressions > r1 mirror": "PASS 18 assertions",
+    "regressions > r1": "PASS 29 assertions",
+    "regressions > r1 mirror": "PASS 19 assertions",
 }
 
 

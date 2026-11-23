@@ -3,7 +3,7 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local findPlayer, ofType, owned = engine.findPlayer, engine.ofType, engine.owned
 local rehud = include("scripts.rehud")
-local keyOf, number = rehud.keyOf, rehud.number
+local keyOf, number, letter = rehud.keyOf, rehud.number, rehud.letter
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
 local steps = include("scripts.steps")
@@ -57,7 +57,8 @@ local function clickerUntil(done, maxUses, lookStep, around)
 end
 local function split() return Isaac.GetPlayer(0):GetPlayerType() == JACOB and ofType(ESAU) ~= nil end
 
--- After each Clicker use: Jacob's four c4 and Esau's one still listed on floor 1, and a merged Esau's number gone.
+-- After each Clicker use: Jacob's four c4 and Esau's one still listed on floor 1, and a merged Esau's number gone; split, Jacob and Esau are
+-- twins a and b on one number, merged the survivor shows the plain number (CONTEXT.md Character number).
 local clickerLook = look("after Clicker", function(ctx, label)
 	label = label .. " " .. ctx.uses
 	local n = 0
@@ -65,6 +66,11 @@ local clickerLook = look("after Clicker", function(ctx, label)
 	expectN(ctx, label, 4, n, ctx.floors[1])
 	noneLeft(ctx, label)
 	if ctx.esau and not findPlayer(function(p) return keyOf(p) == ctx.esau end) then expect(ctx, label .. ": merged Esau's number", number(ctx.esau), nil) end
+	local jacob = keyOf(Isaac.GetPlayer(0))
+	if split() then
+		local esau, n = keyOf(ofType(ESAU)), tostring(number(jacob))
+		expect(ctx, label .. ": Jacob, Esau", n .. tostring(letter(jacob)) .. "," .. tostring(number(esau)) .. tostring(letter(esau)), n .. "a," .. n .. "b")
+	elseif game:GetNumPlayers() == 1 then expect(ctx, label .. ": merged survivor's letter", letter(jacob), nil) end
 end)
 -- Esau's key before each press, for clickerLook.
 local function keepEsau(ctx, when)
@@ -98,6 +104,7 @@ local tests = {
 			expectOne(ctx, label .. " (Isaac owns)", 4, nil, key)
 			expectOne(ctx, label .. " (Isaac owns)", 5, nil, key)
 			expectN(ctx, label, FLIP, 0)
+			expect(ctx, label .. ": merged survivor's letter", letter(key), nil)
 		end),
 	} },
 	{ name = "Clicker on Jacob and Esau until they split", tags = TAGS,

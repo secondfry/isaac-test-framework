@@ -5,7 +5,8 @@ local engine = include("scripts.game")
 local seedOf, ofType, owned, slots, itemCounts, countsText = engine.seedOf, engine.ofType, engine.owned, engine.slots, engine.itemCounts,
 	engine.countsText
 local rehud = include("scripts.rehud")
-local keyOf, leftEntries, number, isSwapped, rehudCount = rehud.keyOf, rehud.leftEntries, rehud.number, rehud.isSwapped, rehud.characterCount
+local keyOf, leftEntries, number, letter, isSwapped, rehudCount = rehud.keyOf, rehud.leftEntries, rehud.number, rehud.letter, rehud.isSwapped,
+	rehud.characterCount
 local console = include("scripts.console")
 local fresh, give, remove, stage = console.fresh, console.give, console.remove, console.stage
 local steps = include("scripts.steps")
@@ -167,7 +168,8 @@ local tests = {
 		charPresses(nil, { { "ChangePlayerType 11", changeType(LAZARUS_RISEN) } })),
 	snapshotTest(STRICT, "Esau Jr. presses by Tainted Jacob", holding("Tainted Jacob", T_JACOB), charPresses()),
 	snapshotTest(STRICT, "Esau Jr. presses by Eden", holding("Eden", EDEN), charPresses()),
-	-- Numbers are first seen (roster.lua observe), so Jacob 0, Esau 1 and Jacob's Esau Jr. character 2 (run 7's P4b).
+	-- Jacob and Esau are twins on number 0 (shown 1a, 1b) and Jacob's Esau Jr. character takes the next number, 1 (shown 2), with no letter
+	-- (roster.lua numberNewcomer; run 7's P4b saw 0, 1, 2 before twin letters).
 	{ name = "Jacob's Esau Jr. character beside Esau gets character number 2", tags = ASSERTING, fixture = fixture("Jacob holding Esau Jr. on floor 2",
 		{ fresh(JACOB), give(4), giveEsau(5), give(ESAU_JR), stage(2) }, JACOB), steps = {
 		look("start", function(ctx, label)
@@ -180,7 +182,8 @@ local tests = {
 			expect(ctx, "engine, not ReHUD: Esau's owned c5 after Jacob's Esau Jr. (Q9)", esau and owned(esau, 5), 1)
 			jeCopies(ctx, label)
 			expect(ctx, label .. ": Jacob swapped", isSwapped(ctx.jacob), true)
-			expect(ctx, label .. ": numbers Jacob, Esau, form", tostring(number(ctx.jacob)) .. "," .. tostring(number(ctx.esau)) .. "," .. tostring(number(ctx.form)), "0,1,2")
+			local function shown(key) return tostring(number(key)) .. (letter(key) or "") end
+			expect(ctx, label .. ": numbers Jacob, Esau, form", shown(ctx.jacob) .. "," .. shown(ctx.esau) .. "," .. shown(ctx.form), "0a,0b,1")
 			expect(ctx, label .. ": left entries", leftEntries(), 0)
 			expect(ctx, label .. ": characterCount", rehudCount(), 3)
 		end),

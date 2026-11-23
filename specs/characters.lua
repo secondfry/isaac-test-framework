@@ -3,8 +3,8 @@ local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ofType, owned, withParent, heldItems = engine.ofType, engine.owned, engine.withParent, engine.heldItems
 local rehud = include("scripts.rehud")
-local entries, keyOf, countEntries, leftEntries, number, isSwapped = rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries,
-	rehud.number, rehud.isSwapped
+local entries, keyOf, countEntries, leftEntries, number, letter, isSwapped = rehud.entries, rehud.keyOf, rehud.countEntries, rehud.leftEntries,
+	rehud.number, rehud.letter, rehud.isSwapped
 local wait = include("scripts.wait")
 local act = wait.act
 local console = include("scripts.console")
@@ -103,7 +103,7 @@ local tests = {
 			flip("Flip 1 of 2"), look("after Flip 1", birthrightOwners), flip("Flip 2 of 2"), look("after two Flips", birthrightOwners),
 			stage(3), look("on stage 3", birthrightOwners),
 		} },
-	-- Run 7: Dead Tainted Lazarus, number 1, holds c711 from Basement II.
+	-- Run 7: Dead Tainted Lazarus holds c711 from Basement II; he is Tainted Lazarus's twin, number 0 letter b (shown 1b; run 7 saw number 1 before twin letters).
 	{ name = "removing Birthright stores Dead Tainted Lazarus, and Flip brings him back", tags = ASSERTING,
 		fixture = fixtures.TLAZ_C4_FLOOR_2, steps = {
 			look("after c4", oneC4),
@@ -114,7 +114,7 @@ local tests = {
 			remove(BIRTHRIGHT, 1), look("after remove Birthright", function(ctx, label)
 				oneC4(ctx, label)
 				expect(ctx, label .. ": Dead form swapped", isSwapped(ctx.dead), true)
-				expect(ctx, label .. ": Dead form number", number(ctx.dead), 1)
+				expect(ctx, label .. ": Dead form number", tostring(number(ctx.dead)) .. tostring(letter(ctx.dead)), "0b")
 				expectCount(ctx, label, 1, FLIP, ctx.floors[2], nil, ctx.dead)
 			end),
 			stage(3), flip("Flip"), look("after Flip", function(ctx, label)

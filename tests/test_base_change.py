@@ -5,11 +5,11 @@ SPEC = "base_change"
 MODE = f"tags {SPEC}"
 P2 = "Clicker on Jacob and Esau until they split"
 VETOED = ["a cancelled Clicker on the Esau Jr. character", "a cancelled Clicker, then ChangePlayerType in the same update"]
-# Each test's verdict under `tags all` when nothing fails, by "base_change > <test>". P2 counts 8 or 9 per Clicker use: 22 here (the stub's
+# Each test's verdict under `tags all` when nothing fails, by "base_change > <test>". P2 counts 8 to 10 per Clicker use: 24 here (the stub's
 # Clicker splits on its second use), any number in game. A vetoed Clicker's one assertion: it fires no MC_USE_ITEM.
 WANT = {
-    f"{SPEC} > ChangePlayerType out of Tainted Lazarus merges the stored twin": "PASS 15 assertions",
-    f"{SPEC} > {P2}": "PASS 22 assertions",
+    f"{SPEC} > ChangePlayerType out of Tainted Lazarus merges the stored twin": "PASS 16 assertions",
+    f"{SPEC} > {P2}": "PASS 24 assertions",
     f"{SPEC} > Clicker merges and splits Jacob and Esau holding Inner Eye": "PASS 18 assertions",
     f"{SPEC} > ChangePlayerType into Dead Tainted Lazarus with the twin stored, then Flip": "RECORDED",
     f"{SPEC} > {VETOED[0]}": "PASS 1 assertions",

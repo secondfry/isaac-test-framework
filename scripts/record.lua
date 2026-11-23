@@ -40,7 +40,7 @@ local function logState(ctx, label)
 		end
 	end
 	for n, e in ipairs(entries()) do
-		P("ENTRY", n, "c" .. e.id, "number", e.number, "owner", e.owner, "floor", e.floor, "temporary", e.temporary, "left", e.left, "merged", e.merged)
+		P("ENTRY", n, "c" .. e.id, "number", e.number, "letter", e.letter, "owner", e.owner, "floor", e.floor, "temporary", e.temporary, "left", e.left, "merged", e.merged)
 	end
 end
 
@@ -64,7 +64,7 @@ local function traceLines()
 	local rows = rosterRows()
 	table.sort(rows, function(a, b) return (a.number or -1) < (b.number or -1) end)
 	for _, r in ipairs(rows) do
-		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. " swapped " .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left) .. " type " .. tostring(r.type) .. " group " .. tostring(r.group)
+		t[#t + 1] = "ROSTER key " .. tostring(r.key) .. " number " .. tostring(r.number) .. (r.twin or "") .. " swapped " -- twin letter in the number: report.py's ROSTER pattern stays .. tostring(r.swapped) .. " partner " .. tostring(r.partner) .. " left " .. tostring(r.left) .. " type " .. tostring(r.type) .. " group " .. tostring(r.group)
 	end
 	for n, e in ipairs(entries()) do t[#t + 1] = "ENTRY " .. n .. " c" .. e.id .. " owner " .. tostring(e.owner) .. " floor " .. tostring(e.floor) .. " merged " .. tostring(e.merged) .. " temporary " .. tostring(e.temporary) end
 	return t

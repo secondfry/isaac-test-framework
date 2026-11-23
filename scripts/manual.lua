@@ -34,19 +34,19 @@ end
 local function walk(label, target, start, done)
 	return { manual = { kind = "walk", target = target }, run = act(label, start, function(ctx, before)
 		local p = Isaac.GetPlayer(0)
-		if not done(p, before) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) .. ", c45 owned " .. owned(p, YUM_HEART) end
+		if not done(p, before) then return false, "c703 owned " .. owned(p, ESAU_JR) .. ", c703 pedestals " .. pedestals(ESAU_JR) .. ", c45 owned " .. owned(p, YUM_HEART) .. ", c45 before " .. tostring(before) end
 		P("INFO", ctx.name, label, "after", ctx.t, "updates |", slots(p), "c703 pedestals", pedestals(ESAU_JR), "c45 pedestals", pedestals(YUM_HEART))
 		return true
 	end, 450) }
 end
+-- Also waits for one more Yum Heart owned: a walked-on item sits in the item queue first, and one still queued at an Esau Jr. press
+-- went to the new Isaac Jr., displacing its Esau Jr. (session 5a). shortcut: that the queue empties by itself, with no press, is
+-- unobserved; if this walk times out with c45 owned unchanged, find what flushes it.
 local dropByHand = walk("YOU: walk onto the yum-heart pedestal", YUM_HEART, function()
 	local p = Isaac.GetPlayer(0)
 	if p:GetActiveItem(PRIMARY) ~= ESAU_JR then error("Esau Jr. not in the primary slot") end
 	Isaac.Spawn(EntityType.ENTITY_PICKUP, PEDESTAL, YUM_HEART, p.Position + Vector(80, 0), Vector(0, 0), nil)
 	return owned(p, YUM_HEART) -- an Isaac Jr. may own one already from its creation items
--- Also waits for one more Yum Heart owned: a walked-on item sits in the item queue first, and one still queued at an Esau Jr. press
--- went to the new Isaac Jr., displacing its Esau Jr. (session 5a). shortcut: that the queue empties by itself, with no press, is
--- unobserved; if this walk times out with c45 owned unchanged, find what flushes it.
 end, function(p, before) return owned(p, ESAU_JR) == 0 and pedestals(ESAU_JR) > 0 and owned(p, YUM_HEART) > before end)
 local pickByHand = walk("YOU: step off, then walk back onto the Esau Jr. pedestal", ESAU_JR, function() end, function(p) return owned(p, ESAU_JR) > 0 end)
 

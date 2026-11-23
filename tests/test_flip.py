@@ -1,9 +1,15 @@
 """Dry checks of specs/flip.lua: its recon tests only record."""
 import dry
 
-WANT = {f"flip > {n}": "RECORDED" for n in (  # each test's verdict under `tags all` when nothing fails
-    "Isaac given Flip uses it", "Isaac given Flip uses it beside an item pedestal", "Isaac Jr. given Flip uses it",
-    "Jacob given Flip uses it", "Missing No. with Flip across floors")}
+# The stub puts Flip in no slot (where giveitem puts it on these characters is unobserved), so each press test notes that instead.
+NOWHERE = "RECORDED; unreached: Flip in neither primary nor pocket: primary {} secondary 0 pocket 0"
+WANT = {  # each test's verdict under `tags all` when nothing fails, by "flip > <test>"
+    "flip > Isaac given Flip uses it": NOWHERE.format(0),
+    "flip > Isaac given Flip uses it beside an item pedestal": NOWHERE.format(0),
+    "flip > Isaac Jr. given Flip uses it": NOWHERE.format(703),
+    "flip > Jacob given Flip uses it": NOWHERE.format(0),
+    "flip > Missing No. with Flip across floors": "RECORDED",
+}
 
 
 def test_flip(path):

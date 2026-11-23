@@ -79,11 +79,11 @@ To test your own mod, read its state from the test. The `rehud` tests read ReHUD
 
 Engine behaviour starts as a recon test, with no assertions on it, until a played session has shown it; then record it in `docs\engine-facts.md` with that session.
 
-More on test options, the shared steps and fixtures: [docs/reference.md](docs/reference.md).
+Every shared step, fixture and assertion: [docs/helpers.md](docs/helpers.md); test options and step forms: [docs/tests.md](docs/tests.md).
 
 ## Running sessions
 
-**Tags line.** Line 1 of `data\isaac_test_framework\save<slot>.dat` in the game folder, written with the game closed: `tags a,b` plays every test with one of those tags, `tags all` every test but the opt-in ones, an empty line the default set. Add `--update-snapshots` to the line to let `report.py` replace snapshots that differ. The harness writes its own lines below line 1; leave them. Every tag and what each line costs in time: [docs/reference.md](docs/reference.md#tags).
+**Tags line.** Line 1 of `data\isaac_test_framework\save<slot>.dat` in the game folder, written with the game closed: `tags a,b` plays every test with one of those tags, `tags all` every test but the opt-in ones, an empty line the default set. Add `--update-snapshots` to the line to let `report.py` replace snapshots that differ. The harness writes its own lines below line 1; leave them. Every tag and what each line costs in time: [docs/tags.md](docs/tags.md).
 
 **Two runs per session.** Play each tags line twice: once vanilla, once with the mods you normally play. Report the vanilla log first: it writes any missing snapshot, and the second log is compared against it, so a difference there points at a mod rather than the engine.
 
@@ -105,7 +105,7 @@ Each time the harness asks for an Exit & Continue it writes a `WAIT exit-continu
 
     python -B -I tools\report.py "<log copy>" [--out DIR] [--timeline TEST]
 
-Each test ends with one `RESULT` line: `PASS <n> assertions`, `FAIL <why>`, `RECORDED` (a snapshot test without assertions) or `SKIP <why>`. The report shows each test's results, failed assertions with the lines before them, and snapshot differences, then `ALL PASS` or `NEEDS ANALYSIS: <reasons>`. It writes `report.json` and a trace of each failed, new or changed test into `--out` (default: the log's folder). Commit the `.snap.txt` files it writes. Details: [docs/reference.md](docs/reference.md#reading-results).
+Each test ends with one `RESULT` line: `PASS <n> assertions`, `FAIL <why>`, `RECORDED` (a snapshot test without assertions) or `SKIP <why>`. The report shows each test's results, failed assertions with the lines before them, and snapshot differences, then `ALL PASS` or `NEEDS ANALYSIS: <reasons>`. It writes `report.json` and a trace of each failed, new or changed test into `--out` (default: the log's folder). Commit the `.snap.txt` files it writes. Details: [docs/results.md](docs/results.md).
 
 ## Limits and requirements
 
@@ -114,7 +114,7 @@ Each test ends with one `RESULT` line: `PASS <n> assertions`, `FAIL <why>`, `REC
 - The save slot you play needs these characters unlocked: Cain, Eve, Samson, Lazarus, Lilith, Eden, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus and Tainted Jacob. A test of a locked character fails as a precondition or, for a snapshot test, ends at its restart.
 - The tests send console commands (`restart`, `seed`, `giveitem`), give items and kill characters on that slot: back it up.
 - One pass per launch: the harness starts on the first new run after the game launches; a Continue first only logs `HARNESS idle`. A native crash means relaunching and starting the session over.
-- `tools\stuck-shots.ps1 -Out <folder>` screenshots the game whenever a wait runs long (`STUCK`); see the reference.
+- `tools\stuck-shots.ps1 -Out <folder>` screenshots the game whenever a wait runs long (`STUCK`); see [docs/sessions.md](docs/sessions.md#stuck-shotsps1).
 
 ## Dry tests (contributors)
 
@@ -125,7 +125,17 @@ The dry tests play `main.lua` under Lua 5.3 (Python `lupa`) against a fake engin
     .venv\Scripts\python -B -I tests\test_harness.py main.lua [test function ...]
     .venv\Scripts\python -B -I tests\test_report.py
 
-The full dry run takes about 8 minutes; name test functions to run a few. A new test needs its expected verdict in `WANT` in `tests\test_<spec>.py`, or the dry run fails. What each suite checks: [docs/reference.md](docs/reference.md#dry-tests).
+The full dry run takes about 8 minutes; name test functions to run a few. A new test needs its expected verdict in `WANT` in `tests\test_<spec>.py`, or the dry run fails. What each suite checks: [docs/dry-tests.md](docs/dry-tests.md).
+
+## Docs
+
+- [docs/helpers.md](docs/helpers.md): every shared step, fixture, assertion and reader, by module. Start here when writing a test.
+- [docs/tests.md](docs/tests.md): specs, test fields, step forms, fixtures, limits, recon and snapshot tests, the repository layout.
+- [docs/tags.md](docs/tags.md): tag rules, every tag, and what each tags line plays.
+- [docs/sessions.md](docs/sessions.md): manual steps, the revive spec, the helper scripts.
+- [docs/results.md](docs/results.md): RESULT lines, `report.py`, snapshots.
+- [docs/dry-tests.md](docs/dry-tests.md): the dry tests.
+- [docs/engine-facts.md](docs/engine-facts.md): the engine behaviour observed so far.
 
 ## Licence
 

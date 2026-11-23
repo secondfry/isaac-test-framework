@@ -40,20 +40,32 @@ When you are not testing, put an empty `disable.it` file into `<game>\mods\isaac
 
 ## Writing a test
 
-A **spec** is one file, `specs\<name>.lua`, returning `{ name = "<name>", tests = { ... } }`; add its name to `SPECS` in `main.lua`. A **test** has a `name`, its `tags`, a `fixture` and its `steps`. This one is from `specs\hello.lua`:
+A **spec** is one file, `specs\<name>.lua`, returning `{ name = "<name>", tests = { ... } }`; add its name to `SPECS` in `main.lua`. A **test** has a `name`, its `tags`, a `fixture` and its `steps`. A whole spec with one test, the "Clicker on Isaac" test from `specs\hello.lua`:
 
 ```lua
-{ name = "Clicker on Isaac", tags = { "hello", "vanilla" }, fixture = freshRun(ISAAC), steps = {
-	function(ctx) expect(ctx, "player 0 type", Isaac.GetPlayer(0):GetPlayerType(), ISAAC) end,
-	give(CLICKER),
-	function(ctx) expect(ctx, "player 0 primary active", Isaac.GetPlayer(0):GetActiveItem(PRIMARY), CLICKER) end,
-	clicker,
-	function(ctx)
-		local p = Isaac.GetPlayer(0)
-		snap(ctx, "Clicker roll / type", p:GetPlayerType())
-		expect(ctx, "Clicker charge after the use", chargeOf(p, CLICKER, PRIMARY), 0)
-	end,
-} },
+-- specs\my_spec.lua; add "my_spec" to SPECS in main.lua
+local chargeOf = include("scripts.game").chargeOf
+local give = include("scripts.console").give
+local expect = include("scripts.assert").expect
+local snap = include("scripts.record").snap
+local clicker = include("scripts.press").clicker
+local freshRun = include("scripts.fixtures").freshRun
+local ids = include("scripts.ids")
+local CLICKER, ISAAC, PRIMARY = ids.CLICKER, ids.ISAAC, ids.PRIMARY
+
+return { name = "my_spec", tests = {
+	{ name = "Clicker on Isaac", tags = { "my_spec", "vanilla" }, fixture = freshRun(ISAAC), steps = {
+		function(ctx) expect(ctx, "player 0 type", Isaac.GetPlayer(0):GetPlayerType(), ISAAC) end,
+		give(CLICKER),
+		function(ctx) expect(ctx, "player 0 primary active", Isaac.GetPlayer(0):GetActiveItem(PRIMARY), CLICKER) end,
+		clicker,
+		function(ctx)
+			local p = Isaac.GetPlayer(0)
+			snap(ctx, "Clicker roll / type", p:GetPlayerType())
+			expect(ctx, "Clicker charge after the use", chargeOf(p, CLICKER, PRIMARY), 0)
+		end,
+	} },
+} }
 ```
 
 - **Fixture**: the starting setup. `freshRun(ISAAC)` restarts as Isaac on the fixed seed `9SZM 3P3S`; the test starts once the fixture's `done` check holds (within 120 updates, else `FAIL precondition`). Shared fixtures are in `scripts\fixtures.lua`.

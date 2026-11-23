@@ -7,7 +7,7 @@
 # -Keys, -ExitKeys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
 param(
 	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\isaac_test_framework\save1.dat',
-	# Esc opens the pause menu, Up reaches Exit, Enter exits; Enter on the main menu picks Continue (session 4b); the 1.5 s menu load is the user's setting, unconfirmed
+	# Esc opens the pause menu, Up reaches Exit, Enter exits; Enter on the main menu picks Continue ; these keys and the 1.5 s menu wait worked in play (sessions 4c, 4d)
 	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:1500', 'Return'),
 	# the exit to the menu alone, at HARNESS DONE: exiting flushes log.txt
 	[string[]]$ExitKeys = @('Escape', 'Up', 'Return'),

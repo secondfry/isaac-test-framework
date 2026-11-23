@@ -4,7 +4,7 @@ local P = include("scripts.log").P
 -- Lua state survives `restart` and exit/continue, so the session lives in HARNESS.session, written only here; a reload keeps it.
 -- shortcut: one pass per launch, and a native crash restarts the session from the first test; add a rerun trigger, or SaveData resume, when either gets in the way.
 local function newCtx() return { floors = {}, fails = {}, notes = {} } end
-HARNESS.session = HARNESS.session or { started = false, running = false, gen = 0, testIndex = 1, stepIndex = 1, ctx = newCtx(), status = "waiting for a run" }
+HARNESS.session = HARNESS.session or { started = false, running = false, gen = 0, testIndex = 1, stepIndex = 1, ctx = newCtx(), status = "waiting for a new run" }
 
 local FIXTURE_LIMIT = 120 -- updates a fixture's done(ctx) may take
 
@@ -185,7 +185,7 @@ local function playStep(S, test, ctx)
 	ctx.leftOk, ctx.onStepError = test.leftOk, test.onStepError
 	-- Only a started manual step prompts; its label gets its own line, so it is not lost at the end of a long status.
 	S.manual = type(step) == "table" and ctx.label and step.manual or nil
-	S.status = test.name .. " step " .. S.stepIndex .. "/" .. #test.steps .. ((ctx.label and not S.manual) and (": " .. ctx.label) or "")
+	S.status = (test.name:gsub(" > ", "\n")) .. "\nstep " .. S.stepIndex .. " of " .. #test.steps .. ((ctx.label and not S.manual) and (": " .. ctx.label) or "")
 	local ok, res = runStep(test, step, ctx)
 	if not ok then
 		if tostring(res):find("^precondition: ") then return finish(res) end
@@ -210,7 +210,7 @@ local function tick(...)
 		skip = test and skipReason(S, test)
 	end
 	if not test then
-		S.running, S.status = false, "DONE: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
+		S.running, S.status = false, "Done: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
 		P("HARNESS DONE")
 		return
 	end
@@ -242,12 +242,18 @@ local function guard(f)
 	end
 end
 
+-- The status as human-readable lines near the window's bottom, clear of the HUD; log.txt keeps the machine-readable lines.
+local TITLE, LINE, BOTTOM = "Isaac Test Framework:", 14, 20 -- 14: the old line spacing; 20: px kept clear of the window's bottom edge
 local function render()
 	local S = HARNESS.session
-	Isaac.RenderText("HARNESS: " .. S.status, 60, 30, 1, 1, 0, 1)
-	if S.manual and S.running then Isaac.RenderText(tostring(S.ctx.label), 60, 44, 1, 1, 0, 1) end
 	local test = S.running and tests[S.testIndex]
-	if test and test.onRender then test.onRender(S.ctx) end -- renders may run where updates stop (a death certificate)
+	local prompt = test and test.onRender and test.onRender(S.ctx) -- renders run where updates stop (death certificate, session 3c)
+	local lines = { TITLE }
+	for line in S.status:gmatch("[^\n]+") do lines[#lines + 1] = line end
+	if S.manual and S.running then lines[#lines + 1] = tostring(S.ctx.label) end
+	if prompt then lines[#lines + 1] = prompt end
+	local y = Isaac.GetScreenHeight() - BOTTOM - LINE * #lines
+	for i, line in ipairs(lines) do Isaac.RenderText(line, 60, y + LINE * (i - 1), 1, 1, 0, 1) end
 end
 
 -- The tags are line 1 of data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:

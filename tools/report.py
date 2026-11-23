@@ -18,6 +18,7 @@ NOISE = [
     "Different number of collectibles",  # engine [WARN] at every game start, harness or not (runs 6-8: 10-25 per run)
     "Could not find provider",  # Stats+ (WARN) at load: its essentials addon has no provider for three options; unrelated to ReHUD
     "Failed to read player data from gamestate",  # engine [ERROR] at the menu's save load in vanilla launches (session 1 and session-2 recon vanilla logs)
+    "[EOS WARNING]",  # engine [WARN] lines from Epic Online Services when it cannot reach its host (session 3d vanilla: LogHttp, network only)
 ]
 # Case-sensitive, so the engine's lowercase "[warn] AnmCache" INFO lines (run 7, sprite cache on exit) stay out.
 ERROR = re.compile(r'\[(WARN|ERROR)\]|\((WARN|ERROR)\)|\]ERROR:|Error in "|Lua stack trace|Caught exception|attempt to ')
@@ -268,12 +269,17 @@ def snapshot_state(old, diff, update, writable):
 
 def apply_snapshots(s, specs_dir):
     """Compares every test with SNAP lines against its spec's file; writes new and updated sections of passing tests of a real session. A
-    test that ended SKIP mid-play is neither: its snaps hold a case the test does not cover."""
-    snapped = [t for t in s.tests.values() if t.snaps and t.status != "SKIP"]
+    test that ended SKIP mid-play is neither, as its snaps hold a case the test does not cover; it FAILs when its section exists, so a
+    played SKIP cannot hide a difference a session that reached the case would show."""
+    snapped = [t for t in s.tests.values() if t.snaps]
     for spec in dict.fromkeys(t.spec for t in snapped):
         path = os.path.join(specs_dir, spec + ".snap.txt")
         sections, changed = read_snapshots(path), False
         for t in (t for t in snapped if t.spec == spec):
+            if t.status == "SKIP":
+                if t.name in sections:
+                    t.failures.append("SKIP, but a session that reached its case wrote its snapshot")
+                continue
             changed |= apply_snapshot(t, sections, s)
         if changed:
             write_snapshots(path, spec, sections)

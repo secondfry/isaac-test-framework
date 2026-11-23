@@ -72,7 +72,8 @@ def test_verdicts():
     code, out, _, _ = run(session(asked), specs)
     assert out[-1] == "NEEDS ANALYSIS: continue asked 1 times, resumed 0", out
     noise = ["[WARN] - Different number of collectibles in collection 0/733", "[ERROR] - Failed to read player data from gamestate",
-             "[INFO] - Lua Debug: Error in \"PostUpdate\" call: x 12"]
+             "[INFO] - Lua Debug: Error in \"PostUpdate\" call: x 12",
+             "[WARN] - [EOS WARNING] - LogHttp : 38551BB0: request failed, libcurl error: 6 (Couldn't resolve host name)"]
     code, out, _, _ = run(session(PASSING) + noise, specs)
     assert out[-1] == "NEEDS ANALYSIS: 1 distinct errors", out
     print("PASS verdicts: pass, skip, fail with context, unreached, cut off, continues, errors")
@@ -117,9 +118,11 @@ def test_snapshots():
 
     skipped = test_lines("hello", "fresh run", "SKIP no case", snaps=[("0 start / A type", "8")])
     code, out, data, _ = run(session(skipped, test_lines("hello", "skip new", "SKIP no case", snaps=[("0 start / lineup", "A")]), update="yes"), specs)
-    assert (code, [t["snapshot"] for t in data["tests"]]) == (0, [None, None]), out
+    assert (code, [t["snapshot"] for t in data["tests"]]) == (1, [None, None]), out
+    assert out[-1] == "NEEDS ANALYSIS: hello > fresh run FAIL", out
+    assert data["tests"][0]["failures"] == ["SKIP, but a session that reached its case wrote its snapshot"] and data["tests"][1]["failures"] == [], data
     assert "0 start / A type = 21" in snap_file(specs) and "## skip new" not in snap_file(specs), snap_file(specs)
-    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test, one with an unreached step or a SKIP")
+    print("PASS snapshots: new is written, match, diff shows both values, update only with the flag, never from a FAIL test, one with an unreached step or a SKIP; a SKIP with a section FAILs")
 
 
 def test_stub_log():

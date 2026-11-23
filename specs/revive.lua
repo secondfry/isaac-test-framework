@@ -1,4 +1,4 @@
--- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a); then one test restarts from that certificate, and the Missing Poster test restarts from it on a game over; what session 2 saw: lua-api-notes.md "Revives".
+-- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate stops updates (session 3c) and waits for Space (session 3a); then one test restarts from that certificate, and the Missing Poster test restarts from it on a game over; what session 2 saw: lua-api-notes.md "Revives".
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local owned, cards = engine.owned, engine.cards
@@ -20,13 +20,15 @@ local game = Game()
 local MAX_DEATHS = 2 -- the innate revive plus one source (session 3b)
 local WATCH = 240 -- updates watched after each Kill(), 8 s: session 2's revives were alive by update 58
 
+local function holdsPoster(p) return p:HasTrinket(MISSING_POSTER) end
+
 -- The revive sources `p` holds, as text.
 local function sources(p)
 	if not p then return "no player 0" end
 	local t = {}
 	for _, id in ipairs({ ANKH, JUDAS_SHADOW, LAZARUS_RAGS }) do t[#t + 1] = "c" .. id .. " " .. owned(p, id) end
 	t[#t + 1] = "card " .. SOUL_LAZARUS .. " " .. cards(p, SOUL_LAZARUS)
-	t[#t + 1] = "trinket " .. MISSING_POSTER .. " " .. tostring(p:HasTrinket(MISSING_POSTER))
+	t[#t + 1] = "trinket " .. MISSING_POSTER .. " " .. tostring(holdsPoster(p))
 	return table.concat(t, " ")
 end
 
@@ -93,7 +95,7 @@ local tests = {}
 for _, s in ipairs(SOURCES) do tests[#tests + 1] = sourceTest(s[1], s[2], dieUntilRevived(s[3])) end
 
 -- Restart from the death certificate (user decision 2026-11-23: a Missing Poster test is built only if a console restart works there).
--- shortcut: whether updates and renders run on the certificate is unobserved (session 3a: 58 updates from Kill() to the Space-started game, as if updates stop there), and so are 2 renders per update; the CERT lines log both counts
+-- shortcut: updates stop on the certificate at 57 dead and renders run on (session 3c), but 2 renders per update there is unobserved (no updates); the CERT lines log both counts
 local DEAD_UPDATES, NEW_GAME_WAIT = 120, 600 -- dead past session 3b's 57-update revive window before the restart; updates or renders it then waits for a new game
 
 -- One CERT line: how long player 0 has been dead in updates and renders, the frame and IsDead.
@@ -150,14 +152,14 @@ local function restartFromCertificate(ctx)
 	return "again"
 end
 
--- Counts renders while dead, as updates may stop on the certificate; the prompt is drawn only if renders run.
+-- Counts renders while dead, as updates stop on the certificate (session 3c); returns the press-Space line for the runner to show.
 local function certificateRender(ctx)
 	local c = ctx.cert
 	if not c or HARNESS.session.gen ~= c.gen then return end
 	c.r = c.r + 1
 	if c.r % 60 == 0 then certLine(ctx, "render") end
-	if c.space then Isaac.RenderText("HARNESS: press Space", 60, 58, 1, 1, 0, 1) end
 	certificateTick(ctx)
+	return c.space and "press Space" or nil
 end
 
 local certificate = snapshotTest("restart from the death certificate", { "revive", "opt-in" }, freshRun(ISAAC),
@@ -168,7 +170,6 @@ tests[#tests + 1] = certificate
 -- Missing Poster (user decision 2026-11-23, after the certificate restart worked in session 3c): after the certificate test, so the restart has worked in this session before this test relies on it.
 -- shortcut: a death still dead DEAD_UPDATES updates (or twice the renders) on is taken for a game over, so a Missing Poster revive slower than that is restarted (unobserved; the other revives took 57 updates); raise the bound if a session shows one
 local POSTER_KEPT = "Missing Poster gave no revive, Poster kept: The Lost likely locked"
-local function holdsPoster(p) return p:HasTrinket(MISSING_POSTER) end
 
 -- Before the certificate's restart: player 0's state at the game over; a Poster still held makes the test a SKIP.
 local function posterGameOver(ctx)
@@ -177,32 +178,36 @@ local function posterGameOver(ctx)
 	snap(ctx, "death " .. ctx.deaths .. " / game over", "true")
 	snap(ctx, "death " .. ctx.deaths .. " / type", p and p:GetPlayerType() or "no player 0")
 	snap(ctx, "death " .. ctx.deaths .. " / sources", sources(p))
-	ctx.skip = kept and POSTER_KEPT or nil
-	P("INFO", ctx.name, kept and POSTER_KEPT or "Missing Poster gave no revive, Poster gone", "| death", ctx.deaths)
+	local why = kept and POSTER_KEPT or "Missing Poster gave no revive, Poster gone"
+	if kept then ctx.skip = why end
+	P("INFO", ctx.name, why, "| death", ctx.deaths)
 end
 
+local posterDie = dieUntilRevived(holdsPoster)
 -- Dies as a source test while the Poster is held; a death that stays dead is watched as a certificate, restarted from, and the test ends at the new game.
-local function posterDeaths()
-	local die = dieUntilRevived(holdsPoster)
-	return function(ctx)
-		local c = ctx.cert
-		if c and HARNESS.session.gen ~= c.gen then
-			ctx.t = nil -- the death's watch ends with its run
-			return certificateEnds(ctx)
-		end
-		local res = die(ctx)
-		if not (ctx.t and ctx.dead and not ctx.back) then
-			if c then ctx.cert = nil expectStart(nil) end -- revived, or the watch ended
-			return res
-		end
-		if not c then certificateArm(ctx, posterGameOver) end
-		ctx.cert.u = ctx.cert.u + 1
-		certificateTick(ctx)
+local function posterDeaths(ctx)
+	local c = ctx.cert
+	if c and HARNESS.session.gen ~= c.gen then
+		ctx.t = nil -- the death's watch ends with its run
+		local res = certificateEnds(ctx)
+		if res ~= "again" and not c.sent then table.insert(ctx.notes, "game over state unread: new game before the restart") end
 		return res
 	end
+	local res = posterDie(ctx)
+	if not (ctx.t and ctx.dead and not ctx.back) then
+		if c then -- revived, or the watch ended
+			ctx.cert = nil
+			expectStart(nil)
+		end
+		return res
+	end
+	if not c then certificateArm(ctx, posterGameOver) end
+	ctx.cert.u = ctx.cert.u + 1
+	certificateTick(ctx)
+	return res
 end
 
-local poster = sourceTest("Missing Poster", holding("Missing Poster", addTrinket(MISSING_POSTER)), posterDeaths())
+local poster = sourceTest("Missing Poster", holding("Missing Poster", addTrinket(MISSING_POSTER)), posterDeaths)
 poster.onRender = certificateRender
 tests[#tests + 1] = poster
 

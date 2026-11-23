@@ -45,9 +45,9 @@ function PM:Kill()
   if consume(self, 332) then return end -- Lazarus' Rags: type kept
   if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
   if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
-  -- shortcut: Missing Poster revives last, at once, into The Lost (10), the trinket used (unobserved: Detailed Respawn's order); model it from the Missing Poster session
-  if not posterLocked and self:HasTrinket(23) then table.remove(self.trinkets, 1) self.t = 10 return end
-  -- shortcut: a game over leaves player 0 dead with updates and renders running and the console working, all unobserved (session 3a's log suggests updates stop on the certificate); model it from the restart-from-certificate session
+  -- shortcut: with posterRevives, Missing Poster revives last, at once, into The Lost (10), the trinket used (unobserved: Detailed Respawn's order); without it no revive, Poster kept (session 3d)
+  if posterRevives and self:HasTrinket(23) then table.remove(self.trinkets, 1) self.t = 10 return end
+  -- shortcut: a game over leaves player 0 dead with updates running; in game updates stop at 57 dead and the restart goes out from a render (session 3c); model it if the render path needs a dry check
   self.dead = true
 end
 function PM:IsDead() return self.dead == true end -- a revived player is alive at once here (Kill)

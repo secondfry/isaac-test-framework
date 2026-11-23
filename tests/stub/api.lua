@@ -35,7 +35,9 @@ LOG = {}
 print = function() end
 Isaac = {}
 function Isaac.DebugString(s) LOG[#LOG+1] = s end
-function Isaac.RenderText() end
+DRAWN = {} -- the last render's text, for the tests
+function Isaac.RenderText(s) DRAWN[#DRAWN+1] = s end
+function Isaac.GetScreenHeight() return 270 end -- shortcut: a fixed screen; the dry run checks the drawn text, not its place
 SAVED, SAVES = nil, {} -- the last Isaac.SaveModData text, and every one in order
 function Isaac.SaveModData(_, s) SAVED = s; SAVES[#SAVES+1] = s end
 MAX = {[482]=6, [703]=1, [711]=6}
@@ -46,7 +48,7 @@ ignorePress = false -- set by the test: the engine polls input but ignores a for
 ignoreDrop = false -- set by the test: the engine ignores a forced drop press, so drop presses take their fallback
 lockedType = nil -- set by the test: `restart` of this type starts Isaac instead
 -- shortcut: a locked type's restart starts Isaac (unobserved: the recon characters are all unlocked, session 2); model it if a test needs a locked character
-posterLocked = false -- set by the test: Missing Poster gives no revive and stays held (session 2 saw no revive with it held; why, and whether it stayed, unobserved)
+posterRevives = false -- set by the test: Missing Poster revives (unobserved; session 3d on slot 1: no revive, Poster kept)
 restartRolls = false -- set by the test: a restart rolls a new seed even after a seed command
 extraPlayer = false -- set by the test: FindByType(1) also lists one player entity per run that GetPlayer misses (`extra`; unobserved, a test knob for record.lua's others path)
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
@@ -68,6 +70,7 @@ function Game() return G end
 function Isaac.GetPlayer(i) return players[i+1] end
 
 function fire(id, ...)
+  if id == 2 then DRAWN = {} end
   for _, c in ipairs(CBS[id] or {}) do
     if c.arg == nil or c.arg == (...) then
       local r = c.f(nil, ...)

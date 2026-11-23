@@ -75,12 +75,13 @@ def test_all(path):
 
 
 def test_fixtures(path):
-    prompts = []
+    prompts, drawn = [], set()
 
-    def watch(g):  # every update's prompt, with the test it came in
+    def watch(g):  # every update's prompt, with the test it came in, and the screen the last render drew for it
         S = g.HARNESS.session
         if S.manual:
             prompts.append((S.ctx.name, S.manual.kind))
+            drawn.add(tuple(g.DRAWN.values()))
         return dry.walk_target(g)
     lua = {}
 
@@ -99,7 +100,12 @@ def test_fixtures(path):
     assert downs == {"setup throws": 1, "precondition": 1, "fixture done": 1}, downs
     assert sum(s.startswith("PROBE TEARDOWN FAIL runner > teardown throws ") and "teardown broke" in s for s in log) == 1
     assert set(prompts) == {("runner > manual step", "continue")}, set(prompts)
-    print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt")
+    assert ("Isaac Test Framework:", "runner", "manual step", "step 1 of 1", "YOU: wait") in drawn, drawn
+    lua["g"].fire(2)
+    done = list(lua["g"].DRAWN.values())
+    assert done == ["Isaac Test Framework:", "Done: exit to the menu, then tell Claude"], done
+    assert not any("HARNESS" in s for screen in drawn for s in screen), drawn
+    print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt, on screen as lines")
 
 
 def test_no_tags(path):

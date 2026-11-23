@@ -23,7 +23,7 @@ Never `tests\`, `tools\` or `*.snap.txt`. Delete a file there that the repo no l
 5. Game closed: `vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and the user's play mod set.
 6. Read each copy with `tools\report.py` (Results), the vanilla one first.
 
-A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; session 2); Eden is thought locked (unverified). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
+A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; session 2), Eden (obsyb1). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
 
 ## Picking tests: tags
 

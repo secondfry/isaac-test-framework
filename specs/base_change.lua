@@ -118,7 +118,7 @@ local tests = {
 		{ "cancel Clicker", vetoed(false) }, jrAgain() }, STRICT),
 	snapshotTest("a cancelled Clicker, then ChangePlayerType in the same update", STORED_CHARACTER_TAGS, TLAZ_JR, { jrFirst(), giveClicker(),
 		{ "cancel Clicker and change type", vetoed(true) }, jrAgain() }, STRICT),
-	-- ReHUD 3021a90 tracker.lua:211: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
+	-- ReHUD tracker.lua Tracker.update, its stored-owner branch: a merge survivor stored inside its 30-update settle, then returned. remove c4 stands in for the copy
 	-- Clicker's removal can take; ChangePlayerType makes the merge deterministic.
 	snapshotTest("ChangePlayerType into Tainted Lazarus merges the stored twin, then Flip at once", STORED_CHARACTER_TAGS, TLAZ_C4, { { "Flip", flip("Flip") },
 		{ "give c5", give(5) }, { "ChangePlayerType 29", changeType(T_LAZ) }, { "remove c4", remove(4) }, { "Flip at once", flip("Flip at once") },

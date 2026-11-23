@@ -3,7 +3,7 @@ local seedOf = include("scripts.game").seedOf
 
 local game = Game()
 
--- False in a vanilla session: the trace and the settle waits then skip ReHUD, and the runner SKIPs rehud tests.
+-- False in a vanilla session: the trace and the settle waits then skip ReHUD, and the runner SKIPs rehud tests but the snapshot ones.
 local function present()
 	local d = ReHUD and ReHUD.dbg
 	return (d and d.tracker and d.roster) ~= nil

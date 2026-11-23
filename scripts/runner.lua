@@ -98,11 +98,12 @@ local function skipReason(S, test)
 	return optIn and "opt-in" or "not tagged"
 end
 
--- Why `test` does not play this session, or nil: its tags, else a rehud test without ReHUD's debug hook (ReHUD not installed).
+-- Why `test` does not play this session, or nil: its tags, else a rehud test without ReHUD's debug hook (ReHUD not installed). A
+-- snapshot test still plays: it records game state only, and the vanilla run must write its baseline (README Snapshots).
 local function skipWhy(S, test)
 	local why = skipReason(S, test)
 	if why then return why .. " (tags '" .. S.line .. "')" end
-	if tagged(test, "rehud") and not rehud.present() then return "ReHUD.dbg not loaded" end
+	if tagged(test, "rehud") and not test.snapshot and not rehud.present() then return "ReHUD.dbg not loaded" end
 end
 
 -- The RESULT verdict: the error or failed assertions, else SKIP when a step set ctx.skip, else PASS with their count (RECORDED for a snapshot test without any); notes either way.

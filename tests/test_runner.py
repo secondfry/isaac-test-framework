@@ -238,17 +238,20 @@ def test_restart_ignored(path):
 
 
 def test_no_rehud(path):
-    # ReHUD not installed: every rehud test SKIPs before it plays, the vanilla ones still play as in the stub with ReHUD
+    # ReHUD not installed: every rehud test with assertions SKIPs before it plays; the snapshot ones (game state only, the vanilla run
+    # writes their baseline) and the vanilla ones still play as in the stub with ReHUD
     def loader(l, p):
         dry.load(l, p)
         l.execute("ReHUD = nil")
-    mode = "tags hello,rehud-2.8"
+    mode = "tags hello,engine,rehud-2.8"
     got = dry.finished(dry.run(path, mode=mode, loader=loader), "no ReHUD", path)
     want = dry.expected(path, mode)
-    rehud = [t.name for t in tagged(path, "rehud") if not want[t.name].startswith("SKIP ")]
-    assert rehud and all(got[n] == "SKIP ReHUD.dbg not loaded" for n in rehud), {n: got[n] for n in rehud}
+    played = [t for t in tagged(path, "rehud") if not want[t.name].startswith("SKIP ")]
+    rehud = [t.name for t in played if not t.snapshot]
+    assert rehud and any(t.snapshot for t in played), "mode plays no rehud snapshot test"
+    assert all(got[n] == "SKIP ReHUD.dbg not loaded" for n in rehud), {n: got[n] for n in rehud}
     dry.expect_results(got, "no ReHUD", {n: v for n, v in want.items() if n not in rehud})
-    print(f"PASS without ReHUD.dbg: {len(rehud)} rehud tests SKIP, the rest as with it")
+    print(f"PASS without ReHUD.dbg: {len(rehud)} rehud tests with assertions SKIP, the rest as with it")
 
 
 TESTS = [test_all, test_fixtures, test_no_tags, test_tags, test_final_worst, test_strict_limits, test_recon_worst,

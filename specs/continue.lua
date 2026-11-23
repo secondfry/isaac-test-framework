@@ -73,7 +73,7 @@ local tests = {
 			{ "Strawman Keeper", keeperJoins },
 			{ "settle", settled }, { "parents before the exit", parentsInfo("before the exit") }, continued,
 			{ "players after Continue", playerCount }, { "settle 2", settled }, { "parents after Continue", parentsInfo("after Continue") } }, SNAPSHOT),
-	-- The Flip comes a few updates after restart, so the twin is stored mid-settle (the 20ca1f1 path).
+	-- The Flip comes a few updates after restart, so the twin is stored mid-settle (ReHUD roster.lua innateRows: a type still settling is left out of the save).
 	continueTest("Flip mid-settle, Exit & Continue, then ChangePlayerType"),
 	-- The settle wait first, so the twin is stored settled, as in real play.
 	continueTest("Flip once settled, Exit & Continue, then ChangePlayerType", look("before Flip", oneC4)),

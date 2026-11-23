@@ -213,7 +213,7 @@ local function parentsInfo(what)
 			local p = Isaac.GetPlayer(i)
 			local parent = p.Parent and select(2, findPlayer(function(q) return GetPtrHash(q) == GetPtrHash(p.Parent) end))
 			P("INFO", ctx.name, "PARENTS", what, "index", i, "type", p:GetPlayerType(), "parent", p.Parent and ("index " .. tostring(parent)) or "none",
-				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", tostring(number(keyOf(p))))
+				"ctrl", p.ControllerIndex, "key", keyOf(p), "number", present() and tostring(number(keyOf(p))) or "no ReHUD") -- snapshot tests play without ReHUD
 		end
 	end
 end

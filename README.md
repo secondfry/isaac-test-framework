@@ -1,12 +1,14 @@
 # Isaac Test Framework
 
-An in-game test mod for Binding of Isaac: Repentance+ (vanilla, no REPENTOGON). On the first new run after launch it plays its tests by itself, one step per game update, and logs `PROBE` lines to `log.txt`; `tools\report.py` reads them back. The `vanilla` tests need no other mod. Tests tagged `rehud` read ReHUD through its `ReHUD.dbg` debug hook (ReHUD cf965b0 or later), which is on the ReHUD fork's branch `feat/multiple-copies` (https://github.com/secondfry/ReHUD, PR #4), not on a merged default branch yet; without the hook each `rehud` test ends `SKIP ReHUD.dbg not loaded`.
+An in-game test mod for Binding of Isaac: Repentance+ (vanilla, no REPENTOGON). On the first new run after launch it plays its tests by itself, one step per game update, and logs `PROBE` lines to `log.txt`; `tools\report.py` reads them back. The `vanilla` tests need no other mod. Tests tagged `rehud` read ReHUD through its `ReHUD.dbg` debug hook (ReHUD cf965b0 or later), which is on the ReHUD fork's branch `feat/multiple-copies` (https://github.com/secondfry/ReHUD, PR #4), not on a merged default branch yet; without the hook each `rehud` test with assertions ends `SKIP ReHUD.dbg not loaded`, while the `rehud` snapshot tests, which record game state only, still play.
 
-`main.lua` only wires the specs to the runner and the game's callbacks; `scripts\` holds the runner and the shared steps, fixtures and assertions; `specs\<spec>.lua` one spec's tests and `specs\<spec>.snap.txt` its snapshots; `tests\` the offline tests; `tools\` the report reader and session helpers; `docs\engine-facts.md` the engine behaviour the code relies on. Session labels in comments ("session 3c", "run 8", "obsyb1") name in-game harness sessions whose results are in `docs\engine-facts.md`.
+`main.lua` only wires the specs to the runner and the game's callbacks; `scripts\` holds the runner and the shared steps, fixtures and assertions; `specs\<spec>.lua` one spec's tests and `specs\<spec>.snap.txt` its snapshots; `tests\` the offline tests; `tools\` the report reader and session helpers; `docs\engine-facts.md` the engine behaviour the code relies on. Labels in comments ("session 3c", "run 8", "obsyb1") name in-game sessions; the facts the code relies on are in `docs\engine-facts.md`.
 
 Commands below run from the repo root.
 
 ## Install
+
+Back up your save, or play a spare save slot: the harness gives items, sends console commands and kills characters.
 
 With the game closed (`<game>` = `C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth` on the default Steam path), copy into the mod folder `<game>\mods\isaac_test_framework`:
 
@@ -14,7 +16,7 @@ With the game closed (`<game>` = `C:\Program Files (x86)\Steam\steamapps\common\
     robocopy scripts "<game>\mods\isaac_test_framework\scripts" *.lua
     robocopy specs "<game>\mods\isaac_test_framework\specs" *.lua
 
-Never `tests\`, `tools\`, `docs\` or `*.snap.txt`. Delete a file there that the repo no longer has. Delete `disable.it` in that folder to run the harness; put it back after the session.
+robocopy exit codes below 8 mean success. Never `tests\`, `tools\`, `docs\` or `*.snap.txt`. Delete a file there that the repo no longer has. Delete `disable.it` in that folder to run the harness; put it back after the session.
 
 ## A session
 
@@ -39,7 +41,7 @@ Line 1 of `data\isaac_test_framework\save<slot>.dat` in the game folder (the van
 
 `HARNESS START` logs the line; a skipped test logs `RESULT <spec> > <test> SKIP <why> (tags '<line>')` and takes no update. The lines below line 1 are the harness's own (`WAIT`, `STUCK`) and never change the tags.
 
-The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud`; `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; tagged `vanilla` too, as they read no ReHUD); `stored-character` (snapshot tests of a stored Esau Jr. or Flip character through Clicker, ChangePlayerType and losing Esau Jr.); `drop` (asks for a drop press).
+The tags: one per spec (`hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`); `vanilla` (no ReHUD needed) or `rehud` (reads ReHUD; without it only its snapshot tests play); `exit-continue` (asks for an Exit & Continue; these tests play last, back to back); `walk` (asks for pedestal walks); `new` (an `exit-continue` test the empty line still plays: set it until the test has passed in game, and again whenever its steps or assertions change); `opt-in`; `rehud-2.8` (ReHUD 2.8's final build); `seed` (what the seed command does); `recon` (one recon test per character: Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; tagged `vanilla` too, as they read no ReHUD); `stored-character` (snapshot tests of a stored Esau Jr. or Flip character through Clicker, ChangePlayerType and losing Esau Jr.); `drop` (asks for a drop press).
 
 What each tags line plays, from the runner's plan (`dry.plan`): the tests, the user's Exit & Continues and pedestal walks, and the worst case: the updates when every test with a limit runs to it (`HARNESS DONE` included; 30 updates a second; menu time for the Continues not counted). A test without a limit has no cap of its own: each of its waits gives up after at most 600 updates, an Exit & Continue after 9000, except a `revive` test on the death certificate (with or without a limit), which waits for its new game (Manual steps); updates stop there (session 3c), so no limit counts.
 
@@ -59,12 +61,12 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `new` | 3 | 3 | 0 | - | 3 |
 | `recon` | 31 | 28 | 0 | 29336 (16.3 min) | 0 |
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
-| `rehud` | 76 | 7 | 2 | 21261 (11.8 min) | 31 |
+| `rehud` | 71 | 7 | 2 | 21261 (11.8 min) | 26 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
 | `revive` | 7 | 0 | 0 | 4693 (2.6 min) | 1 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
-| `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |
+| `vanilla` | 39 | 28 | 0 | 29781 (16.5 min) | 7 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
 `revive` (five tests, one per source on Lazarus, one restart from the death certificate, then Missing Poster on Lazarus) is opt-in and plays with `tags revive`; each source test ends at its source's revive. `restart from the death certificate` kills Isaac on the fixed seed, sends `restart` once he has been dead 120 updates or 240 render frames (updates stop there at 57 dead, renders run on: session 3c) and logs whether a new game came; 600 updates or 600 render frames later without one it shows `press Space` as the last line of the `Isaac Test Framework:` block. The last test, `Lazarus with Missing Poster dies until it revives him`, plays after it so the restart has worked in the session first: Lazarus holding only Missing Poster dies through his own revive, then again; a Poster revive ends it RECORDED; a death still dead 120 updates or 240 render frames on is taken for a game over (a slower Poster revive would be restarted; unobserved), restarted from the certificate the same way, and the test ends at that new game: `SKIP Missing Poster gave no revive, Poster kept: The Lost likely locked` when he still held the Poster, else RECORDED.
@@ -108,10 +110,14 @@ Commit the `.snap.txt` files `report.py` writes; never deploy them.
 
 ## Offline tests
 
-Python 3 with `pip install lupa`, one suite at a time:
+Python 3 with lupa in a virtual environment (`-I` ignores user site-packages, so a `pip install --user lupa` is not seen), one suite at a time:
 
-    python -B -I tests\test_harness.py main.lua [test function ...]
-    python -B -I tests\test_report.py
+    python -m venv .venv
+    .venv\Scripts\pip install lupa
+    .venv\Scripts\python -B -I tests\test_harness.py main.lua [test function ...]
+    .venv\Scripts\python -B -I tests\test_report.py
+
+The tool tests (`test_auto_continue.py`, `test_vanilla_session.py`) need PowerShell 7 (`pwsh`).
 
 The dry run (about 8 minutes; name test functions to run a few) plays `main.lua` under lupa (Lua 5.3) against `tests\stub\`, a fake engine, input and ReHUD whose `shortcut:` comments say what it does not model, with a fake user who continues and walks. It checks every test's verdict under each tags line it plays (`WANT` in `tests\test_<spec>.py`, plus each module's checks of its own lines), the runner (`test_runner.py`: tags, limits and worst cases, a late Continue or a new run instead, STUCK, fixture teardown and preconditions, which steps prompt), the presses' spends (`test_presses.py`), each invariant against its negative stub flag (`test_invariants.py`), `auto-continue.ps1 -DryRun` (`test_auto_continue.py`) and `report.py` on dry logs. `test_report.py` checks `report.py`'s verdicts, snapshots, log guard and JSON.
 

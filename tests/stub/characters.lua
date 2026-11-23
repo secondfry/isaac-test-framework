@@ -48,7 +48,7 @@ function PM:ChangePlayerType(t)
   -- shortcut: a stored Esau Jr. form's c703 merges in like any owned item (unobserved), so a re-give adds no owned copy; model it from a stored-character session
   if from then merge(self, from); stored[711] = nil end
   self.t = t
-  if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 5)
+  if not tlaz(t) then self.pocket, self.items[711] = nil, nil -- the engine removes Flip (run 8)
   elseif from then -- Flip kept once, a fresh other form stored (run 8), unseen by ReHUD until it plays
     self.items[711], stored[711] = 1, pair(self, newPlayer(t == 29 and 38 or 29)); stored[711].unseen = true
   end

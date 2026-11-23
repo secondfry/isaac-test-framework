@@ -10,7 +10,7 @@ for id = 1, itemConfig:GetCollectibles().Size - 1 do
 	if itemConfig:GetCollectible(id) then ITEM_IDS[#ITEM_IDS + 1] = id end
 end
 
--- shortcut: copy of currentFloorName from ReHUD's tracker.lua (wofsauge's reHUD, REP+ fork) (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
+-- shortcut: copy of currentFloorName in the ReHUD REP+ fork's tracker.lua, stored as `entry.floor`; expose it on ReHUD.dbg if the copy drifts.
 local function floorName()
 	if StageAPI and StageAPI.Loaded and StageAPI.InOverriddenStage() then
 		local name = StageAPI.GetCurrentStageDisplayName()

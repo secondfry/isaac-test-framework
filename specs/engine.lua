@@ -42,7 +42,7 @@ local function cardBesideFlip(ctx)
 	expect(ctx, "Soul of J&E beside Flip: card slot", slot, 1)
 end
 
-local TAGS = { "engine", "rehud" }
+local TAGS = { "engine", "vanilla" } -- engine state only, no ReHUD read
 
 return { name = "engine", tests = {
 	{ name = "MaxCharges reads pre-REP+ charges", tags = TAGS, fixture = freshRun(ISAAC), steps = { maxCharges } },

@@ -88,9 +88,9 @@ end, function(ctx)
 	return true
 end, 120)
 local function keeperItems(ctx)
-	local isaac, owners = keyOf(Isaac.GetPlayer(0)), {}
-	for _, e in ipairs(entries()) do owners[#owners + 1] = "c" .. e.id .. ":" .. (e.owner == isaac and "Isaac" or e.owner == ctx.keeperKey and "Keeper" or tostring(e.owner)) end
-	P("INFO", ctx.name, "after the Keeper left: Keeper number", tostring(number(ctx.keeperKey)), "entries", table.concat(owners, " "), "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
+	local isaac, owners, on = keyOf(Isaac.GetPlayer(0)), {}, rehud.present() -- a snapshot test, so it also plays without ReHUD
+	for _, e in ipairs(on and entries() or {}) do owners[#owners + 1] = "c" .. e.id .. ":" .. (e.owner == isaac and "Isaac" or e.owner == ctx.keeperKey and "Keeper" or tostring(e.owner)) end
+	P("INFO", ctx.name, "after the Keeper left: Keeper number", on and tostring(number(ctx.keeperKey)) or "no ReHUD", "entries", on and table.concat(owners, " ") or "no ReHUD", "Isaac engine items", heldItems(Isaac.GetPlayer(0)))
 end
 
 local ASSERTING = { "characters", "rehud" }

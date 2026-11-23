@@ -1,5 +1,5 @@
-"""Dry checks of specs/revive.lua: one recon test per revive source, each dying until its own source has revived Lazarus once, never
-to game over. The stub revives in the order session 2 saw with every source held (players.lua shortcut)."""
+"""Dry checks of specs/revive.lua: one recon test per revive source, each dying until its own source has revived Lazarus once; each
+ends at its source's revive, and a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a). The stub revives in the order session 2 saw with every source held (players.lua shortcut)."""
 import dry
 
 # Each source's type after each death in the stub: Lazarus's own revive comes first, so a held item revives at the second.

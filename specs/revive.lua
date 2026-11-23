@@ -1,4 +1,4 @@
--- Lazarus dies until his one revive source (plan S5b) has revived him once, never reaching game over, whose certificate waits for Space (session 3a); what session 2 saw: lua-api-notes.md "Revives".
+-- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a); what session 2 saw: lua-api-notes.md "Revives".
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local owned, cards = engine.owned, engine.cards

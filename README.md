@@ -65,7 +65,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |
 | `walk` | 1 | 0 | 2 | 1101 (0.6 min) | 0 |
 
-`revive` (five tests, one per source on Lazarus) plays only with `tags revive`; each ends at its source's revive and never reaches game over, whose death certificate waits for Space (session 3a).
+`revive` (five tests, one per source on Lazarus) plays only with `tags revive`; each ends at its source's revive; a source that gives no revive reaches game over, whose death certificate waits for Space (session 3a).
 
 ## Manual steps
 

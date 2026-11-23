@@ -11,7 +11,7 @@ local characters = include("scripts.characters")
 local record = include("scripts.record")
 
 -- continue before characters: their Exit & Continue tests then play in the order stored, lost, then identity.
-local SPECS = { "hello", "engine", "continue", "characters", "esau_jr", "base_change", "item_copies", "regressions", "revive" }
+local SPECS = { "hello", "engine", "continue", "characters", "esau_jr", "base_change", "item_copies", "regressions", "revive", "flip" }
 
 runner.setMod(mod)
 for _, name in ipairs(SPECS) do runner.add(include("specs." .. name)) end

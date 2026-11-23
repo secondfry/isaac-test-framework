@@ -17,7 +17,7 @@ Line 1 of `data\isaac_test_framework\save<slot>.dat` in the game folder (the van
 
 Tag a test with its spec's name, `vanilla` or `rehud`, and each manual step it asks for.
 
-- One per spec: `hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`.
+- One per spec: `hello`, `engine`, `continue`, `characters`, `esau_jr`, `base_change`, `item_copies`, `regressions`, `revive`, `flip` (recon: Flip and Missing No. on characters other than Tainted Lazarus).
 - `vanilla` (no ReHUD needed) or `rehud` (reads ReHUD).
 - `exit-continue`: asks for an Exit & Continue; these tests play last, back to back.
 - `walk`: asks for pedestal walks. `drop`: asks for a drop press.
@@ -35,8 +35,8 @@ From the runner's plan (`dry.plan`): the tests, the Exit & Continues and pedesta
 
 | Tags line | Tests | Exit & Continues | Walks | Worst case, tests with a limit | Tests without a limit |
 |---|---|---|---|---|---|
-| (empty) | 73 | 0 | 2 | 17841 updates (9.9 min) | 30 |
-| `tags all` | 111 | 38 | 4 | 54241 (30.1 min) | 33 |
+| (empty) | 78 | 0 | 2 | 20066 updates (11.1 min) | 30 |
+| `tags all` | 116 | 38 | 4 | 56466 (31.4 min) | 33 |
 | `base_change` | 15 | 7 | 0 | 9531 (5.3 min) | 3 |
 | `characters` | 18 | 8 | 0 | 10776 (6.0 min) | 3 |
 | `continue` | 16 | 16 | 2 | 14401 (8.0 min) | 3 |
@@ -44,6 +44,7 @@ From the runner's plan (`dry.plan`): the tests, the Exit & Continues and pedesta
 | `engine` | 5 | 0 | 0 | - | 5 |
 | `esau_jr` | 46 | 7 | 2 | 19041 (10.6 min) | 13 |
 | `exit-continue` | 38 | 38 | 2 | 36401 (20.2 min) | 3 |
+| `flip` | 5 | 0 | 0 | 2226 (1.2 min) | 0 |
 | `hello` | 3 | 0 | 0 | 446 (0.2 min) | 2 |
 | `item_copies` | 4 | 0 | 0 | - | 4 |
 | `recon` | 34 | 31 | 2 | 33736 (18.7 min) | 0 |
@@ -54,5 +55,5 @@ From the runner's plan (`dry.plan`): the tests, the Exit & Continues and pedesta
 | `revive` | 7 | 0 | 0 | 4693 (2.6 min) | 1 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
-| `vanilla` | 42 | 31 | 2 | 34181 (19.0 min) | 7 |
+| `vanilla` | 47 | 31 | 2 | 36406 (20.2 min) | 7 |
 | `walk` | 2 | 1 | 4 | 3501 (1.9 min) | 0 |

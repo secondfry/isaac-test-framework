@@ -1,8 +1,9 @@
 # Answers the harness's exit requests with key presses into the game: on each new `WAIT exit-continue <n>` line in its mod data
 # (scripts\runner.lua markWait) it sends -Keys to isaac-ng, and on the `WAIT exit-menu <n>` line written at HARNESS DONE -ExitKeys.
 # Opt-in; watch its first run. Start it before launching the game:
-#   pwsh -File tools\auto-continue.ps1 [-File <save1.dat>] [-Keys <list>] [-ExitKeys <list>] [-Minutes 30] [-DryRun]
-# -File defaults to save slot 1's file under the default Steam path.
+#   pwsh -File tools\auto-continue.ps1 [-File <save1.dat>] [-Keys <list>] [-ExitKeys <list>] [-Minutes 60] [-DryRun]
+# -File defaults to save slot 1's file under the default Steam path. It stops once it has acted on the exit-menu marker (sent, PARTIAL
+# or not sent), or after -Minutes from its own start.
 # -Keys, -ExitKeys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
 param(
 	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\isaac_test_framework\save1.dat',
@@ -10,7 +11,7 @@ param(
 	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:1500', 'Return'),
 	# the exit to the menu alone, at HARNESS DONE: exiting flushes log.txt
 	[string[]]$ExitKeys = @('Escape', 'Up', 'Return'),
-	[double]$Minutes = 30,
+	[double]$Minutes = 60, # `tags all` worst case is 27.7 min of updates plus menus
 	[switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
@@ -96,7 +97,10 @@ while ((Get-Date) -lt $end) {
 	elseif ($marker -ne $last) {
 		$first = $marker -ne $acting # its first poll: announce, raise the window, and on a retry say so once
 		if ($first) { Write-Host "act on $marker"; $acting = $marker }
-		if ((Send-Plan $marker -Raise:$first) -ne 'retry') { $last = $marker }
+		if ((Send-Plan $marker -Raise:$first) -ne 'retry') {
+			$last = $marker
+			if ($marker -match '^WAIT exit-menu ') { Write-Host 'stop: the session is done'; break } # DONE's marker is the session's last
+		}
 		elseif ($first) { Write-Host 'waiting for isaac-ng in front: bring it to the front, press no keys' }
 	}
 	Start-Sleep -Milliseconds 150

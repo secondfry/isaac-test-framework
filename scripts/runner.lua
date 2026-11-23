@@ -308,7 +308,7 @@ local function onGameStart(isContinued)
 	local S = HARNESS.session
 	S.gen, S.continued = S.gen + 1, isContinued
 	P("GAME START", S.gen, "continued", isContinued)
-	if isContinued then clearWait() end
+	if isContinued and S.running then clearWait() end -- a late Continue after DONE keeps its exit-menu marker
 	if not S.started then
 		if isContinued then P("HARNESS idle: start a new run to test") return end
 		local raw = S.mod:LoadData()

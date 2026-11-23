@@ -116,7 +116,10 @@ def test_fixtures(path):
     done = list(lua["g"].DRAWN.values())
     assert done == ["Isaac Test Framework:", "Done: exit to the menu"], done
     assert not any("HARNESS" in s for shown in drawn for s in shown), drawn
-    print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt, on screen as lines")
+    lua["g"].startRun(0, True)  # a late Continue after DONE
+    assert "WAIT exit-menu " in lua["g"].SAVED, lua["g"].SAVED
+    print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt, on screen as lines,"
+          " a Continue after DONE keeps the exit-menu marker")
 
 
 def test_no_tags(path):

@@ -59,7 +59,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 76 | 7 | 2 | 21261 (11.8 min) | 31 |
 | `rehud-2.8` | 19 | 1 | 2 | 8026 (4.5 min) | 0 |
-| `revive` | 5 | 0 | 0 | 6301 (3.5 min) | 0 |
+| `revive` | 5 | 0 | 0 | 3911 (2.2 min) | 0 |
 | `seed` | 1 | 0 | 0 | 446 (0.2 min) | 0 |
 | `stored-character` | 12 | 0 | 0 | 5341 (3.0 min) | 0 |
 | `vanilla` | 34 | 28 | 0 | 29781 (16.5 min) | 2 |

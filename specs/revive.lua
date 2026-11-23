@@ -14,7 +14,8 @@ local ids = include("scripts.ids")
 local ANKH, JUDAS_SHADOW, LAZARUS_RAGS, SOUL_LAZARUS, LAZARUS = ids.ANKH, ids.JUDAS_SHADOW, ids.LAZARUS_RAGS, ids.SOUL_LAZARUS, ids.LAZARUS
 
 local game = Game()
-local MAX_DEATHS, WATCH = 4, 240 -- updates watched after each Kill(), 8 s: session 2's revives were alive by update 58
+local MAX_DEATHS = 2 -- the innate revive plus one source (session 3b)
+local WATCH = 240 -- updates watched after each Kill(), 8 s: session 2's revives were alive by update 58
 
 -- The revive sources `p` holds, as text.
 local function sources(p)
@@ -80,7 +81,7 @@ local SOURCES = {
 local tests = {}
 for _, s in ipairs(SOURCES) do
 	tests[#tests + 1] = snapshotTest("Lazarus with " .. s[1] .. " dies until it revives him", { "revive", "opt-in" }, s[2],
-		{ { "die until revived", dieUntilRevived(s[3]), nil, WATCH + 1 } }, { strict = true, limit = 300 + MAX_DEATHS * WATCH })
+		{ { "die until revived", dieUntilRevived(s[3]), nil, WATCH + 1 } }, { strict = true, limit = 300 + MAX_DEATHS * (WATCH + 1) })
 end
 
 return { name = "revive", tests = tests }

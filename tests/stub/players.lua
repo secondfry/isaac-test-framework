@@ -37,11 +37,9 @@ local function consume(p, id)
   p.items[id] = p.items[id] - 1
   return true
 end
--- A Strawman Keeper leaves GetPlayer; any other player revives, the same entity, or the game is over.
--- shortcut: revives at once (in game: alive by update 58) in the priority seen with all sources held on one Lazarus (session 2); each source
--- alone, the game over's new game type and seed, and Missing Poster on Lazarus are unobserved (next revive session)
+-- shortcut: revives at once as the same entity in session 2's all-sources priority, each source alone unobserved, and a Strawman Keeper's Kill() leaving GetPlayer unobserved; model both from the next revive session
 function PM:Kill()
-  if self.t == 14 then for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
+  if self.t == 14 and self.Parent then for i, q in ipairs(players) do if q == self then table.remove(players, i) return end end end
   for i, c in ipairs(self.cards) do if c == 89 then table.remove(self.cards, i) return end end -- Soul of Lazarus: type kept
   if self.t == 8 then self.t = 11 return end -- Lazarus's innate revive
   if consume(self, 332) then return end -- Lazarus' Rags: type kept

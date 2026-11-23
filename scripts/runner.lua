@@ -23,11 +23,12 @@ local function saveData()
 	t[#t + 1] = S.stuckLine
 	Isaac.SaveModData(S.mod, table.concat(t, "\n"))
 end
--- A step waits for the user's Exit & Continue: a new `WAIT exit-continue <n>` line, which tools\auto-continue.ps1 answers.
-local function markWait()
+-- A step waits for the user's Exit & Continue (`kind` nil): a new `WAIT exit-continue <n>` line, which tools\auto-continue.ps1 answers;
+-- `kind` "exit-menu" at DONE asks only for the exit to the menu, as no Lua call exits there.
+local function markWait(kind)
 	local S = HARNESS.session
 	S.waits = (S.waits or 0) + 1
-	S.waitLine = "WAIT exit-continue " .. S.waits
+	S.waitLine = "WAIT " .. (kind or "exit-continue") .. " " .. S.waits
 	saveData()
 end
 local function clearWait()
@@ -220,6 +221,7 @@ local function tick(...)
 	end
 	if not test then
 		S.running, S.status = false, "Done: exit to the menu" -- exiting flushes log.txt (run 1)
+		markWait("exit-menu")
 		P("HARNESS DONE")
 		return
 	end

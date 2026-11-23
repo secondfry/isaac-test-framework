@@ -23,7 +23,7 @@ robocopy exit codes below 8 mean success. Never `tests\`, `tools\`, `docs\` or `
 1. Game closed: write the tags line (below), install, delete `disable.it` in `mods\isaac_test_framework`, then `pwsh -File tools\vanilla-session.ps1 -Start`.
 2. Launch, load save slot 1, start a new run: the session starts there (a Continue first only logs `HARNESS idle`).
 3. Hands off, except the manual steps the screen asks for.
-4. When the screen says `Done: exit to the menu` (or at a game over outside `tags revive`), exit to the menu (that flushes `log.txt`) and copy `log.txt`.
+4. When the screen says `Done: exit to the menu` (or at a game over outside `tags revive`), exit to the menu (that flushes `log.txt`; `auto-continue.ps1`, if running, does it at `Done`) and copy `log.txt`.
 5. Game closed: `pwsh -File tools\vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and your play mod set.
 6. Read each copy with `tools\report.py` (Results), the vanilla one first.
 7. Game closed: put `disable.it` back in `mods\isaac_test_framework`.
@@ -47,7 +47,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 
 | Tags line | Tests | Exit & Continues | Walks | Worst case, tests with a limit | Tests without a limit |
 |---|---|---|---|---|---|
-| (empty) | 76 | 3 | 2 | 17841 updates (9.9 min) | 33 |
+| (empty) | 73 | 0 | 2 | 17841 updates (9.9 min) | 30 |
 | `tags all` | 108 | 35 | 2 | 49841 (27.7 min) | 33 |
 | `base_change` | 15 | 7 | 0 | 9531 (5.3 min) | 3 |
 | `characters` | 18 | 8 | 0 | 10776 (6.0 min) | 3 |
@@ -58,7 +58,6 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 | `exit-continue` | 35 | 35 | 0 | 32001 (17.8 min) | 3 |
 | `hello` | 3 | 0 | 0 | 446 (0.2 min) | 2 |
 | `item_copies` | 4 | 0 | 0 | - | 4 |
-| `new` | 3 | 3 | 0 | - | 3 |
 | `recon` | 31 | 28 | 0 | 29336 (16.3 min) | 0 |
 | `regressions` | 6 | 0 | 0 | 1251 (0.7 min) | 0 |
 | `rehud` | 71 | 7 | 2 | 21261 (11.8 min) | 26 |
@@ -74,7 +73,7 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 ## Manual steps
 
 - Exit & Continue: the screen shows `exit to the menu and Continue now` on its own line; exit to the menu and pick Continue. A snapshot test gives up after 600 updates of play, a test with assertions after 9000. A new run instead fails a test with assertions (`a new run started, not a Continue`) and ends a snapshot test. A Continue after its step gave up lands in the next test: logged `late Continue, ignored` and noted `; late Continue mid-test` on that test's `RESULT`.
-- Automatic Exit & Continue (opt-in; watch its first run, as its key path is unconfirmed): `pwsh -File tools\auto-continue.ps1` (default Steam path; pass `-File <save1.dat>` otherwise), started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file (`-DryRun` prints the plan only). On `waiting for isaac-ng in front`, bring the game to the front and press nothing; it sends as soon as it is in front. Only `not sent: no isaac-ng window` and `PARTIAL` need the Exit & Continue by hand, within the step's wait (600 / 9000 updates).
+- Automatic Exit & Continue (opt-in; watch its first run): `pwsh -File tools\auto-continue.ps1` (default Steam path; pass `-File <save1.dat>` otherwise), started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file: `-Keys`, by default Escape, Up, Return, a 1.5 s wait for the main menu, Return (the keys performed every Exit & Continue of session 4b; the 1.5 s wait is unconfirmed). At `HARNESS DONE` the harness writes `WAIT exit-menu <n>`, and the script presses only `-ExitKeys` (Escape, Up, Return): the exit to the menu that flushes `log.txt`. `-DryRun` prints the plan only. On `waiting for isaac-ng in front`, bring the game to the front and press nothing; it sends as soon as it is in front. Only `not sent: no isaac-ng window` and `PARTIAL` need the keys by hand, an Exit & Continue within the step's wait (600 / 9000 updates).
 - Pedestal walks (`walk`): `YOU: walk onto the yum-heart pedestal`, then `YOU: step off, then walk back onto the Esau Jr. pedestal`; 450 updates each.
 - Game over under `tags revive`: the certificate test's and the Missing Poster test's game overs are expected, so wait. Press Space when the screen shows `press Space` as the last line of the `Isaac Test Framework:` block, or when no new game has come 30 s after the certificate shows; the test ends at that new game. A source test reaching game over means its source gave no revive: press Space, and that test FAILs `unexpected game start`.
 

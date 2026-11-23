@@ -1,5 +1,5 @@
-"""tools/auto-continue.ps1 -DryRun on a fake mod data file: a new WAIT marker prints one plan, the same marker rewritten none, a marker
-already there at start none, and nothing is sent."""
+"""tools/auto-continue.ps1 -DryRun on a fake mod data file: a new WAIT marker prints one plan (the full keys for exit-continue, the exit
+keys for DONE's exit-menu), the same marker rewritten none, a marker already there at start none, and nothing is sent."""
 import os
 import shutil
 import subprocess
@@ -36,7 +36,11 @@ def session(first, *later):
 def test_auto_continue(_path):
     lines = session("tags x", "tags x\nWAIT exit-continue 1", "tags x\r\nWAIT exit-continue 1")  # then the same marker rewritten
     assert lines.count("act on WAIT exit-continue 1") == 1 and sum(s.startswith("plan: ") for s in lines) == 1, lines
+    assert "plan: Escape, Up, Return, wait:1500, Return" in lines, lines
     print("PASS auto-continue.ps1 -DryRun: one plan for a new marker, none for it rewritten, nothing sent")
+    lines = session("tags x", "tags x\nWAIT exit-menu 4")  # HARNESS DONE's marker: the exit keys alone
+    assert lines.count("act on WAIT exit-menu 4") == 1 and [s for s in lines if s.startswith("plan: ")] == ["plan: Escape, Up, Return"], lines
+    print("PASS auto-continue.ps1 -DryRun: the done marker plans only the exit keys")
     lines = session("tags x\nWAIT exit-continue 2", "tags x\r\nWAIT exit-continue 2")  # the last session's marker
     assert not any(s.startswith(("act on ", "plan: ")) for s in lines), lines
     print("PASS auto-continue.ps1 -DryRun: a marker already there at start is not acted on")

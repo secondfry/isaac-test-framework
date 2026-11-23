@@ -132,8 +132,10 @@ def run(path, mode="tags all", on_exit="continue", render_every=1, continue_afte
 
 def check_waits(saves, asked):
     """The mod data writes of a session with `asked` Exit & Continues: each writes `WAIT exit-continue <n>`, n rising from 1, cleared
-    before the next one and by the session's end, and a STUCK line stays last."""
+    before the next one, then DONE's `WAIT exit-menu <asked + 1>` as the last write, and a STUCK line stays last."""
     seen, shown = 0, None
+    *saves, done = saves
+    assert [x for x in done.split("\n") if x.startswith("WAIT ")] == [f"WAIT exit-menu {asked + 1}"], done
     for s in saves:
         lines = s.split("\n")
         wait = [x for x in lines if x.startswith("WAIT ")]

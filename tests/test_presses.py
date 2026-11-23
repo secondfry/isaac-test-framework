@@ -78,7 +78,8 @@ def test_press_ignored(path):
     dry.expect_results(got, "press ignored", unswapped(path), ("no new character, arms ", "test limit "), swapping(path), cut=True)
     stuck = [s for s in log if s.startswith("PROBE STUCK ")]
     assert stuck and stuck[0].endswith(" 60"), stuck[:1]
-    assert dry.run.saved.startswith(f"tags all\nSTUCK {len(stuck)} ") and " | " in dry.run.saved, dry.run.saved
+    lines = dry.run.saved.split("\n")  # tags, DONE's WAIT exit-menu, then the STUCK line last
+    assert lines[0] == "tags all" and lines[-1].startswith(f"STUCK {len(stuck)} ") and " | " in lines[-1], dry.run.saved
     print("PASS a stuck wait logs STUCK once and saves it under the tags line:", len(stuck), "stuck,", repr(dry.run.saved))
 
 

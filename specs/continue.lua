@@ -38,7 +38,7 @@ local function continueTest(name, beforeFlip)
 		oneC4(ctx, label)
 		expect(ctx, label .. ": stored form mid-settle", storedSettling() ~= "", beforeFlip == nil)
 	end
-	return { name = name, tags = { "continue", "rehud", "exit-continue", "new" }, fixture = fixtures.TLAZ_C4_FLOOR_2,
+	return { name = name, tags = { "continue", "rehud", "exit-continue" }, fixture = fixtures.TLAZ_C4_FLOOR_2,
 		steps = { beforeFlip or {}, flip("Flip"), look("before exit", beforeExit), exitAndContinue(), changeType(ISAAC),
 			look("after continue and ChangePlayerType", function(ctx, label)
 				expectOne(ctx, label, 4, ctx.floors[1], keyOf(Isaac.GetPlayer(0)))
@@ -78,7 +78,7 @@ local tests = {
 	-- The settle wait first, so the twin is stored settled, as in real play.
 	continueTest("Flip once settled, Exit & Continue, then ChangePlayerType", look("before Flip", oneC4)),
 	-- Copy kinds survive Exit & Continue, and Cain's saved innate items mean no second settle.
-	{ name = "item copies survive Exit & Continue", tags = { "continue", "rehud", "exit-continue", "new" },
+	{ name = "item copies survive Exit & Continue", tags = { "continue", "rehud", "exit-continue" },
 		fixture = fixtures.freshRun(CAIN),
 		steps = { look("start"), give(4), wisp(4), stage(2), wisp(46), look("before exit", copyKinds), exitAndContinue(),
 			function(ctx) expect(ctx, "no re-settle after continue", isSettling(keyOf(Isaac.GetPlayer(0))), false) end,

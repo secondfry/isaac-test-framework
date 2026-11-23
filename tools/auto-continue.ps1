@@ -1,20 +1,26 @@
-# Answers the harness's Exit & Continue requests with key presses into the game: on each new `WAIT exit-continue <n>` line in its mod
-# data (scripts\runner.lua markWait) it sends -Keys to isaac-ng. Opt-in; watch its first run. Start it before launching the game:
-#   pwsh -File tools\auto-continue.ps1 [-File <save1.dat>] [-Keys <list>] [-Minutes 30] [-DryRun]
+# Answers the harness's exit requests with key presses into the game: on each new `WAIT exit-continue <n>` line in its mod data
+# (scripts\runner.lua markWait) it sends -Keys to isaac-ng, and on the `WAIT exit-menu <n>` line written at HARNESS DONE -ExitKeys.
+# Opt-in; watch its first run. Start it before launching the game:
+#   pwsh -File tools\auto-continue.ps1 [-File <save1.dat>] [-Keys <list>] [-ExitKeys <list>] [-Minutes 30] [-DryRun]
 # -File defaults to save slot 1's file under the default Steam path.
-# -Keys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
+# -Keys, -ExitKeys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
 param(
 	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\isaac_test_framework\save1.dat',
-	# Esc opens the pause menu, Up reaches Exit, Enter exits; Enter on the main menu picks Continue (the user, from play); the 4 s menu load is unobserved
-	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:4000', 'Return'),
+	# Esc opens the pause menu, Up reaches Exit, Enter exits; Enter on the main menu picks Continue (session 4b); the 1.5 s menu load is the user's setting, unconfirmed
+	[string[]]$Keys = @('Escape', 'Up', 'Return', 'wait:1500', 'Return'),
+	# the exit to the menu alone, at HARNESS DONE: exiting flushes log.txt
+	[string[]]$ExitKeys = @('Escape', 'Up', 'Return'),
 	[double]$Minutes = 30,
 	[switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
 $SCAN = @{ Escape = 0x01; Return = 0x1C; Up = 0x48; Down = 0x50 }
 $EXTENDED = @('Up', 'Down') # arrow keys are extended scan codes
-$Keys = $Keys -split ',' | Where-Object { $_ } # pwsh -File passes `-Keys a,b` as one string
-foreach ($k in $Keys) { if (-not $SCAN.ContainsKey($k) -and $k -notmatch '^wait:\d+$') { throw "unknown key '$k': use $($SCAN.Keys -join ', ') or wait:<ms>" } }
+$Keys, $ExitKeys = ($Keys, $ExitKeys) | ForEach-Object {
+	$list = @($_ -split ',' | Where-Object { $_ }) # pwsh -File passes `-Keys a,b` as one string
+	foreach ($k in $list) { if (-not $SCAN.ContainsKey($k) -and $k -notmatch '^wait:\d+$') { throw "unknown key '$k': use $($SCAN.Keys -join ', ') or wait:<ms>" } }
+	, $list
+}
 
 Add-Type -Namespace W -Name K -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
@@ -42,17 +48,19 @@ function Send-Key([string]$name, [bool]$up) {
 
 # The keys for $marker into isaac-ng's window (-Raise: bring it to the front first), each event only while it is in front: 'retry' if none was sent, else 'done'.
 function Send-Plan([string]$marker, [switch]$Raise) {
+	$menu = $marker -match '^WAIT exit-menu '
+	$plan, $what = $(if ($menu) { $ExitKeys, 'the exit to the menu' } else { $Keys, 'the Exit & Continue' })
 	$p = Get-Process isaac-ng -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
 	if ($DryRun) {
 		Write-Host "target: $(if ($p) { "isaac-ng window $($p.MainWindowHandle)" } else { 'no isaac-ng window' })"
-		Write-Host "plan: $($Keys -join ', ')"
+		Write-Host "plan: $($plan -join ', ')"
 		return 'done'
 	}
 	if (-not $p) { Write-Host 'not sent: no isaac-ng window'; return 'done' }
 	$h, $sent = $p.MainWindowHandle, 0
 	# shortcut: Windows may refuse SetForegroundWindow from a background process; then it waits for the game in front and sends then, never forced
 	if ($Raise) { [void][W.K]::SetForegroundWindow($h) }
-	foreach ($k in $Keys) {
+	foreach ($k in $plan) {
 		if ($k -match '^wait:(\d+)$') {
 			if ($sent -eq 0) { continue } # a leading wait would repeat on every retry poll
 			Start-Sleep -Milliseconds ([int]$Matches[1]); Write-Host "sent $k"; continue
@@ -62,7 +70,7 @@ function Send-Plan([string]$marker, [switch]$Raise) {
 				if ($sent -eq 0) { return 'retry' }
 				# shortcut: whether isaac-ng sees a key-up sent while it is not in front is unobserved; confirm in the watched first run
 				if ($up) { Send-Key $k $true } # never leave the key held down
-				Write-Host 'PARTIAL: finish the Exit & Continue by hand'
+				Write-Host "PARTIAL: finish $what by hand"
 				return 'done'
 			}
 			if ($sent -eq 0 -and (Read-Marker) -ne $marker) { Write-Host "not sent: $marker changed before the first key"; return 'done' }
@@ -77,7 +85,7 @@ function Send-Plan([string]$marker, [switch]$Raise) {
 
 function Read-Marker {
 	$lines = try { (Get-Content -Raw -LiteralPath $File -ErrorAction Stop) -split '\r?\n' } catch { @() }
-	$lines | Where-Object { $_ -match '^WAIT exit-continue \d+$' } | Select-Object -First 1
+	$lines | Where-Object { $_ -match '^WAIT exit-(continue|menu) \d+$' } | Select-Object -First 1
 }
 
 # A marker already there at start is the last session's: the harness drops it at HARNESS START.

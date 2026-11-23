@@ -291,7 +291,7 @@ local function lineupText()
 end
 
 -- Recon: one real drop press, by player 0 or with who.any by any entity, then up to 30 updates for a type or entity to change; logs what
--- changed, or that nothing did. No fallback: what the press does is the question (Tainted Forgotten's: plan open point 5).
+-- changed, or that nothing did. No fallback: what the press does is the question (Tainted Forgotten's is unobserved).
 local function dropOnce(label, who)
 	return act(label, function()
 		local H = HARNESS.press

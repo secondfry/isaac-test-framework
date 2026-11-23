@@ -11,10 +11,10 @@ local FLIP, ESAU_JR = ids.FLIP, ids.ESAU_JR
 local game = Game()
 
 -- The harness tells characters apart by their entity (GetPtrHash), so two characters on one seed stay two, and remembers each one's
--- items from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
+-- items from its last live update: a stored character is invisible to Lua (docs/engine-facts.md), so those are what ReHUD must still list.
 
--- A character is its entity (GetPtrHash) between Continues: a stored one comes back with it (lua-api-notes.md), and a gone one never comes back, so a reused hash on a gone one is a new character.
--- shortcut: after a Continue a character whose item seed and type another one shares (Esau Jr. forms), or whose type changed while stored (Clicker, lua-api-notes.md), is taken for a new one; key it otherwise if a test needs one across a Continue.
+-- A character is its entity (GetPtrHash) between Continues: a stored one comes back with it (docs/engine-facts.md), and a gone one never comes back, so a reused hash on a gone one is a new character.
+-- shortcut: after a Continue a character whose item seed and type another one shares (Esau Jr. forms), or whose type changed while stored (Clicker, docs/engine-facts.md), is taken for a new one; key it otherwise if a test needs one across a Continue.
 -- shortcut: after a Continue a record never expires: a later character on its item seed and type is taken for it coming back (a press after the original lost Esau Jr. makes one, obsyb1-2), and a record that never rebinds stays stored, so characterNumbers FAILs on it; key it otherwise if a test needs one across a Continue.
 local function charOf(p)
 	local C = HARNESS.chars
@@ -67,7 +67,7 @@ local function track()
 	end
 end
 
--- A new run starts with no characters seen; a Continue hands out GetPtrHash anew, some new and some another character's (lua-api-notes.md), so each record not gone waits for sinceContinue.
+-- A new run starts with no characters seen; a Continue hands out GetPtrHash anew, some new and some another character's (docs/engine-facts.md), so each record not gone waits for sinceContinue.
 local function onGameStart(isContinued)
 	if not isContinued then HARNESS.chars = { list = {}, byHash = {}, n = 0 } return end
 	local C = HARNESS.chars
@@ -99,7 +99,7 @@ local function named(n, t)
 	end
 end
 
--- An engine fact from lua-api-notes.md (who a press brings): its FAIL names the engine.
+-- An engine fact from docs/engine-facts.md (who a press brings): its FAIL names the engine.
 local function who(n)
 	return function(ctx)
 		track()

@@ -80,7 +80,7 @@ local function mergedAndSplit(ctx)
 end
 local function innerAround(ctx, when) P("INFO", ctx.name, "INNER " .. when .. " Clicker " .. ctx.uses, innerLine()) end
 
--- A vetoed Clicker fires no MC_USE_ITEM (lua-api-notes.md); `change`: ChangePlayerType 35 in the same update.
+-- A vetoed Clicker fires no MC_USE_ITEM (docs/engine-facts.md); `change`: ChangePlayerType 35 in the same update.
 local function vetoed(change)
 	local cancel = cancelledClicker(change)
 	return function(ctx)

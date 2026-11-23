@@ -1,5 +1,6 @@
 -- Plays the tests one step per update, picked by the tags in the mod data, and logs each one's RESULT.
 local P = include("scripts.log").P
+local rehud = include("scripts.rehud")
 
 -- Lua state survives `restart` and exit/continue, so the session lives in HARNESS.session, written only here; a reload keeps it.
 -- shortcut: one pass per launch, and a native crash restarts the session from the first test; add a rerun trigger, or SaveData resume, when either gets in the way.
@@ -68,7 +69,7 @@ local function tagged(test, tag)
 	end
 end
 
--- Each test of `spec` as its own copy, "<spec> > <test>", fixture first; Exit & Continue tests play last, in order, so the user's exits come back to back (plan D7).
+-- Each test of `spec` as its own copy, "<spec> > <test>", fixture first; Exit & Continue tests play last, in order, so the user's exits come back to back.
 local lastCount = 0
 local function add(spec)
 	for _, t in ipairs(spec.tests) do
@@ -95,6 +96,13 @@ local function skipReason(S, test)
 		if (tag ~= "opt-in" and tagged(test, tag)) or (tag == "all" and not optIn) then return end
 	end
 	return optIn and "opt-in" or "not tagged"
+end
+
+-- Why `test` does not play this session, or nil: its tags, else a rehud test without ReHUD's debug hook (ReHUD not installed).
+local function skipWhy(S, test)
+	local why = skipReason(S, test)
+	if why then return why .. " (tags '" .. S.line .. "')" end
+	if tagged(test, "rehud") and not rehud.present() then return "ReHUD.dbg not loaded" end
 end
 
 -- The RESULT verdict: the error or failed assertions, else SKIP when a step set ctx.skip, else PASS with their count (RECORDED for a snapshot test without any); notes either way.
@@ -202,15 +210,15 @@ local function tick(...)
 	if not S.running then return end
 	-- Skipped tests take no update of their own, so a tag's worst case is its tests' limits alone.
 	local test = tests[S.testIndex]
-	local skip = test and S.stepIndex == 1 and skipReason(S, test)
+	local skip = test and S.stepIndex == 1 and skipWhy(S, test)
 	while skip do
-		P("RESULT", test.name, "SKIP " .. skip .. " (tags '" .. S.line .. "')")
+		P("RESULT", test.name, "SKIP " .. skip)
 		S.testIndex = S.testIndex + 1
 		test = tests[S.testIndex]
-		skip = test and skipReason(S, test)
+		skip = test and skipWhy(S, test)
 	end
 	if not test then
-		S.running, S.status = false, "Done: exit to the menu, then tell Claude" -- exiting flushes log.txt (run 1)
+		S.running, S.status = false, "Done: exit to the menu" -- exiting flushes log.txt (run 1)
 		P("HARNESS DONE")
 		return
 	end
@@ -243,7 +251,9 @@ local function guard(f)
 end
 
 -- The status as human-readable lines at the window's bottom-left, above the HUD's trinket slot; log.txt keeps the machine-readable lines.
-local TITLE, LINE, BOTTOM = "Isaac Test Framework:", 14, 50 -- 14: the old line spacing; 50: px above the bottom edge, clearing the trinket slot (20-45 px up on the session 3e screenshot)
+-- 14: the old line spacing; 50: px above the bottom edge, clearing the trinket slot (20-45 px up on the session 3e screenshot); 24: px from the
+-- left edge, the HUD's coin/bomb/key icon column on the session screenshot
+local TITLE, LINE, BOTTOM, LEFT = "Isaac Test Framework:", 14, 50, 24
 local function render()
 	local S = HARNESS.session
 	local test = S.running and tests[S.testIndex]
@@ -263,10 +273,10 @@ local function render()
 	if S.manual and S.running and S.ctx.label then lines[#lines + 1] = S.ctx.label end -- the label clears an update before S.manual does
 	if prompt then lines[#lines + 1] = prompt end
 	local y = Isaac.GetScreenHeight() - BOTTOM - LINE * #lines
-	for i, line in ipairs(lines) do Isaac.RenderText(line, 0, y + LINE * (i - 1), 1, 1, 0, 1) end
+	for i, line in ipairs(lines) do Isaac.RenderText(line, LEFT, y + LINE * (i - 1), 1, 1, 0, 1) end
 end
 
--- The tags are line 1 of data\rehud_test_harness\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
+-- The tags are line 1 of data\isaac_test_framework\save<slot>.dat in the game folder (metadata.xml <directory>), written before launch:
 -- `tags a,b`, and `--update-snapshots` to let the reader replace snapshots. The harness's lines below it (WAIT, STUCK) never change them.
 local function readTags(S, raw)
 	S.line = raw:match("^[^\r\n]*"):match("^%s*(.-)%s*$")

@@ -10,7 +10,7 @@ local ESAU_JR, BIRTHRIGHT, T_LAZ, DEAD_T_LAZ = ids.ESAU_JR, ids.BIRTHRIGHT, ids.
 
 local game = Game()
 
--- A stored form comes back only by Flip (a present Tainted Lazarus of its group without Birthright) or a held Esau Jr. (lua-api-notes.md): stricter than roster.lua's rule, so a form ReHUD forgot to merge or drop shows.
+-- A stored form comes back only by Flip (a present Tainted Lazarus of its group without Birthright) or a held Esau Jr. (docs/engine-facts.md): stricter than roster.lua's rule, so a form ReHUD forgot to merge or drop shows.
 local function revivable(key, present)
 	for k, p in pairs(present) do
 		if p and group(k) == group(key) then
@@ -85,7 +85,7 @@ local function duplicates(present, have)
 	return dups
 end
 
--- (3) An Esau Jr. character stays stored until the run ends (user decision 2026-11-22): its copy may lie anywhere. Exempt only a row
+-- (3) An Esau Jr. character stays stored until the run ends (ReHUD 2.8's rule): its copy may lie anywhere. Exempt only a row
 -- the harness itself saw stored by Esau Jr., not ReHUD's own esauJr flag.
 local function phantoms(present)
 	local jrStored, out = {}, {}

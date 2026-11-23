@@ -10,7 +10,7 @@ for id = 1, itemConfig:GetCollectibles().Size - 1 do
 	if itemConfig:GetCollectible(id) then ITEM_IDS[#ITEM_IDS + 1] = id end
 end
 
--- shortcut: copy of tracker.lua currentFloorName (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
+-- shortcut: copy of currentFloorName from ReHUD's tracker.lua (wofsauge's reHUD, REP+ fork) (the tracker stores this string as `entry.floor`); expose it on ReHUD.dbg if the copy drifts.
 local function floorName()
 	if StageAPI and StageAPI.Loaded and StageAPI.InOverriddenStage() then
 		local name = StageAPI.GetCurrentStageDisplayName()
@@ -30,7 +30,7 @@ local function findPlayer(pred)
 end
 local function ofType(t) return findPlayer(function(p) return p:GetPlayerType() == t end) end
 local function bySeed(seed) return (findPlayer(function(p) return seedOf(p) == seed end)) end
--- An entity lookup, not a kept entity: a removed player's methods crash natively (AGENTS.md).
+-- An entity lookup, not a kept entity: a removed player's methods crash natively (docs/engine-facts.md).
 local function byHash(h) return (findPlayer(function(p) return GetPtrHash(p) == h end)) end
 -- The first player of type `t` with a Parent: Strawman's Keeper, the temporary Esau.
 local function withParent(t) return (findPlayer(function(p) return p:GetPlayerType() == t and p.Parent end)) end
@@ -47,7 +47,7 @@ local function cards(p, id)
 end
 
 -- Item wisps of `p`: counts by item id, and the first wisp entity of each. Owners match by GetPtrHash only: a wisp's Player may be a
--- removed entity, and methods on one crash natively (lua-api-notes.md).
+-- removed entity, and methods on one crash natively (docs/engine-facts.md).
 local function wispsOf(p)
 	local hash, n, first = GetPtrHash(p), {}, {}
 	for _, e in ipairs(Isaac.FindByType(EntityType.ENTITY_FAMILIAR, FamiliarVariant.ITEM_WISP)) do
@@ -60,7 +60,7 @@ local function wispsOf(p)
 end
 
 -- shortcut: copy of ReHUD 2.8's character rule (main.lua isCharacter): Strawman's Keeper and Soul of Jacob and Esau's Esau, both with a Parent,
--- get rows (user decisions 2026-11-22); expose it on ReHUD.dbg if the copy drifts.
+-- get rows; expose it on ReHUD.dbg if the copy drifts.
 local function isCharacter(p) return p.Variant == 0 and p:GetPlayerType() ~= T_SOUL end
 
 local function characterCount()

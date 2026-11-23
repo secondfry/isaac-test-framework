@@ -12,7 +12,7 @@ local function resetStep(ctx) ctx.t, ctx.held, ctx.before, ctx.label, ctx.why = 
 
 -- `start(ctx)` runs once and its result is kept as `ctx.before`; then `done(ctx, ctx.before)` is polled every update until it returns
 -- true, or the step errors naming `label` at the ceiling. One more update follows, so ReHUD's MC_POST_UPDATE has seen the effect
--- whatever the mod load order (not guaranteed, AGENTS.md).
+-- whatever the mod load order (the game does not guarantee one).
 local function act(label, start, done, ceiling)
 	return function(ctx)
 		if not ctx.t then

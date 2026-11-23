@@ -29,7 +29,7 @@ local function exitAndContinue(soft)
 	end, CONTINUE_TIMEOUT) }
 end
 
--- The user walks onto the pedestal of item `target` by hand (e58d1b3), as a teleport never touched in game (lua-api-notes.md) and a
+-- The user walks onto the pedestal of item `target` by hand (e58d1b3), as a teleport never touched in game (docs/engine-facts.md) and a
 -- scripted walk is not wanted; `start` once, then up to 450 updates for `done(p)`.
 local function walk(label, target, start, done)
 	return { manual = { kind = "walk", target = target }, run = act(label, start, function(ctx)

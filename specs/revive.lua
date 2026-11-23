@@ -1,4 +1,4 @@
--- Recon, nothing asserted: Lazarus dies until his one revive source (plan S5b) has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate stops updates (session 3c) and waits for Space (session 3a); then one test restarts from that certificate, and the Missing Poster test restarts from it on a game over; what session 2 saw: lua-api-notes.md "Revives".
+-- Recon, nothing asserted: Lazarus dies until his one revive source has revived him once; each test ends at its source's revive; a source that gives no revive reaches game over, whose death certificate stops updates (session 3c) and waits for Space (session 3a); then one test restarts from that certificate, and the Missing Poster test restarts from it on a game over; what session 2 saw: docs/engine-facts.md "Revives".
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local owned, cards = engine.owned, engine.cards
@@ -94,7 +94,7 @@ end
 local tests = {}
 for _, s in ipairs(SOURCES) do tests[#tests + 1] = sourceTest(s[1], s[2], dieUntilRevived(s[3])) end
 
--- Restart from the death certificate (user decision 2026-11-23: a Missing Poster test is built only if a console restart works there).
+-- Restart from the death certificate: the Missing Poster test relies on a console restart working there.
 -- shortcut: the restart's render bound (2 x DEAD_UPDATES) assumes session 3c's 2 renders per update from before the certificate, unobserved on it, where updates stop at 57 dead; retune it if a CERT line shows another rate
 local DEAD_UPDATES, NEW_GAME_WAIT = 120, 600 -- dead past session 3b's 57-update revive window before the restart; updates or renders it then waits for a new game
 
@@ -167,7 +167,7 @@ local certificate = snapshotTest("restart from the death certificate", { "revive
 certificate.onRender = certificateRender
 tests[#tests + 1] = certificate
 
--- Missing Poster (user decision 2026-11-23, after the certificate restart worked in session 3c): after the certificate test, so the restart has worked in this session before this test relies on it.
+-- Missing Poster (built after the certificate restart worked in session 3c): after the certificate test, so the restart has worked in this session before this test relies on it.
 -- shortcut: a death still dead DEAD_UPDATES updates (or twice the renders) on is taken for a game over, so a Missing Poster revive slower than that is restarted (unobserved; the other revives took 57 updates); raise the bound if a session shows one
 local POSTER_KEPT = "Missing Poster gave no revive, Poster kept: The Lost likely locked"
 

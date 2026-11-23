@@ -1,34 +1,36 @@
-# rehud_test_harness
+# Isaac Test Framework
 
-An in-game test mod for Binding of Isaac: Repentance+. On the first new run after launch it plays its tests by itself, one step per game update, and logs `PROBE` lines to `log.txt`; `tools\report.py` reads them back. Tests tagged `rehud` read ReHUD through its `ReHUD.dbg` hook (ReHUD cf965b0 or later); the `vanilla` ones need no other mod.
+An in-game test mod for Binding of Isaac: Repentance+ (vanilla, no REPENTOGON). On the first new run after launch it plays its tests by itself, one step per game update, and logs `PROBE` lines to `log.txt`; `tools\report.py` reads them back. The `vanilla` tests need no other mod. Tests tagged `rehud` read ReHUD through its `ReHUD.dbg` debug hook (ReHUD cf965b0 or later), which is on the ReHUD fork's branch `feat/multiple-copies` (https://github.com/secondfry/ReHUD, PR #4), not on a merged default branch yet; without the hook each `rehud` test ends `SKIP ReHUD.dbg not loaded`.
 
-`main.lua` only wires the specs to the runner and the game's callbacks; `scripts\` holds the runner and the shared steps, fixtures and assertions; `specs\<spec>.lua` one spec's tests and `specs\<spec>.snap.txt` its snapshots; `tests\` the offline tests; `tools\` the report reader and session helpers.
+`main.lua` only wires the specs to the runner and the game's callbacks; `scripts\` holds the runner and the shared steps, fixtures and assertions; `specs\<spec>.lua` one spec's tests and `specs\<spec>.snap.txt` its snapshots; `tests\` the offline tests; `tools\` the report reader and session helpers; `docs\engine-facts.md` the engine behaviour the code relies on. Session labels in comments ("session 3c", "run 8", "obsyb1") name in-game harness sessions whose results are in `docs\engine-facts.md`.
+
+Commands below run from the repo root.
 
 ## Install
 
-With the game closed, from the workspace root (`<game>` = `C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth`):
+With the game closed (`<game>` = `C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth` on the default Steam path), copy into the mod folder `<game>\mods\isaac_test_framework`:
 
-    robocopy isaac-test-harness "<game>\mods\rehud_test_harness" main.lua metadata.xml
-    robocopy isaac-test-harness\scripts "<game>\mods\rehud_test_harness\scripts" *.lua
-    robocopy isaac-test-harness\specs "<game>\mods\rehud_test_harness\specs" *.lua
+    robocopy . "<game>\mods\isaac_test_framework" main.lua metadata.xml
+    robocopy scripts "<game>\mods\isaac_test_framework\scripts" *.lua
+    robocopy specs "<game>\mods\isaac_test_framework\specs" *.lua
 
-Never `tests\`, `tools\` or `*.snap.txt`. Delete a file there that the repo no longer has. Delete `disable.it` in that folder to run the harness; put it back after the session.
+Never `tests\`, `tools\`, `docs\` or `*.snap.txt`. Delete a file there that the repo no longer has. Delete `disable.it` in that folder to run the harness; put it back after the session.
 
 ## A session
 
-1. Game closed: write the tags line (below), install, delete `disable.it` in `mods\rehud_test_harness`, then `pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`.
+1. Game closed: write the tags line (below), install, delete `disable.it` in `mods\isaac_test_framework`, then `pwsh -File tools\vanilla-session.ps1 -Start`.
 2. Launch, load save slot 1, start a new run: the session starts there (a Continue first only logs `HARNESS idle`).
 3. Hands off, except the manual steps the screen asks for.
-4. When the screen says `Done: exit to the menu, then tell Claude` (or at a game over outside `tags revive`), exit to the menu (that flushes `log.txt`) and copy `log.txt`.
-5. Game closed: `vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and the user's play mod set.
+4. When the screen says `Done: exit to the menu` (or at a game over outside `tags revive`), exit to the menu (that flushes `log.txt`) and copy `log.txt`.
+5. Game closed: `pwsh -File tools\vanilla-session.ps1 -End`, then steps 2-4 again with the same tags line and your play mod set.
 6. Read each copy with `tools\report.py` (Results), the vanilla one first.
-7. Game closed: put `disable.it` back in `mods\rehud_test_harness`.
+7. Game closed: put `disable.it` back in `mods\isaac_test_framework`.
 
-A game start the harness did not ask for (hold-R, a new run) fails the current test. Unlocked on save slot 1: Cain, Eve, Samson, Lazarus, Lilith, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob; session 2), Eden (obsyb1). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
+A game start the harness did not ask for (hold-R, a new run) fails the current test. The tests need these unlocked on the save slot you use: Cain, Eve, Samson, Lazarus, Lilith, Eden, and every recon character (Isaac, Tainted Isaac, Jacob and Esau, The Forgotten, Tainted Forgotten, Tainted Lazarus, Tainted Jacob). A test of a locked character fails as a precondition (`cannot be started, locked on this save?`) or, in a snapshot test, ends at its restart (`character locked?`).
 
 ## Picking tests: tags
 
-Line 1 of `data\rehud_test_harness\save<slot>.dat` in the game folder (the vanilla `SaveData` file of the save slot played), written before launch:
+Line 1 of `data\isaac_test_framework\save<slot>.dat` in the game folder (the vanilla `SaveData` file of the save slot played), written before launch:
 
 - `tags a,b` (commas or spaces): every test that has one of the tags; `tags all`: every test but the `opt-in` ones.
 - Empty line, or no file: every test but the `opt-in` ones and the `exit-continue` ones not tagged `new`.
@@ -70,17 +72,17 @@ What each tags line plays, from the runner's plan (`dry.plan`): the tests, the u
 ## Manual steps
 
 - Exit & Continue: the screen shows `exit to the menu and Continue now` on its own line; exit to the menu and pick Continue. A snapshot test gives up after 600 updates of play, a test with assertions after 9000. A new run instead fails a test with assertions (`a new run started, not a Continue`) and ends a snapshot test. A Continue after its step gave up lands in the next test: logged `late Continue, ignored` and noted `; late Continue mid-test` on that test's `RESULT`.
-- Automatic Exit & Continue (opt-in; watch its first run, as its key path is unconfirmed): `pwsh -File isaac-test-harness\tools\auto-continue.ps1`, started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file (`-DryRun` prints the plan only). On `waiting for isaac-ng in front`, bring the game to the front and press nothing; it sends as soon as it is in front. Only `not sent: no isaac-ng window` and `PARTIAL` need the Exit & Continue by hand, within the step's wait (600 / 9000 updates).
+- Automatic Exit & Continue (opt-in; watch its first run, as its key path is unconfirmed): `pwsh -File tools\auto-continue.ps1` (default Steam path; pass `-File <save1.dat>` otherwise), started before launch, presses the keys into the game on each new `WAIT exit-continue <n>` line the harness writes into the tags file (`-DryRun` prints the plan only). On `waiting for isaac-ng in front`, bring the game to the front and press nothing; it sends as soon as it is in front. Only `not sent: no isaac-ng window` and `PARTIAL` need the Exit & Continue by hand, within the step's wait (600 / 9000 updates).
 - Pedestal walks (`walk`): `YOU: walk onto the yum-heart pedestal`, then `YOU: step off, then walk back onto the Esau Jr. pedestal`; 450 updates each.
 - Game over under `tags revive`: the certificate test's and the Missing Poster test's game overs are expected, so wait. Press Space when the screen shows `press Space` as the last line of the `Isaac Test Framework:` block, or when no new game has come 30 s after the certificate shows; the test ends at that new game. A source test reaching game over means its source gave no revive: press Space, and that test FAILs `unexpected game start`.
 
-A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and writes `STUCK <n> <test> | <step>` as the tags file's last line, the latest only, which `stuck-shots.ps1` reads; `pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat`).
+A manual step never logs `STUCK`. Any other wait still running after 60 updates logs `STUCK` once and writes `STUCK <n> <test> | <step>` as the tags file's last line, the latest only, which `stuck-shots.ps1` reads; `pwsh -File tools\stuck-shots.ps1 -Out <folder>`, started before launch, screenshots the game for each (it reads `save1.dat` under the default Steam path; pass `-File <save1.dat>` otherwise).
 
 ## Results
 
-Copy `log.txt` right after the session, then from the workspace root:
+Copy `log.txt` right after the session, then (Python 3):
 
-    .venv\Scripts\python -B -I isaac-test-harness\tools\report.py "<log copy>" [--out DIR] [--specs DIR] [--timeline TEST]
+    python -B -I tools\report.py "<log copy>" [--out DIR] [--specs DIR] [--timeline TEST]
 
 Each test ends with one `RESULT <spec> > <test>`: `PASS <n> assertions`; `FAIL <why>` (each failed assertion also logs `ASSERT FAIL`; `FAIL precondition: <why>` when its fixture never got ready); `RECORDED` (a snapshot test without assertions); or `SKIP`. `; unreached: <notes>` lists what did not run: a step that never happened, a test limit (`test limit <n> updates in <step>`), the steps skipped after either (`steps <step> to <step> skipped`), a step skipped by its guard (`skipped: <why>`) and a spec's own notes; `; late Continue mid-test` a late Continue.
 
@@ -102,14 +104,14 @@ Commit the `.snap.txt` files `report.py` writes; never deploy them.
 
 ## Vanilla sessions
 
-`pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start`, with the game closed, writes `disable.it` into every other mod folder that has none (listed in the gitignored `.vanilla-session.txt`); `-End` after the session deletes just those. Every session runs twice with the same tags line: vanilla (this script) and with the user's play mod set.
+`pwsh -File tools\vanilla-session.ps1 -Start`, with the game closed, writes `disable.it` into every other mod folder that has none (listed in the gitignored `.vanilla-session.txt`); `-End` after the session deletes just those. It uses the default Steam path's mods folder; pass `-Mods <folder>` otherwise. Every session runs twice with the same tags line: vanilla (this script) and with your play mod set.
 
 ## Offline tests
 
-From the workspace root, one suite at a time:
+Python 3 with `pip install lupa`, one suite at a time:
 
-    .venv\Scripts\python -B -I isaac-test-harness\tests\test_harness.py isaac-test-harness\main.lua [test function ...]
-    .venv\Scripts\python -B -I isaac-test-harness\tests\test_report.py
+    python -B -I tests\test_harness.py main.lua [test function ...]
+    python -B -I tests\test_report.py
 
 The dry run (about 8 minutes; name test functions to run a few) plays `main.lua` under lupa (Lua 5.3) against `tests\stub\`, a fake engine, input and ReHUD whose `shortcut:` comments say what it does not model, with a fake user who continues and walks. It checks every test's verdict under each tags line it plays (`WANT` in `tests\test_<spec>.py`, plus each module's checks of its own lines), the runner (`test_runner.py`: tags, limits and worst cases, a late Continue or a new run instead, STUCK, fixture teardown and preconditions, which steps prompt), the presses' spends (`test_presses.py`), each invariant against its negative stub flag (`test_invariants.py`), `auto-continue.ps1 -DryRun` (`test_auto_continue.py`) and `report.py` on dry logs. `test_report.py` checks `report.py`'s verdicts, snapshots, log guard and JSON.
 
@@ -118,7 +120,7 @@ The dry run (about 8 minutes; name test functions to run a few) plays `main.lua`
 - A spec: `specs\<name>.lua` returns `{ name = "<name>", tests = { ... } }`; add the name to `SPECS` in `main.lua` (play order; `exit-continue` tests move to the end).
 - A test: `name`, `tags`, `fixture`, `steps`; optional `limit` (updates: a test with assertions FAILs there; a snapshot test at its limit ends RECORDED with a `test limit` note, writes no snapshot, and the report says NEEDS ANALYSIS), `snapshot = true`, `onStepError = "skip"` or `"end"` (a step that errors or passes its own `limit` is logged as never happened, then skipped, or the test ends), `onUpdate`, `onRender` (each render frame while the test plays, also where updates stop, session 3c; it may return one line, drawn last), `traceUpdates`. Steps may nest lists; a step is `function(ctx)` returning `"again"` to run again next update, or `{ label, run, limit, when, manual }`.
 - A fixture: `{ name, setup = { steps }, done = function(ctx) return ok, why end, teardown }`. The setup runs, `done` is polled for up to 120 updates (still false: `FAIL precondition: <why>`), then the steps; `teardown` runs exactly once however the test ends. Shared ones in `scripts\fixtures.lua`: `fixture`, `owns`, `freshRun` (a restart on the fixed seed `9SZM 3P3S`, after one `seed` command when the run is on another; a restart off the fixed seed fails the test; `newGame` logs each restart's start seed, type and frame, and every fixture logs `start seed` when done), `holdingJr`, `jacobAndEsau`, `character` with `RECON_CHARACTERS`, and the `TLAZ_*` setups.
-- Shared steps: `scripts\snapshot.lua` `test(name, tags, fixture, steps, opts)` builds a snapshot test from labelled steps (`opts.strict`: 120-update steps, a 445-update test) and `perCharacter` one recon test per recon character; `wait.act` and `wait.condition` wait for an effect; `press.lua` makes real presses (`flip`, `esauJr`, `clicker`, ...): a button press through `MC_INPUT_ACTION` that passes only with a new character and the spent charge or card, a stored presser's spend (Esau Jr., Flip without Birthright) read on its own entity before the engine stores it (`..\lua-api-notes.md`); `manual.lua` holds the manual steps; `settle.look` and `lookC` wait for ReHUD to settle, then assert, each look also the invariants (ReHUD's entries against the engine's counts, no duplicates, no phantom stored forms, no `left` entries, no floor later than the current one; `lookC` one row per character too); `assert.lua` has the assertions (`expect`, `expectCount`, ..., `pre` for a precondition).
+- Shared steps: `scripts\snapshot.lua` `test(name, tags, fixture, steps, opts)` builds a snapshot test from labelled steps (`opts.strict`: 120-update steps, a 445-update test) and `perCharacter` one recon test per recon character; `wait.act` and `wait.condition` wait for an effect; `press.lua` makes real presses (`flip`, `esauJr`, `clicker`, ...): a button press through `MC_INPUT_ACTION` that passes only with a new character and the spent charge or card, a stored presser's spend (Esau Jr., Flip without Birthright) read on its own entity before the engine stores it (`docs\engine-facts.md`); `manual.lua` holds the manual steps; `settle.look` and `lookC` wait for ReHUD to settle, then assert, each look also the invariants (ReHUD's entries against the engine's counts, no duplicates, no phantom stored forms, no `left` entries, no floor later than the current one; `lookC` one row per character too); `assert.lua` has the assertions (`expect`, `expectCount`, ..., `pre` for a precondition).
 - Tag it with its spec, `rehud` or `vanilla`, `exit-continue` if it asks for an Exit & Continue (and `new` until it has passed in game), `walk` if it asks for a walk.
 - Add its verdict to `WANT` in `tests\test_<spec>.py` (the dry run fails on a planned test without one) and checks of its own lines to that module's `TESTS`.
-- Engine behaviour starts as a recon test, without assertions on it, until a played session has shown it (`..\AGENTS.md`).
+- Engine behaviour starts as a recon test, without assertions on it, until a played session has shown it; then record it in `docs\engine-facts.md` with its session label.

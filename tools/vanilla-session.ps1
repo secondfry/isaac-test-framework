@@ -1,13 +1,14 @@
 # A vanilla session: every mod but the harness disabled for it, then exactly the previous state back. Run with the game closed.
-#   pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -Start   before launching the game
-#   pwsh -File isaac-test-harness\tools\vanilla-session.ps1 -End     after the session (also after an interrupted -Start or -End)
+#   pwsh -File tools\vanilla-session.ps1 -Start   before launching the game
+#   pwsh -File tools\vanilla-session.ps1 -End     after the session (also after an interrupted -Start or -End)
+# -Mods defaults to the default Steam path's mods folder.
 # -Start writes disable.it only into folders without one, recording each path in the state file before writing it, so an interrupted
 # -Start leaves nothing unrecorded; -End deletes only the recorded files, then the state file. Both are safe to run twice.
 param(
 	[switch]$Start,
 	[switch]$End,
 	[string]$Mods = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\mods',
-	[string]$Keep = 'rehud_test_harness',
+	[string]$Keep = 'isaac_test_framework',
 	[string]$State = (Join-Path $PSScriptRoot '..\.vanilla-session.txt')
 )
 $ErrorActionPreference = 'Stop'

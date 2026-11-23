@@ -9,7 +9,7 @@ import dry
 
 WANT = {}  # no spec of its own
 SCRIPT = os.path.join(dry.HERE, "..", "tools", "vanilla-session.ps1")
-FOLDERS = ["rehud_test_harness", "[REP+] reHUD [Forked]_3843066104", "plain mod", "off by the user"]
+FOLDERS = ["isaac_test_framework","[REP+] reHUD [Forked]_3843066104", "plain mod", "off by the user"]
 
 
 def disabled(mods):

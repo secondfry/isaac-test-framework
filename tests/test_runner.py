@@ -58,7 +58,7 @@ def test_all(path):
     dry.expect_results(got, "tags all", dry.expected(path))
     assert f"PROBE HARNESS START {len(plan)} tests, tags 'tags all', update snapshots no, mod data 'tags all'" in log, "tags not logged"
     last = [t.name for t in plan if "exit-continue" in t.tags]
-    assert [t.name for t in plan[len(plan) - len(last):]] == last, "an Exit & Continue test plays before another test (D7)"
+    assert [t.name for t in plan[len(plan) - len(last):]] == last, "an Exit & Continue test plays before another test"
     asks, resumed = sum(s.startswith(ASK) for s in log), sum(s.startswith("PROBE GAME START") and s.endswith("continued true") for s in log)
     assert asks == resumed >= sum("opt-in" not in t.tags for t in tagged(path, "exit-continue")), ("the continues did not resume", asks, resumed)
     dry.check_waits(dry.run.saves, asks)  # each marker cleared after its Continue
@@ -114,7 +114,7 @@ def test_fixtures(path):
     assert not any(s == "nil" for shown in drawn for s in shown), drawn
     lua["g"].fire(2)
     done = list(lua["g"].DRAWN.values())
-    assert done == ["Isaac Test Framework:", "Done: exit to the menu, then tell Claude"], done
+    assert done == ["Isaac Test Framework:", "Done: exit to the menu"], done
     assert not any("HARNESS" in s for shown in drawn for s in shown), drawn
     print("PASS fixtures: teardown once (setup throw, precondition, TEARDOWN FAIL), preconditions, only manual steps prompt, on screen as lines")
 
@@ -237,5 +237,19 @@ def test_restart_ignored(path):
     print("PASS a restart that never comes fails every test but the soft recon ones")
 
 
+def test_no_rehud(path):
+    # ReHUD not installed: every rehud test SKIPs before it plays, the vanilla ones still play as in the stub with ReHUD
+    def loader(l, p):
+        dry.load(l, p)
+        l.execute("ReHUD = nil")
+    mode = "tags hello,rehud-2.8"
+    got = dry.finished(dry.run(path, mode=mode, loader=loader), "no ReHUD", path)
+    want = dry.expected(path, mode)
+    rehud = [t.name for t in tagged(path, "rehud") if not want[t.name].startswith("SKIP ")]
+    assert rehud and all(got[n] == "SKIP ReHUD.dbg not loaded" for n in rehud), {n: got[n] for n in rehud}
+    dry.expect_results(got, "no ReHUD", {n: v for n, v in want.items() if n not in rehud})
+    print(f"PASS without ReHUD.dbg: {len(rehud)} rehud tests SKIP, the rest as with it")
+
+
 TESTS = [test_all, test_fixtures, test_no_tags, test_tags, test_final_worst, test_strict_limits, test_recon_worst,
-         test_new_run_instead_of_continue, test_late_continue, test_restart_ignored]
+         test_new_run_instead_of_continue, test_late_continue, test_restart_ignored, test_no_rehud]

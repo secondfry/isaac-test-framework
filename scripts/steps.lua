@@ -52,7 +52,7 @@ local function addTrinket(id)
 		function() return Isaac.GetPlayer(0):HasTrinket(id), "trinket " .. id .. " not held (locked trinket?)" end)
 end
 
--- UseCard on player 0, the card not held (works for Soul of Jacob and Esau, lua-api-notes.md), then up to 30 updates for the player
+-- UseCard on player 0, the card not held (works for Soul of Jacob and Esau, docs/engine-facts.md), then up to 30 updates for the player
 -- count to change; logs the count either way, as what other cards add is unobserved.
 local function useCard(card)
 	return act("UseCard " .. card, function(ctx)

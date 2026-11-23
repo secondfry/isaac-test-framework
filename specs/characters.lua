@@ -1,4 +1,4 @@
--- Characters added for a while, duos and Birthright (plan S4).
+-- Characters added for a while, duos and Birthright.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local ofType, owned, withParent, heldItems = engine.ofType, engine.owned, engine.withParent, engine.heldItems
@@ -128,7 +128,7 @@ local tests = {
 		fixture = fixture("Isaac with two c4 on floor 2", { fresh(ISAAC), give(4), give(4), stage(2) }, ISAAC), steps = {
 			look("before Soul of Jacob and Esau", twoC4),
 			addCard(Card.CARD_SOUL_JACOB), soulJE, look("after Soul of Jacob and Esau", twoC4),
-			-- ReHUD 2.8 lists the temporary Esau (user decision 2026-11-22): his c1 under him.
+			-- ReHUD 2.8 lists the temporary Esau: his c1 under him.
 			giveEsau(1), look("after Esau c1", function(ctx, label) twoC4(ctx, label) expectN(ctx, label, 1, 1, nil, keyOf(ofType(ESAU))) end),
 			stage(3), look("on stage 3", twoC4),
 		} },
@@ -173,7 +173,7 @@ local tests = {
 		{ "Flip after Continue", flipV("Flip after Continue") }, { "ids after Flip after Continue", idsInfo("after Flip after Continue") } }, STRICT_CONTINUE),
 }
 
--- Recon (plan S5c): the characters items add, by UseCard (whether Soul of the Forgotten brings a Forgotten is plan open point 4), across
+-- Recon: the characters items add, by UseCard (whether Soul of the Forgotten brings a Forgotten is unobserved), across
 -- Exit & Continue; the body and soul switch by a real drop press; Birthright and Flip on Tainted Lazarus.
 local RECON = fixtures.RECON_CHARACTERS
 local function only(...)

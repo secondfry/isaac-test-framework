@@ -1,9 +1,10 @@
 # Screenshots the game whenever the harness writes a new STUCK line (scripts\runner.lua stuck) as the last line of its mod data.
-# Start it before launching the game: pwsh -File isaac-test-harness\tools\stuck-shots.ps1 -Out <folder>
+# Start it before launching the game: pwsh -File tools\stuck-shots.ps1 -Out <folder> [-File <save1.dat>]
+# -File defaults to save slot 1's file under the default Steam path.
 param(
 	[Parameter(Mandatory)][string]$Out,
 	[double]$Minutes = 30,
-	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\rehud_test_harness\save1.dat'
+	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\isaac_test_framework\save1.dat'
 )
 Add-Type -AssemblyName System.Drawing
 Add-Type -Namespace W -Name U -MemberDefinition @'

@@ -1,4 +1,7 @@
 __pycache__/
+*.pyc
+# log.txt copies of played sessions
+log*.txt
 .vanilla-session.txt
 # tools/report.py output, when --out (or the log) is inside the repo
 report.json

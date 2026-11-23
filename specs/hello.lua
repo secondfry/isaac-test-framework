@@ -1,4 +1,4 @@
--- The harness itself on vanilla, ReHUD not needed: a fresh run, Clicker on Isaac, and what the seed command does (plan S5a).
+-- The harness itself on vanilla, ReHUD not needed: a fresh run, Clicker on Isaac, and what the seed command does.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local seeds, heldItems, chargeOf = engine.seeds, engine.heldItems, engine.chargeOf
@@ -15,7 +15,7 @@ local CLICKER, ISAAC, T_LAZ, PRIMARY = ids.CLICKER, ids.ISAAC, ids.T_LAZ, ids.PR
 local game = Game()
 local VANILLA = { "hello", "vanilla" }
 
--- Plan open point 1's reads: the start seed, each player's item seed, and player 0's InitSeed, type and items.
+-- The seed recon's reads: the start seed, each player's item seed, and player 0's InitSeed, type and items.
 local function seedsNow(what)
 	return function(ctx)
 		local p = Isaac.GetPlayer(0)
@@ -27,7 +27,7 @@ end
 return { name = "hello", tests = {
 	snapshotTest("fresh Isaac on a fixed seed", VANILLA, freshRun(ISAAC), {}),
 	-- Which type Clicker rolls on a seed is unobserved, so it is a snapshot value, not an assertion. Clicker's 50% item removal may take
-	-- Clicker itself (plan open point 7): the charge assertion then fails.
+	-- Clicker itself (unobserved): the charge assertion then fails.
 	{ name = "Clicker on Isaac", tags = VANILLA, fixture = freshRun(ISAAC), steps = {
 		function(ctx) expect(ctx, "player 0 type", Isaac.GetPlayer(0):GetPlayerType(), ISAAC) end,
 		give(CLICKER),

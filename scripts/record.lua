@@ -115,7 +115,7 @@ local function labelOf(ctx, kind, value)
 	end
 	return t[value]
 end
--- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (lua-api-notes.md).
+-- An entity's label; no method is called on it, as a returned twin or Parent may be a removed entity (docs/engine-facts.md).
 local function label(ctx, e)
 	if not e then return "none" end
 	local c = charOf(e)

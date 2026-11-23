@@ -1,7 +1,7 @@
 HARNESS = HARNESS or {} -- each module keeps its state under its own key; Lua state survives restart and exit/continue
--- ReHUD test harness: on the first new run after launch it plays its tests by itself and logs PROBE/RESULT lines to log.txt.
--- Tests tagged rehud need the `ReHUD.dbg` hook (ReHUD cf965b0 or later); vanilla ones run without ReHUD. This file only wires: the specs to the runner, the handlers to the game.
-local mod = RegisterMod("ReHUD Test Harness", 1)
+-- Isaac Test Framework: on the first new run after launch it plays its tests by itself and logs PROBE/RESULT lines to log.txt.
+-- Tests tagged rehud need the `ReHUD.dbg` hook (ReHUD cf965b0 or later) and SKIP without it; vanilla ones run without ReHUD. This file only wires: the specs to the runner, the handlers to the game.
+local mod = RegisterMod("Isaac Test Framework", 1)
 local runner = include("scripts.runner")
 local wait = include("scripts.wait")
 local callbacks = include("scripts.callbacks")

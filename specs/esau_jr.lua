@@ -1,4 +1,4 @@
--- Esau Jr. presses and the characters they store and bring back (plan S4). An Esau Jr. copy's first use creates a new character, its
+-- Esau Jr. presses and the characters they store and bring back. An Esau Jr. copy's first use creates a new character, its
 -- Esau Jr. character; each test starts from its own fresh run (fixture).
 local P = include("scripts.log").P
 local engine = include("scripts.game")
@@ -73,7 +73,7 @@ local function clickerMerges(ctx)
 				if gained[id] and not ACTIVES[id] then hit[#hit + 1] = "c" .. id end
 			end
 			P("INFO", ctx.name, "Clicker: stored", c.name, "items", countsText(c.items), "found on the live one:", #hit > 0 and table.concat(hit, " ") or "none")
-			-- Only a Flip twin merges into the live character (roster.lua); an Esau Jr. character stays stored (user decision 2026-11-22).
+			-- Only a Flip twin merges into the live character (roster.lua); an Esau Jr. character stays stored (ReHUD 2.8's rule).
 			if #hit > 0 and c.storedBy == FLIP then merged(c)
 			elseif #hit > 0 then table.insert(ctx.notes, "engine moved stored Esau Jr. character " .. c.name .. "'s items (unobserved)") end
 		end

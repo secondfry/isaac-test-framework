@@ -1,4 +1,4 @@
--- One icon per copy: owned, innate, wisps, the Zodiac and 3 Dollar Bill copies (plan S4).
+-- One icon per copy: owned, innate, wisps, the Zodiac and 3 Dollar Bill copies.
 local P = include("scripts.log").P
 local console = include("scripts.console")
 local give, remove, stage = console.give, console.remove, console.stage

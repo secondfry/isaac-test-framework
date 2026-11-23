@@ -1,4 +1,4 @@
--- ReHUD 2.8 regressions, named by their old ids (plan S4): Tainted Lazarus's stored forms through Clicker, ChangePlayerType and Esau Jr.
+-- ReHUD 2.8 regressions, named by their old ids: Tainted Lazarus's stored forms through Clicker, ChangePlayerType and Esau Jr.
 local P = include("scripts.log").P
 local engine = include("scripts.game")
 local seedOf, wispsOf = engine.seedOf, engine.wispsOf
@@ -98,7 +98,7 @@ local function origStored(ctx, label)
 	expect(ctx, label .. ": Esau Jr. original stored", isSwapped(ctx.orig), true)
 	expectCount(ctx, label, 1, 4, ctx.floors[1], nil, ctx.orig)
 end
--- ctx keys are ReHUD keys: Tainted Lazarus's Esau Jr. form takes its Dead form's seed (lua-api-notes.md Seeds and keys).
+-- ctx keys are ReHUD keys: Tainted Lazarus's Esau Jr. form takes its Dead form's seed (docs/engine-facts.md).
 local function esauJrForm(ctx, label)
 	ctx.form = keyOf(Isaac.GetPlayer(0))
 	expect(ctx, label .. ": a new form", ctx.form ~= ctx.orig and ctx.form ~= ctx.dead, true)

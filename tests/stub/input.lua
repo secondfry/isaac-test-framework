@@ -29,7 +29,7 @@ local function drop(p)
   if p.secondary then p:SwapActiveItems()
   elseif p.t == 16 then p.t = 17
   elseif p.t == 17 then p.t = 16 -- the switch back: 16 <-> 17 both ways in place (console 2026-11-22)
-  end -- shortcut: any other drop press (Tainted Forgotten's, plan open point 5) does nothing here; model it from that recon
+  end -- shortcut: any other drop press (Tainted Forgotten's, unobserved) does nothing here; model it from that recon
 end
 
 local function input(e, hook, button)
@@ -64,7 +64,7 @@ function engineInput()
   for _, p in ipairs(players) do fire(31, p) end
   for _, s in ipairs(swaps) do swapForm(s[1], s[2]) end
   -- An active pedestal swaps with the held active when walked onto: by Velocity from off it, as a teleport never touched in game
-  -- (lua-api-notes.md). shortcut: a pedestal reached, not a hitbox crossed; model collision if a test walks past a pedestal.
+  -- (docs/engine-facts.md). shortcut: a pedestal reached, not a hitbox crossed; model collision if a test walks past a pedestal.
   for _, p in ipairs(players) do
     for _, e in ipairs(pickups) do
       if from[p] and p.Position:Distance(e.Position) < 20 and from[p]:Distance(e.Position) >= 20 and p.active then

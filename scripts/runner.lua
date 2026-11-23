@@ -250,7 +250,7 @@ local function render()
 	local prompt = test and test.onRender and test.onRender(S.ctx) -- renders run where updates stop (death certificate, session 3c)
 	local lines = { TITLE }
 	for line in S.status:gmatch("[^\n]+") do lines[#lines + 1] = line end
-	if S.manual and S.running then lines[#lines + 1] = tostring(S.ctx.label) end
+	if S.manual and S.running and S.ctx.label then lines[#lines + 1] = S.ctx.label end -- the label clears an update before S.manual does
 	if prompt then lines[#lines + 1] = prompt end
 	local y = Isaac.GetScreenHeight() - BOTTOM - LINE * #lines
 	for i, line in ipairs(lines) do Isaac.RenderText(line, 60, y + LINE * (i - 1), 1, 1, 0, 1) end

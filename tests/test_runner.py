@@ -100,7 +100,9 @@ def test_fixtures(path):
     assert downs == {"setup throws": 1, "precondition": 1, "fixture done": 1}, downs
     assert sum(s.startswith("PROBE TEARDOWN FAIL runner > teardown throws ") and "teardown broke" in s for s in log) == 1
     assert set(prompts) == {("runner > manual step", "continue")}, set(prompts)
-    assert ("Isaac Test Framework:", "runner", "manual step", "step 1 of 1", "YOU: wait") in drawn, drawn
+    screen = ("Isaac Test Framework:", "runner", "manual step", "step 1 of 1")
+    assert drawn == {screen + ("YOU: wait",), screen}, drawn  # the render after the step ends: its label cleared, S.manual not yet
+    assert not any(s == "nil" for shown in drawn for s in shown), drawn
     lua["g"].fire(2)
     done = list(lua["g"].DRAWN.values())
     assert done == ["Isaac Test Framework:", "Done: exit to the menu, then tell Claude"], done

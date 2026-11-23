@@ -47,7 +47,7 @@ function PM:Kill()
   if consume(self, 332) then return end -- Lazarus' Rags: type kept
   if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
   if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
-  players, pendingStart = {}, 0 -- game over: the engine starts a new game (session 2)
+  error("stub: a game over is not modelled, as the revive tests stop at their source's revive")
 end
 function PM:IsDead() return false end -- a dead player is revived or gone here (Kill)
 function PM:GetPlayerType() return self.t end
@@ -73,6 +73,5 @@ function PM:FullCharge(s) self.charge[s or 0], self.battery[s or 0] = full(self,
 function PM:NeedsCharge(s) return self:GetActiveCharge(s) < full(self, s) end
 function PM:GetBatteryCharge(s) return self.battery[s or 0] or 0 end
 function PM:GetCard(i) return self.cards[i + 1] or 0 end
-function PM:AddTrinket(id) table.insert(self.trinkets, 1, id) end
 function PM:GetTrinket(i) return self.trinkets[i + 1] or 0 end
 function PM:AddCard(c) if self.pocket then self.cards[2] = c else table.insert(self.cards, 1, c) end end -- beside a pocket active: slot 1 (run 5); shortcut: a press never uses a slot-1 card, model it with the first card-beside-Flip press test

@@ -62,7 +62,7 @@ function Send-Plan {
 			}
 			Send-Key $k $up
 			$sent++
-			Start-Sleep -Milliseconds $(if ($up) { 250 } else { 80 }) # held for a few frames, then a gap the menu can follow
+			Start-Sleep -Milliseconds $(if ($up) { 250 } else { 80 }) # held, then a gap; whether the menu takes 80/250 ms is unobserved, confirm in the watched first run
 		}
 		Write-Host "sent $k"
 	}

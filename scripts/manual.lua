@@ -15,7 +15,7 @@ local ESAU_JR, YUM_HEART, PRIMARY, PEDESTAL = ids.ESAU_JR, ids.YUM_HEART, ids.PR
 local function exitAndContinue(soft)
 	return { manual = { kind = "continue" }, run = act("exit to the menu and Continue now", function()
 		expectStart("continue")
-		markWait(true)
+		markWait()
 		return { gen = HARNESS.session.gen, seeds = seeds() }
 	end, function(ctx, b)
 		local S = HARNESS.session

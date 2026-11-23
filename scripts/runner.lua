@@ -22,14 +22,19 @@ local function saveData()
 	t[#t + 1] = S.stuckLine
 	Isaac.SaveModData(S.mod, table.concat(t, "\n"))
 end
--- On while a step waits for the user's Exit & Continue: a new `WAIT exit-continue <n>` line, which tools\auto-continue.ps1 answers.
-local function markWait(on)
+-- A step waits for the user's Exit & Continue: a new `WAIT exit-continue <n>` line, which tools\auto-continue.ps1 answers.
+local function markWait()
 	local S = HARNESS.session
-	if on then S.waits = (S.waits or 0) + 1 end
-	S.waitLine = on and ("WAIT exit-continue " .. S.waits) or nil
+	S.waits = (S.waits or 0) + 1
+	S.waitLine = "WAIT exit-continue " .. S.waits
 	saveData()
 end
-local function clearWait() if HARNESS.session.waitLine then markWait(false) end end
+local function clearWait()
+	local S = HARNESS.session
+	if not S.waitLine then return end
+	S.waitLine = nil
+	saveData()
+end
 
 -- A step list may nest step lists (a fixture's steps); a table with `run` is one step. Flattened into a new list, the caller's tables untouched.
 local function flatten(list, out)
@@ -121,6 +126,7 @@ end
 
 -- Step `i` of `test` as a RESULT note names it: its label; an unlabelled one is a fixture's setup or done check.
 local function stepName(test, i)
+	if i > #test.steps then return "after the last step" end
 	local s = test.steps[i]
 	return type(s) == "table" and s.label or "fixture check"
 end

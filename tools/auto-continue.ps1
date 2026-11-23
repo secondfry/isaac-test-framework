@@ -1,7 +1,7 @@
 # Answers the harness's Exit & Continue requests with key presses into the game: on each new `WAIT exit-continue <n>` line in its mod
 # data (scripts\runner.lua markWait) it sends -Keys to isaac-ng. Opt-in; watch its first run. Start it before launching the game:
 #   pwsh -File isaac-test-harness\tools\auto-continue.ps1 [-File <save1.dat>] [-Keys <list>] [-Minutes 30] [-DryRun]
-# -Keys: Escape, Return, Up, Down, or wait:<ms>. -DryRun prints the target window and the plan for each marker and sends nothing.
+# -Keys: Escape, Return, Up, Down, or wait:<ms> (a leading wait is skipped). -DryRun prints the target window and the plan for each marker and sends nothing.
 param(
 	[string]$File = 'C:\Program Files (x86)\Steam\steamapps\common\The Binding of Isaac Rebirth\data\rehud_test_harness\save1.dat',
 	# shortcut: the pause menu's path to Exit and the main menu's Continue position are unobserved; confirm with the user watching in the first session that runs the tool
@@ -60,7 +60,7 @@ function Send-Plan([string]$marker, [switch]$Raise) {
 			if ([W.K]::GetForegroundWindow() -ne $h) {
 				if ($sent -eq 0) { return 'retry' }
 				# shortcut: whether isaac-ng sees a key-up sent while it is not in front is unobserved; confirm in the watched first run
-				if ($up) { Send-Key $k $true }
+				if ($up) { Send-Key $k $true } # never leave the key held down
 				Write-Host 'PARTIAL: finish the Exit & Continue by hand'
 				return 'done'
 			}

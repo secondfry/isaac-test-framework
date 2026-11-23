@@ -121,6 +121,7 @@ local function restartFromCertificate(ctx)
 		return "again"
 	end
 	if S.gen ~= c.gen then
+		if game:GetNumPlayers() == 0 then return "again" end -- no player 0 yet, as console.newGame
 		ctx.cert = nil
 		local since = c.sent and ((c.u - c.sent.u) .. " updates, " .. (c.r - c.sent.r) .. " renders") or ""
 		local how = not c.sent and ("new game before the restart was sent, dead for " .. c.u .. " updates, " .. c.r .. " renders")
@@ -144,7 +145,7 @@ local function certificateRender(ctx)
 	certificateTick(ctx)
 end
 
-local certificate = snapshotTest("restart from the death certificate", { "revive", "vanilla", "opt-in" }, freshRun(ISAAC),
+local certificate = snapshotTest("restart from the death certificate", { "revive", "opt-in" }, freshRun(ISAAC),
 	{ { "die and restart from the certificate", restartFromCertificate } })
 certificate.onRender = certificateRender
 tests[#tests + 1] = certificate

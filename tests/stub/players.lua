@@ -45,7 +45,7 @@ function PM:Kill()
   if consume(self, 332) then return end -- Lazarus' Rags: type kept
   if consume(self, 161) then self.t = 4 return end -- Ankh: type 4
   if consume(self, 311) then self.t = 12 return end -- Judas' Shadow: Dark Judas
-  -- shortcut: a game over leaves player 0 dead with updates and renders running and the console working, all unobserved (session 3a); model it from the restart-from-certificate session
+  -- shortcut: a game over leaves player 0 dead with updates and renders running and the console working, all unobserved (session 3a's log suggests updates stop on the certificate); model it from the restart-from-certificate session
   self.dead = true
 end
 function PM:IsDead() return self.dead == true end -- a revived player is alive at once here (Kill)

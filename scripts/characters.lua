@@ -14,7 +14,8 @@ local game = Game()
 -- items from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
 
 -- A character is its entity (GetPtrHash) between Continues: a stored one comes back with it (lua-api-notes.md), and a gone one never comes back, so a reused hash on a gone one is a new character.
--- shortcut: after a Continue a character whose item seed and type another one shares (Esau Jr. forms), or whose type changed while stored (Clicker, lua-api-notes.md), is taken for a new one; after a Continue a record never expires: a later character on its item seed and type is taken for it coming back (a press after the original lost Esau Jr. makes one, obsyb1-2), and a record that never rebinds stays stored, so characterNumbers FAILs on it; key it otherwise if a test needs one across a Continue.
+-- shortcut: after a Continue a character whose item seed and type another one shares (Esau Jr. forms), or whose type changed while stored (Clicker, lua-api-notes.md), is taken for a new one; key it otherwise if a test needs one across a Continue.
+-- shortcut: after a Continue a record never expires: a later character on its item seed and type is taken for it coming back (a press after the original lost Esau Jr. makes one, obsyb1-2), and a record that never rebinds stays stored, so characterNumbers FAILs on it; key it otherwise if a test needs one across a Continue.
 local function charOf(p)
 	local C = HARNESS.chars
 	local c = C and C.byHash[GetPtrHash(p)]
@@ -66,7 +67,7 @@ local function track()
 	end
 end
 
--- A new run starts with no characters seen; a Continue reshuffles GetPtrHash among the characters (lua-api-notes.md), so each record not gone waits for sinceContinue.
+-- A new run starts with no characters seen; a Continue hands out GetPtrHash anew, some new and some another character's (lua-api-notes.md), so each record not gone waits for sinceContinue.
 local function onGameStart(isContinued)
 	if not isContinued then HARNESS.chars = { list = {}, byHash = {}, n = 0 } return end
 	local C = HARNESS.chars

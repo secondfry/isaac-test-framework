@@ -51,6 +51,7 @@ extraPlayer = false -- set by the test: FindByType(1) also lists one player enti
 noSpend = false -- set by the test: uses swap characters but spend no charge or card
 jrSameSeed = false -- set by the test: Esau Jr. makes a new entity with the presser's seed and type, c4 re-rolled to c53 (obsy b run 1, after a Continue);
 -- a number n: only the next n Esau Jr. presses do
+jrHashOnContinue = false -- set by the test: a Continue gives the live character a stored Esau Jr. form's hash (session-2 vanilla log); the form takes the live one's (unobserved)
 wrongFloor = false -- set by the test: the fake ReHUD lists new entries on a wrong floor
 tlazRoll = 35 -- set by the test: the type Clicker rolls from Tainted Lazarus (35 in 11 of 11 in game, with the Soul; 29 from 38 in run 8)
 -- Negative modes for the invariants, set by the test: the fake ReHUD never lists c4 (missCopy), lists each c4 twice (dupCopy), keeps the
@@ -84,6 +85,10 @@ function startRun(t, cont)
     resetSeeds(); frame = 0
     players = {newPlayer(t)}; if t == 19 then players[2] = newPlayer(20) end
     stageN = 1; stored, wisps, pickups, extra = {}, {}, {}, nil; resetFakeReHUD()
+  elseif jrHashOnContinue then
+    for q in pairs(stored) do
+      if type(q) == "table" and q.jrForm then players[1].hash, q.hash = GetPtrHash(q), GetPtrHash(players[1]) break end
+    end
   end
   fire(15, cont)
 end

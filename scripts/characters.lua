@@ -13,14 +13,27 @@ local game = Game()
 -- The harness tells characters apart by their entity (GetPtrHash), so two characters on one seed stay two, and remembers each one's
 -- items from its last live update: a stored character is invisible to Lua (lua-api-notes.md), so those are what ReHUD must still list.
 
--- A character is its entity (GetPtrHash): a stored one comes back with it (lua-api-notes.md), and a gone one never comes back, so a
--- reused hash on a gone one is a new character.
--- shortcut: GetPtrHash renews on Continue (lua-api-notes.md), so every character after a Continue is new; key it otherwise if a test
--- with assertions needs a character across a Continue.
+-- A character is its entity (GetPtrHash) between Continues: a stored one comes back with it (lua-api-notes.md), and a gone one never
+-- comes back, so a reused hash on a gone one is a new character.
+-- shortcut: after a Continue a character whose item seed and type another one shares (Esau Jr. forms), or whose type changed while stored (Clicker, lua-api-notes.md), is taken for a new one; key it otherwise if a test needs one across a Continue.
 local function charOf(p)
 	local C = HARNESS.chars
 	local c = C and C.byHash[GetPtrHash(p)]
 	return c and c.state ~= "gone" and c or nil
+end
+
+-- The stale record `p` is after a Continue, bound to its new hash: the only record not gone on its item seed and type, or nil.
+local function sinceContinue(C, p)
+	local seed, t, hit = seedOf(p), p:GetPlayerType(), nil
+	for _, c in pairs(C.list) do
+		if c.state ~= "gone" and c.seed == seed and c.type == t then
+			if hit then return nil end
+			hit = c
+		end
+	end
+	if not (hit and hit.stale) then return nil end
+	hit.stale, C.byHash[GetPtrHash(p)] = nil, hit
+	return hit
 end
 
 -- Every update of a run: names each new character, refreshes the live ones and marks one that left play as stored (gone during an
@@ -32,7 +45,7 @@ local function track()
 	for i = 0, game:GetNumPlayers() - 1 do
 		local p = Isaac.GetPlayer(i)
 		if isCharacter(p) then
-			local c = charOf(p)
+			local c = charOf(p) or sinceContinue(C, p)
 			if not c then
 				C.n = C.n + 1
 				c = { id = C.n, name = "#" .. C.n }
@@ -54,9 +67,15 @@ local function track()
 	end
 end
 
--- A new run starts with no characters seen; a Continue keeps them.
+-- A new run starts with no characters seen; a Continue renews every GetPtrHash, so each record not gone waits for sinceContinue.
 local function onGameStart(isContinued)
-	if not isContinued then HARNESS.chars = { list = {}, byHash = {}, n = 0 } end
+	local C = HARNESS.chars
+	if not isContinued then HARNESS.chars = { list = {}, byHash = {}, n = 0 } return end
+	if not C then return end
+	C.byHash = {}
+	for _, c in pairs(C.list) do
+		if c.state ~= "gone" then c.stale = true end
+	end
 end
 
 -- A stored character whose items the engine moved onto the live one: merged, so gone.

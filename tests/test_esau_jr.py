@@ -36,8 +36,15 @@ MODE = "tags esau_jr"  # every test here, final F (opt-in) included
 
 
 def test_esau_jr(path):
-    log = dry.run(path, mode=MODE)
+    log = dry.run(path, mode=MODE, jrHashOnContinue=True)
     dry.expect_results(dry.finished(log, MODE, path), MODE, dry.expected(path, MODE))
+
+    # The Continue hands Isaac (#1) the stored form's hash: #1 stays the one in play, and #2 comes back only at press 3
+    isaac = dry.segment(log, f"esau_jr > Isaac: {RECON}")
+    after = isaac[next(i for i, s in enumerate(isaac) if s.startswith("PROBE GAME START ") and s.endswith(" continued true")):]
+    back = [i for i, s in enumerate(after) if " back in play " in s]
+    pressed = next(i for i, s in enumerate(after) if " TIMING Esau Jr. #3 pressed at frame " in s)
+    assert back and back[0] > pressed and " CHAR 2 #2 back in play " in after[back[0]], after
 
     info = dry.check_verdicts(log, [f"esau_jr > {test}" for test in PRESSES] + [f"esau_jr > {c}: {RECON}" for c in dry.RECON])
 
